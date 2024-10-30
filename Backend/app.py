@@ -37,5 +37,5 @@ def percentage_data():
     response, status_code = App.get_percentage_data(symbol, exp, isCe, strike)
     return response, status_code
 
-if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=8000, debug=True)
+# if __name__ == "__main__":
+#     app.run(host='0.0.0.0', port=8000, debug=True)
