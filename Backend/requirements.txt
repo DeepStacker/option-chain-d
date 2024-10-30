@@ -1,5 +1,6 @@
 absl-py  
-gunicorn  
+gunicorn
+flask_cors
 astunparse  
 bidict  
 blinker  
