@@ -150,8 +150,8 @@ This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) f
 
 ## **Contact**
 If you have any questions or need help with the project, feel free to reach out:  
-- **Email**: [your-email@example.com](mailto:your-email@example.com)  
-- **GitHub**: [yourusername](https://github.com/yourusername)
+- **Email**: [svm.singh.01@gmail.com](mailto:your-email@example.com)  
+- **GitHub**: [SHIVAM9771](https://github.com/SHIVAM9771)
 
 ---
 
