@@ -23,7 +23,7 @@ export const AppProvider = ({ children }) => {
 
   const fetchLiveData = async (params) => {
     try {
-      const response = await axios.get('http://192.168.29.33:8000/api/live-data', { params });
+      const response = await axios.get('https://option-chain-d.onrender.com/api/live-data', { params });
       setData(response.data);
       // console.log(response.data.options.data.oc)
 
@@ -39,7 +39,7 @@ export const AppProvider = ({ children }) => {
 
   const fetchExpiryDate = async (params) => {
     try {
-      const response = await axios.get('http://192.168.29.33:8000/api/exp-date', { params });
+      const response = await axios.get('https://option-chain-d.onrender.com/api/exp-date', { params });
       setExpDate(response.data?.fut?.data?.explist);
       const date = response.data?.fut?.data?.explist;
       if (Array.isArray(date) && date.length > 0) {
