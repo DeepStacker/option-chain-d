@@ -104,8 +104,9 @@ option-chain-analysis/
 ├── backend/
 │   ├── app.py               # Flask application entry point
 │   ├── models/              # Database models
-│   ├── static/              # Static assets (if any)
-│   ├── templates/           # HTML templates (if needed for Flask)
+│   ├── Utils/              # All the utility functions
+│   ├── Urls/              # all the fetching data api endpoints urls
+│   ├── APIs/              # for api endpoint
 │   └── requirements.txt     # Backend dependencies
 │
 ├── frontend/
