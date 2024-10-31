@@ -7,6 +7,14 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+24th.json
+data.json
+Percentage_Data.json
+saved.json
+test.py
+test2.py
+
+
 node_modules
 *.local
 
