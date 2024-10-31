@@ -77,7 +77,7 @@ export const AppProvider = ({ children }) => {
     };
 
     fetchLiveDataWithParams();
-    intervalRef.current = setInterval(fetchLiveDataWithParams, 10000);
+    intervalRef.current = setInterval(fetchLiveDataWithParams, 3000);
 
     return () => clearInterval(intervalRef.current);
   }, [exp, isOc, setExpDate, expDate]);
