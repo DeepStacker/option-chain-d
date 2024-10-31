@@ -6,7 +6,7 @@ import logging
 app = Flask(__name__)
 
 # Explicitly allow localhost:5173
-CORS(app, resources={r"/api/*": {"origins": ["http://localhost:5173", "http://192.168.56.1:5173", "https://stockify-oc.vercel.app"]}})
+CORS(app, resources={r"/api/*": {"origins": ["http://localhost:5173", "http://192.168.56.1:5173", "https://stockify-oc.vercel.app", "https://stockify-oc.onrender.com"]}})
 
 
 @app.route('/api/live-data', methods=['GET'])
