@@ -41,7 +41,7 @@ function OptionsTable() {
   const fetchData = useCallback(async (params) => {
     setLoading(true);
     try {
-      const response = await axios.post("http://192.168.29.33:8000/api/percentage-data", params);
+      const response = await axios.post("https://option-chain-d.onrender.com/api/percentage-data", params);
       if (response.data) {
         setPopupData(response.data);
         setIsPopupVisible(true);
