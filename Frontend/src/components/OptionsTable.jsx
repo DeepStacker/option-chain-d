@@ -6,16 +6,10 @@ import axios from "axios";
 import { findStrikes, renderStrikeRow } from "../utils/optionChainTable/OptionTableUtils";
 import { useDispatch, useSelector } from "react-redux";
 import {
-  toggleTheme,
-  setIsReversed,
-  setIsHighlighting,
+  toggleTheme
 } from "../context/themeSlice"; // Import theme actions
 import {
-  fetchLiveData,
-  fetchExpiryDate,
-  setExp,
-  setSymbol,
-  setIsOc,
+  setIsOc
 } from "../context/dataSlice"; // Import data actions
 
 function OptionsTable() {
@@ -30,7 +24,6 @@ function OptionsTable() {
   const data = useSelector((state) => state.data.data);
   const exp = useSelector((state) => state.data.exp);
   const symbol = useSelector((state) => state.data.symbol);
-  const isOc = useSelector((state) => state.data.isOc);
   const error = useSelector((state) => state.data.error);
 
   // State hooks

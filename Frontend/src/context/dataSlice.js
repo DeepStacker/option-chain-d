@@ -33,7 +33,7 @@ export const dataSlice = createSlice({
   initialState: {
     data: {},
     expDate: [],
-    exp: 1415385000, // Default expiry timestamp
+    exp: 1415385000, 
     symbol: 'NIFTY',
     isOc: true,
     error: null,
@@ -53,12 +53,12 @@ export const dataSlice = createSlice({
     builder
       .addCase(fetchLiveData.fulfilled, (state, action) => {
         state.data = action.payload;
-        state.error = null; // Clear any previous errors
+        state.error = null; 
       })
       .addCase(fetchExpiryDate.fulfilled, (state, action) => {
         state.expDate = action.payload;
-        state.exp = action.payload?.[0] ?? state.exp; // Set exp to the first expiry if available
-        state.error = null; // Clear any previous errors
+        state.exp = action.payload?.[0] ?? state.exp; 
+        state.error = null; 
       })
       .addCase(fetchLiveData.rejected, (state, action) => {
         state.error = action.payload || 'Failed to fetch live data';

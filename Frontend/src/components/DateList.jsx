@@ -4,16 +4,10 @@ import { FaChevronLeft, FaChevronRight } from "react-icons/fa"; // Import icons
 import { ToggleButton, TickerDropdown, Spinner } from "./Index";
 import { useDispatch, useSelector } from "react-redux";
 import {
-  setIsHighlighting,
-  setIsReversed,
-  toggleTheme,
+  toggleTheme
 } from "../context/themeSlice";
 import {
-  fetchLiveData,
-  fetchExpiryDate,
   setExp,
-  setSymbol,
-  setIsOc,
 } from "../context/dataSlice";
 
 export default function DateList() {

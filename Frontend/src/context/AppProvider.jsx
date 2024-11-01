@@ -1,8 +1,8 @@
 import React, { createContext, useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { fetchLiveData, fetchExpiryDate } from "../context/dataSlice"; // Import data actions
+import { fetchLiveData, fetchExpiryDate } from "../context/dataSlice"; 
 
-export const AppContext = createContext(); // Create context
+export const AppContext = createContext(); 
 
 export const AppProvider = ({ children }) => {
   const dispatch = useDispatch();
@@ -26,7 +26,7 @@ export const AppProvider = ({ children }) => {
 
   // Fetch expiry dates on symbol change
   useEffect(() => {
-    dispatch(fetchExpiryDate({ sid: symbol }));
+    dispatch(fetchExpiryDate({ sid: symbol, exp}));
   }, [dispatch, symbol]);
 
   // Fetch live data every 3 seconds when `isOc` is true
@@ -40,17 +40,15 @@ export const AppProvider = ({ children }) => {
     };
 
     if (isOc) {
-      fetchData(); // Initial fetch
-      intervalRef.current = setInterval(fetchData, 3000);
+      fetchData(); 
+      intervalRef.current = setInterval(fetchData, 10000);
     }
 
-    // Clear interval on cleanup
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
   }, [exp, isOc, symbol, dispatch]);
 
-  // Provide state and functions to child components
   return (
     <AppContext.Provider
       value={{

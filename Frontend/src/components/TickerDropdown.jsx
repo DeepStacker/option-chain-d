@@ -8,7 +8,7 @@ const TickerDropdown = () => {
 
   const handleChange = (event) => {
     const selectedSymbol = event.target.value;
-    console.log(selectedSymbol)
+    // console.log(selectedSymbol)
     dispatch(setSymbol(selectedSymbol));
   };
 
