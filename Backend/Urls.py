@@ -12,7 +12,7 @@ class Urls:
         "accept": "application/json, text/plain, */*",
         "accept-encoding": "gzip, deflate, br, zstd",
         "accept-language": "en-US,en;q=0.7",
-        "auth": os.getenv("AUTH_TOKEN"),
+        "auth": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJpc3MiOiJkaGFuIiwiZW50aXR5X2lkIjoiNzIwOTY4MzY5OSIsImV4cCI6MTcyOTY2NDExOH0.FW9TPQpbz6zeFLcHn3_eVOXzxHi_rqm9DtpubtdKbLEaujwkcXZPc6tu_JP6pWS448u6vRPoRDXSmC2i1viQaw",
         "content-type": "application/json",
         "origin": "https://web.dhan.co",
         "referer": "https://web.dhan.co/",
@@ -78,6 +78,8 @@ class Urls:
 
         response.raise_for_status()
         spot_response.raise_for_status()
+
+        # print(response.json())
 
         manipulated_data = Utils.modify_oc_keys(response.json())
         option_chain = manipulated_data['data']['oc']

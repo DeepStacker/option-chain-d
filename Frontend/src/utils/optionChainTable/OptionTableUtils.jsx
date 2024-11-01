@@ -19,17 +19,12 @@ const getHighlightTextClass = (abs) => (!isNaN(abs) && abs <= 0 ? 'text-red-500'
 const getPCRClass = (pcr) => (pcr > 1.2 ? 'text-green-700' : pcr < 0.8 ? 'text-red-500' : '');
 
 export function renderStrikeRow(strikeData, strike, isHighlighting, optionChain, handlePercentageClick) {
-    const [state, setState] = useState({ ceData: {}, peData: {}, oc: {} });
 
-    useEffect(() => {
-        setState({
-            ceData: strikeData?.ce || {},
-            peData: strikeData?.pe || {},
-            oc: optionChain || {}
-        });
-    }, [strikeData, optionChain]);
+    const ceData = strikeData?.ce || {};
+    const peData = strikeData?.pe || {};
+    const oc = optionChain || {};
 
-    const { ceData, peData, oc } = state;
+
 
     const DataCell = memo(({ data, valueKey, isCe, strike }) => (
         <td
@@ -70,7 +65,7 @@ export function renderStrikeRow(strikeData, strike, isHighlighting, optionChain,
                 {strike} <br />
                 <small className={`font-normal ${getPCRClass(peData?.OI / ceData?.OI)}`}>
                     {toFixed(peData?.OI / ceData?.OI)}
-                </small> / 
+                </small> /
                 <small className={`font-normal ${getPCRClass(peData?.oichng / ceData?.oichng)}`}>
                     {toFixed(peData?.oichng / ceData?.oichng)}
                 </small>

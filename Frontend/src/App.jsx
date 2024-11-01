@@ -1,11 +1,8 @@
-// src/App.js
-import React, {useContext} from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import Navbar from './pages/Navbar';
-import Home from './pages/Home';
-import About from './pages/About';
-import OptionChain from './pages/OptionChain'; // Ensure the path is correct
-// import { AppContext } from './context/AppProvider'; 
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import Navbar from "./pages/Navbar";
+import Home from "./pages/Home";
+import About from "./pages/About";
+import OptionChain from "./pages/OptionChain";
 
 const App = () => {
   return (

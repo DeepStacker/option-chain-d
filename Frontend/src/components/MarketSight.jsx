@@ -1,16 +1,16 @@
-import React, { useContext } from 'react';
+import React from 'react';
 import { toFixed } from '../utils/utils';
-import { AppContext } from '../context/AppProvider';
+import { useSelector } from "react-redux";
 
 export default function MarketSight() {
-    const { data } = useContext(AppContext);
+    const data = useSelector((state) => state.data.data);
 
     // Return null if data is not available
-    if (!data) {
+    if (!data || !data.options || !data.options.data) {
         return null;
     }
 
-    // Extracting data for easier access
+    // Extracting market data for easier access
     const marketData = data.options.data;
 
     return (
@@ -22,7 +22,7 @@ export default function MarketSight() {
 
             <div className="text-center">
                 <p className="text-sm font-medium text-gray-600">IV Change</p>
-                <p className={`text-lg font-semibold text-gray-800 ${marketData.aivperchng >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                <p className={`text-lg font-semibold ${marketData.aivperchng >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                     {toFixed(marketData.aivperchng) || 0}%
                 </p>
             </div>
@@ -39,7 +39,7 @@ export default function MarketSight() {
 
             <div className="text-center">
                 <p className="text-sm font-medium text-gray-600">PCR</p>
-                <p className={`text-lg font-semibold ${marketData.Rto ? (marketData.Rto > 1.2 ? 'text-green-600' : marketData.Rto < 0.8 ? 'text-red-600' : 'text-gray-800') : 'text-gray-400'}`}>
+                <p className={`text-lg font-semibold ${marketData.Rto > 1.2 ? 'text-green-600' : marketData.Rto < 0.8 ? 'text-red-600' : 'text-gray-800'}`}>
                     {marketData.Rto ? marketData.Rto.toFixed(2) : 0}
                 </p>
             </div>

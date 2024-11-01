@@ -1,7 +1,7 @@
 // src/components/Home.jsx
 import React, { useEffect, useContext } from 'react';
 import { Link } from 'react-router-dom';
-import { AppContext } from '../context/AppProvider';
+// import { AppContext } from '../hooks/AppProvider';
 import Selection from '../components/TickerDropdown';
 
 

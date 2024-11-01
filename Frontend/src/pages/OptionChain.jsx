@@ -1,13 +1,12 @@
 // src/App.js
-import { useContext } from "react";  // No need to import 'React' explicitly (React 17+)
 import SpotData from "../components/SpotData";
 import OptionsTable from "../components/OptionsTable";
 import DateList from "../components/DateList";
 import Spinner from "../components/Spinner";
-import { AppContext } from "../context/AppProvider";
+import { useSelector } from "react-redux";
 
 function OptionChain() {
-  const { data } = useContext(AppContext);
+  const data = useSelector((state) => state.data.data);
 
   return (
     <div className="bg-gray-100 min-h-screen flex flex-col items-center p-4">

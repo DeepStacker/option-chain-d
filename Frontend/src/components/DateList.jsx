@@ -1,32 +1,52 @@
 import React, { useState, useContext } from "react";
 import { FaChevronLeft, FaChevronRight } from "react-icons/fa"; // Import icons
-import { AppContext } from "../context/AppProvider";
-import {ToggleButton, TickerDropdown, Spinner} from './Index'
+// import { AppContext } from "../hooks/AppProvider";
+import { ToggleButton, TickerDropdown, Spinner } from "./Index";
+import { useDispatch, useSelector } from "react-redux";
+import {
+  setIsHighlighting,
+  setIsReversed,
+  toggleTheme,
+} from "../context/themeSlice";
+import {
+  fetchLiveData,
+  fetchExpiryDate,
+  setExp,
+  setSymbol,
+  setIsOc,
+} from "../context/dataSlice";
 
 export default function DateList() {
-  const {
-    setIsHighlighting,
-    setIsReversed,
-    isHighlighting,
-    isReversed,
-    data,
-    setExp,
-    expDate,
-  } = useContext(AppContext);
-  
+  const dispatch = useDispatch();
+
+  // Theme state
+  const theme = useSelector((state) => state.theme.theme);
+  const isReversed = useSelector((state) => state.theme.isReversed);
+  const isHighlighting = useSelector((state) => state.theme.isHighlighting);
+
+  // Data state
+  const data = useSelector((state) => state.data.data);
+
+  // const { data, expDate } = useContext(AppContext);
 
   const formatTimestamps = (timestamps) => {
     return timestamps.map((timestamp) => {
       const date = new Date(timestamp * 1000); // Convert UNIX timestamp to milliseconds
-      const day = date.getUTCDate().toString().padStart(2, '0'); // Ensure two-digit day
-      const month = date.toLocaleString("en-US", { month: "short", timeZone: "UTC" }); // Specify timezone explicitly
+      const day = date.getUTCDate().toString().padStart(2, "0"); // Ensure two-digit day
+      const month = date.toLocaleString("en-US", {
+        month: "short",
+        timeZone: "UTC",
+      }); // Specify timezone explicitly
       return `${day} ${month}`;
     });
   };
-  
 
-  const formattedDates = data ? formatTimestamps(data.fut.data.explist) : [];
-  const dates = data ? (data.fut.data.explist) : [];
+  // Ensure data and fut.data exist before trying to access explist
+  const formattedDates = data?.fut?.data?.explist
+    ? formatTimestamps(data.fut.data.explist)
+    : [];
+  const dates = data?.fut?.data?.explist || [];
+
   const [currentPage, setCurrentPage] = useState(0);
   const itemsPerPage = 8;
 
@@ -34,7 +54,6 @@ export default function DateList() {
   const endIndex = startIndex + itemsPerPage;
   const currentDates = formattedDates.slice(startIndex, endIndex);
   // const [i, setI] = useState(0)
-
 
   const handleNext = () => {
     if (endIndex < formattedDates.length) {
@@ -50,13 +69,10 @@ export default function DateList() {
 
   // Function to handle date selection
   const handleDateSelect = (date, index) => {
-    // console.log("Selected date:", date); // Replace with your logic to send payload
     if (startIndex >= 8) {
-      setExp(dates[startIndex + index] || 0)
-      // console.log(dates[startIndex + index], date)
+      dispatch(setExp(dates[startIndex + index] || 0));
     } else {
-      setExp(dates[index] || 0)
-      // console.log(dates[index], date)
+      dispatch(setExp(dates[index] || 0));
     }
   };
 
@@ -98,12 +114,7 @@ export default function DateList() {
               </button>
             </div>
             <div>
-              <ToggleButton
-                setIsReversed={setIsReversed}
-                setIsHighlighting={setIsHighlighting}
-                isHighlighting={isHighlighting}
-                isReversed={isReversed}
-              />
+              <ToggleButton />
             </div>
           </div>
         </>

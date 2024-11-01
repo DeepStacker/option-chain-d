@@ -6,7 +6,7 @@ import logging
 app = Flask(__name__)
 
 # Explicitly allow localhost:5173
-CORS(app, resources={r"/api/*": {"origins": ["http://localhost:5173", "http://192.168.56.1:5173", "https://stockify-oc.vercel.app", "https://stockify-oc.onrender.com"]}})
+CORS(app, resources={r"/api/*": {"origins": ["http://localhost:5173","http://localhost:5173", "http://192.168.56.1:5173", "https://stockify-oc.vercel.app", "https://stockify-oc.onrender.com"]}})
 
 
 @app.route('/api/live-data', methods=['GET'])
@@ -37,5 +37,5 @@ def percentage_data():
     response, status_code = App.get_percentage_data(symbol, exp, isCe, strike)
     return response, status_code
 
-# if __name__ == "__main__":
-#     app.run(host='0.0.0.0', port=8000, debug=True)
+if __name__ == "__main__":
+    app.run(host='0.0.0.0', port=8000, debug=True)

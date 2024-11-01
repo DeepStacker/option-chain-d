@@ -1,59 +1,77 @@
 // OptionsTable.js
 
-import React, { useState, useEffect, useContext, useMemo, useCallback } from "react";
-import { AppContext } from "../context/AppProvider";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import Popup from "./ChartPopup";
 import axios from "axios";
 import { findStrikes, renderStrikeRow } from "../utils/optionChainTable/OptionTableUtils";
+import { useDispatch, useSelector } from "react-redux";
+import {
+  toggleTheme,
+  setIsReversed,
+  setIsHighlighting,
+} from "../context/themeSlice"; // Import theme actions
+import {
+  fetchLiveData,
+  fetchExpiryDate,
+  setExp,
+  setSymbol,
+  setIsOc,
+} from "../context/dataSlice"; // Import data actions
 
 function OptionsTable() {
-  const { data, isReversed, isHighlighting, setIsOc, symbol, exp } = useContext(AppContext);
+  const dispatch = useDispatch();
+
+  // Theme state
+  const theme = useSelector((state) => state.theme.theme);
+  const isReversed = useSelector((state) => state.theme.isReversed);
+  const isHighlighting = useSelector((state) => state.theme.isHighlighting);
+
+  // Data state
+  const data = useSelector((state) => state.data.data);
+  const exp = useSelector((state) => state.data.exp);
+  const symbol = useSelector((state) => state.data.symbol);
+  const isOc = useSelector((state) => state.data.isOc);
+  const error = useSelector((state) => state.data.error);
 
   // State hooks
   const [popupData, setPopupData] = useState(null);
   const [isPopupVisible, setIsPopupVisible] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
 
-  // Set the `isOc` state when the component mounts and clean up on unmount
+  // Set `isOc` state on mount and clean up on unmount
   useEffect(() => {
-    setIsOc(true);
-    return () => setIsOc(false);
-  }, [setIsOc]);
+    dispatch(setIsOc(true));
+    return () => dispatch(setIsOc(false));
+  }, [dispatch]);
 
   // Fetch data from the API
   const fetchData = useCallback(async (params) => {
     setLoading(true);
-    setError(null); // Reset error state
-
     try {
       const response = await axios.post("http://192.168.29.33:8000/api/percentage-data", params);
       if (response.data) {
-        // console.log("API Response:", response.data);
         setPopupData(response.data);
         setIsPopupVisible(true);
       } else {
-        setError("No data received from API.");
+        throw new Error("No data received from API.");
       }
     } catch (error) {
       console.error("Error fetching data:", error);
-      setError("Failed to fetch data.");
     } finally {
       setLoading(false);
     }
   }, []);
 
-  // Safely access option data with optional chaining
+  // Option data and ATM price
   const options = data?.options?.data?.oc || {};
-  const optionChain = data?.options?.data || {};
   const atmPrice = data?.spot?.data?.Ltp ? Math.round(data.spot.data.Ltp) : null;
 
-  // Memoize strike calculations for performance optimization
+  // Memoize strike calculations for performance
   const { nearestStrike, otmStrikes, itmStrikes } = useMemo(() => {
     return findStrikes(options, atmPrice);
   }, [options, atmPrice]);
 
-  // Create a list of active strikes, reversing them if required
+  // Create active strikes list and reverse if needed
   const activeStrikes = useMemo(() => {
     const strikes = [...itmStrikes, ...otmStrikes];
     return isReversed ? strikes.reverse() : strikes;
@@ -64,7 +82,7 @@ function OptionsTable() {
     fetchData({ strike, exp, isCe, sid: symbol });
   };
 
-  // Close the popup and reset its data
+  // Close popup
   const closePopup = () => {
     setPopupData(null);
     setIsPopupVisible(false);
@@ -117,7 +135,7 @@ function OptionsTable() {
                 options[strike],
                 strike,
                 isHighlighting,
-                optionChain,
+                data.options.data,
                 handlePercentageClick
               )}
             </tr>
