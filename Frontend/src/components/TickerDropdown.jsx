@@ -5,20 +5,22 @@ import { setSymbol } from "../context/dataSlice";
 const TickerDropdown = () => {
   const dispatch = useDispatch();
   const symbol = useSelector((state) => state.data.symbol);
+  const theme = useSelector((state) => state.theme.theme);
 
   const handleChange = (event) => {
     const selectedSymbol = event.target.value;
-    // console.log(selectedSymbol)
     dispatch(setSymbol(selectedSymbol));
   };
 
   return (
-    <div className="form-group">
-      <label htmlFor="ticker">Ticker</label>
+    <div className="form-group mb-1">
+      <label htmlFor="ticker" className={`block text-sm font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+        Ticker
+      </label>
       <select
         id="ticker"
         name="ticker"
-        className="form-control"
+        className={` block w-full rounded-md border ${theme === 'dark' ? 'bg-gray-700 text-gray-300 border-gray-600' : 'bg-white text-gray-900 border-gray-300'} focus:outline-none focus:ring focus:ring-blue-500 focus:border-blue-500`}
         value={symbol}
         onChange={handleChange}
         required

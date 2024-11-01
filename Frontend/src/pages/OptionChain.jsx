@@ -1,4 +1,6 @@
 // src/App.js
+import React from "react";
+import { FaChartLine, FaCalendarAlt, FaTable } from "react-icons/fa"; // Importing icons
 import SpotData from "../components/SpotData";
 import OptionsTable from "../components/OptionsTable";
 import DateList from "../components/DateList";
@@ -7,32 +9,60 @@ import { useSelector } from "react-redux";
 
 function OptionChain() {
   const data = useSelector((state) => state.data.data);
+  const theme = useSelector((state) => state.theme.theme);
 
   return (
-    <div className="bg-gray-100 min-h-screen flex flex-col items-center p-4">
+    <div
+      className={`min-h-screen mb-10 flex flex-col items-center p-4 transition-colors duration-300 ${
+        theme === "dark" ? "bg-gray-900" : "bg-gray-100"
+      }`}
+    >
       <div className="w-full max-w-full space-y-4">
         {/* Conditional rendering of content based on data availability */}
         {data ? (
           <>
-            <div className="bg-white shadow-lg rounded-lg p-4">
+            <div
+              className={`p-1 shadow-lg rounded-lg transition-all duration-300 ${
+                theme === "dark" ? "bg-gray-800" : "bg-white"
+              }`}
+            >
+              <h2 className=" font-semibold  flex items-center">
+                <FaChartLine className="mr-2 text-blue-600" size={16} />
+                Spot Data
+              </h2>
               <SpotData />
             </div>
 
-            <div className="bg-white shadow-lg rounded-lg p-4">
+            <div
+              className={`p-1 shadow-lg rounded-lg transition-all duration-300 ${
+                theme === "dark" ? "bg-gray-800" : "bg-white"
+              }`}
+            >
+              <h2 className=" font-semibold flex items-center">
+                <FaCalendarAlt className="mr-2 text-green-600" size={16} />
+                Expiry Date
+              </h2>
               <DateList />
             </div>
 
-            <div className="flex flex-col flex-grow bg-white shadow-lg rounded-lg overflow-hidden">
+            <div
+              className={`flex flex-col flex-grow bg-white shadow-lg rounded-lg overflow-hidden transition-all duration-300 ${
+                theme === "dark" ? "bg-gray-800" : "bg-white"
+              }`}
+            >
               <OptionsTable />
             </div>
           </>
         ) : (
           <div
-            className="bg-white rounded-lg shadow-md p-6 mb-0.5 text-center"
+            className={`rounded-lg shadow-md p-6 mb-0.5 text-center transition-all duration-300 ${
+              theme === "dark" ? "bg-gray-700 text-gray-300" : "bg-white text-gray-800"
+            }`}
             role="status"
             aria-live="polite"
           >
             <Spinner />
+            <p className="mt-4 text-lg">Loading data, please wait...</p>
           </div>
         )}
       </div>

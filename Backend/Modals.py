@@ -38,7 +38,7 @@ def get_data(exp):
         curr_time = now.strftime("%H:%M")
 
         # Check if current time is 9:00 AM
-        if "09:00" <= curr_time <= "15:35":
+        if "18:00" <= curr_time <= "23:35":
             if "09:07" <= curr_time <= "09:15":
                     print("Waiting for 10 seconds before the next fetch...")
                     continue
@@ -88,6 +88,9 @@ def get_data(exp):
                 if curr_time == "15:35":
                     print("Time is 3:35 PM. Exiting the program.")
                     break
+                if curr_time == "19:01":
+                    print("Time is 3:35 PM. Exiting the program.")
+                    break
 
                 
 
@@ -96,11 +99,11 @@ def get_data(exp):
 
             # Sleep for 3 seconds before the next fetch
             try:
-                time.sleep(10)
+                time.sleep(3)
             except KeyboardInterrupt:
                 print("Process interrupted by user.")
                 break
 
 # Call the function to start fetching data
 if __name__ == "__main__":
-    get_data(1414780200)
+    get_data(1415385000)

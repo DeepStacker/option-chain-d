@@ -13,6 +13,7 @@ import {
 import zoomPlugin from 'chartjs-plugin-zoom'; // Import zoom plugin
 import { FaTimes } from 'react-icons/fa';
 import PropTypes from 'prop-types';
+import { useSelector } from 'react-redux';
 
 // Register Chart.js modules and zoom plugin
 ChartJS.register(
@@ -27,6 +28,7 @@ ChartJS.register(
 );
 
 const Popup = ({ data, onClose }) => {
+  const theme = useSelector((state) => state.theme.theme);
   if (!data) return null;
 
   // Helper function: Convert timestamps to 'HH:MM' format
@@ -43,18 +45,18 @@ const Popup = ({ data, onClose }) => {
       {
         label: 'OI Change',
         data: data.oichng,
-        borderColor: 'rgba(75, 192, 192, 1)',
-        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+        borderColor: theme === 'dark' ? 'rgba(150, 230, 150, 1)' : 'rgba(75, 192, 192, 1)',
+        backgroundColor: theme === 'dark' ? 'rgba(150, 230, 150, 0.2)' : 'rgba(75, 192, 192, 0.2)',
         fill: false,
         pointRadius: 0,
-        borderWidth: 2, // Thicker line for clarity
-        tension: 0.1, // Smooth the line
+        borderWidth: 2,
+        tension: 0.1,
       },
       {
-        label: '(OI)',
+        label: 'OI',
         data: data.oi,
-        borderColor: 'rgba(255, 99, 132, 1)',
-        backgroundColor: 'rgba(255, 99, 132, 0.2)',
+        borderColor: theme === 'dark' ? 'rgba(250, 150, 150, 1)' : 'rgba(255, 99, 132, 1)',
+        backgroundColor: theme === 'dark' ? 'rgba(250, 150, 150, 0.2)' : 'rgba(255, 99, 132, 0.2)',
         fill: false,
         pointRadius: 0,
         borderWidth: 2,
@@ -63,8 +65,8 @@ const Popup = ({ data, onClose }) => {
       {
         label: 'Volume',
         data: data.vol,
-        borderColor: 'rgba(54, 162, 235, 1)',
-        backgroundColor: 'rgba(54, 162, 235, 0.2)',
+        borderColor: theme === 'dark' ? 'rgba(130, 160, 230, 1)' : 'rgba(54, 162, 235, 1)',
+        backgroundColor: theme === 'dark' ? 'rgba(130, 160, 230, 0.2)' : 'rgba(54, 162, 235, 0.2)',
         fill: false,
         pointRadius: 0,
         borderWidth: 2,
@@ -80,48 +82,56 @@ const Popup = ({ data, onClose }) => {
       legend: {
         display: true,
         position: 'top',
+        labels: {
+          color: theme === 'dark' ? '#e0e0e0' : '#333',
+        },
       },
       tooltip: {
-        enabled: true, // Show tooltip on hover
+        enabled: true,
         mode: 'nearest',
         intersect: false,
       },
       zoom: {
         zoom: {
           wheel: {
-            enabled: true, // Enable zoom on mouse wheel
+            enabled: true,
           },
           pinch: {
-            enabled: true, // Enable zoom on pinch gestures
+            enabled: true,
           },
-          mode: 'xy', // Zoom both X and Y axes
+          mode: 'xy',
         },
         pan: {
           enabled: true,
-          mode: 'xy', // Pan both X and Y axes
+          mode: 'xy',
         },
       },
     },
-    // scales: {
-    //   x: {
-    //     title: {
-    //       display: true,
-    //       text: 'Time',
-    //     },
-    //   },
-    //   y: {
-    //     title: {
-    //       display: true,
-    //       text: 'Value',
-    //     },
-    //   },
-    // },
+    scales: {
+      x: {
+        ticks: {
+          color: theme === 'dark' ? '#e0e0e0' : '#333',
+        },
+        grid: {
+          color: theme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+        },
+      },
+      y: {
+        ticks: {
+          color: theme === 'dark' ? '#e0e0e0' : '#333',
+        },
+        grid: {
+          color: theme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+        },
+      },
+    },
   };
 
   return (
     <div
-      className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 
-                 bg-teal-400 bg-opacity-75 rounded-lg p-1 shadow-lg w-[97%] h-[95%] z-50"
+      className={`fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 
+                  ${theme === 'dark' ? 'bg-gray-800' : 'bg-teal-400'} bg-opacity-75 
+                  rounded-lg p-1 shadow-lg w-[97%] h-[95%] z-50`}
       role="dialog"
       aria-modal="true"
     >
@@ -134,14 +144,14 @@ const Popup = ({ data, onClose }) => {
           }}
           aria-label="Close Popup"
         >
-          <FaTimes size={24} />
+          <FaTimes size={24} color={theme === 'dark' ? '#e0e0e0' : '#333'} />
         </button>
 
-        <p className="text-2xl font-bold text-gray-800 ">
+        <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>
           {data.strike} {data.isCe ? 'CE' : 'PE'}
         </p>
 
-        <div className="bg-gray-100 bg-opacity-80 p-2 rounded-lg shadow-md w-full h-[95%]">
+        <div className={`p-2 rounded-lg shadow-md w-full h-[95%] ${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-100'} bg-opacity-80`}>
           <Line data={chartData} options={chartOptions} />
         </div>
       </div>

@@ -1,16 +1,11 @@
-// OptionsTable.js
+// src/components/OptionsTable.js
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import Popup from "./ChartPopup";
 import axios from "axios";
 import { findStrikes, renderStrikeRow } from "../utils/optionChainTable/OptionTableUtils";
 import { useDispatch, useSelector } from "react-redux";
-import {
-  toggleTheme
-} from "../context/themeSlice"; // Import theme actions
-import {
-  setIsOc
-} from "../context/dataSlice"; // Import data actions
+import { setIsOc } from "../context/dataSlice"; // Import data actions
 
 function OptionsTable() {
   const dispatch = useDispatch();
@@ -41,7 +36,7 @@ function OptionsTable() {
   const fetchData = useCallback(async (params) => {
     setLoading(true);
     try {
-      const response = await axios.post("https://option-chain-d.onrender.com/api/percentage-data", params);
+      const response = await axios.post("http://192.168.29.33:8000/api/percentage-data", params);
       if (response.data) {
         setPopupData(response.data);
         setIsPopupVisible(true);
@@ -87,21 +82,21 @@ function OptionsTable() {
   }
 
   return (
-    <div className="h-[100vh] overflow-y-auto">
-      {loading && <div>Loading...</div>}
-      {error && <div className="text-red-500">{error}</div>}
+    <div className={`h-[100vh] overflow-y-auto ${theme === "dark" ? "bg-gray-900" : "bg-white"}`}>
+      {loading && <div className={`${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Loading...</div>}
+      {error && <div className={`text-red-500 ${theme === "dark" ? "text-red-300" : "text-red-500"}`}>{error}</div>}
 
       <table
         id="options-table"
-        className="w-full bg-white shadow-lg rounded-lg text-sm md:text-base border border-gray-300 text-center table-fixed"
+        className={`w-full shadow-lg rounded-lg text-sm md:text-base border ${theme === "dark" ? "border-gray-700 bg-gray-800 text-gray-300" : "border-gray-300 bg-white text-gray-700"}`}
       >
-        <thead className="bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 text-gray-700 font-semibold sticky top-0 z-10">
-          <tr className="divide-x divide-gray-300">
+        <thead className={`${theme === "dark" ? "bg-gray-700 text-gray-300" : "bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 text-gray-700"} font-semibold sticky top-0 z-10`}>
+          <tr className={`divide-x ${theme === "dark" ? "divide-gray-600" : "divide-gray-300"}`}>
             {["IV", "OI CHANGE", "OI", "VOLUME", "LTP"].map((header, index) => (
               <th key={index} className="p-2">
                 {header}
                 <br />
-                <small className="text-xs text-gray-500">{index === 0 ? "Delta" : "Ltp_chng"}</small>
+                <small className={`${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>{index === 0 ? "Delta" : "Ltp_chng"}</small>
               </th>
             ))}
             <th className="p-2 bg-yellow-100 text-yellow-800 font-bold">
@@ -113,23 +108,24 @@ function OptionsTable() {
               <th key={index + 5} className="p-2">
                 {header}
                 <br />
-                <small className="text-xs text-gray-500">{index === 0 ? "Ltp_chng" : "Delta"}</small>
+                <small className={`${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>{index === 0 ? "Ltp_chng" : "Delta"}</small>
               </th>
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-200">
+        <tbody className={`divide-y ${theme === "dark" ? "divide-gray-700" : "divide-gray-200"}`}>
           {activeStrikes.map((strike) => (
             <tr
               key={strike}
-              className="hover:bg-gray-100 transition-all duration-200 ease-in-out divide-x divide-gray-300"
+              className={`hover:${theme === "dark" ? "bg-gray-700" : "bg-gray-100"} text-center transition-all duration-200 ease-in-out divide-x ${theme === "dark" ? "divide-gray-600" : "divide-gray-300"}`}
             >
               {renderStrikeRow(
                 options[strike],
                 strike,
                 isHighlighting,
                 data.options.data,
-                handlePercentageClick
+                handlePercentageClick,
+                theme
               )}
             </tr>
           ))}

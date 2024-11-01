@@ -1,27 +1,17 @@
-import React, { useState, useContext } from "react";
-import { FaChevronLeft, FaChevronRight } from "react-icons/fa"; // Import icons
-// import { AppContext } from "../hooks/AppProvider";
+import React, { useState } from "react";
+import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import { ToggleButton, TickerDropdown, Spinner } from "./Index";
 import { useDispatch, useSelector } from "react-redux";
-import {
-  toggleTheme
-} from "../context/themeSlice";
-import {
-  setExp,
-} from "../context/dataSlice";
+import { setExp } from "../context/dataSlice";
 
 export default function DateList() {
   const dispatch = useDispatch();
 
   // Theme state
   const theme = useSelector((state) => state.theme.theme);
-  const isReversed = useSelector((state) => state.theme.isReversed);
-  const isHighlighting = useSelector((state) => state.theme.isHighlighting);
 
   // Data state
   const data = useSelector((state) => state.data.data);
-
-  // const { data, expDate } = useContext(AppContext);
 
   const formatTimestamps = (timestamps) => {
     return timestamps.map((timestamp) => {
@@ -35,7 +25,6 @@ export default function DateList() {
     });
   };
 
-  // Ensure data and fut.data exist before trying to access explist
   const formattedDates = data?.fut?.data?.explist
     ? formatTimestamps(data.fut.data.explist)
     : [];
@@ -47,7 +36,6 @@ export default function DateList() {
   const startIndex = currentPage * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const currentDates = formattedDates.slice(startIndex, endIndex);
-  // const [i, setI] = useState(0)
 
   const handleNext = () => {
     if (endIndex < formattedDates.length) {
@@ -63,57 +51,54 @@ export default function DateList() {
 
   // Function to handle date selection
   const handleDateSelect = (date, index) => {
-    if (startIndex >= 8) {
-      dispatch(setExp(dates[startIndex + index] || 0));
-    } else {
-      dispatch(setExp(dates[index] || 0));
-    }
+    dispatch(setExp(dates[startIndex + index] || 0));
   };
 
   return (
-    <div className="flex items-center justify-between">
+    <div className={`flex flex-col md:flex-row items-center justify-between transition  ease-in-out ${theme === 'dark' ? 'bg-gray-800 text-white' : 'bg-white text-black'} p-0 md:p-2 rounded-lg`}>
       {data ? (
         <>
-          <div className="flex flex-wrap">
+          <div className="flex flex-wrap justify-center md:justify-start w-full md:w-auto">
             {currentDates.map((date, index) => (
-              // console.log(date, index),
-
               <button
                 key={index}
                 onClick={() => handleDateSelect(date, index)} // Handle button click
-                className="m-1 px-2 py-0 bg-blue-500 text-white rounded-md transition duration-300 ease-in-out hover:bg-blue-600"
+                className={`m-0.5 px-1.5 py-1 rounded-md transition duration-300 ease-in-out 
+                  ${theme === 'dark' ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-blue-500 text-white hover:bg-blue-600'}`}
               >
                 {date}
               </button>
             ))}
           </div>
-          <div className="font-bold">
+          <div className="font-bold  md:mt-0">
             <TickerDropdown />
           </div>
-          <div className="gap-3 flex ">
-            <div className="flex items-center ml-4">
+          <div className="gap-3 flex flex-col md:flex-row items-center w-full md:w-auto mt-0 md:mt-0">
+            <div className="flex items-center">
               <button
                 onClick={handlePrevious}
                 disabled={startIndex === 0}
-                className="p-2 bg-blue-500 text-white rounded disabled:bg-gray-300"
+                className={`p-1 rounded transition duration-300 ease-in-out 
+                  ${theme === 'dark' ? 'bg-blue-600 text-white disabled:bg-gray-600' : 'bg-blue-500 text-white disabled:bg-gray-300'}`}
               >
                 <FaChevronLeft />
               </button>
               <button
                 onClick={handleNext}
                 disabled={endIndex >= formattedDates.length}
-                className="p-2 bg-blue-500 text-white rounded disabled:bg-gray-300 ml-2"
+                className={`p-1 rounded transition duration-300 ease-in-out ml-2 
+                  ${theme === 'dark' ? 'bg-blue-600 text-white disabled:bg-gray-600' : 'bg-blue-500 text-white disabled:bg-gray-300'}`}
               >
                 <FaChevronRight />
               </button>
             </div>
-            <div>
+            <div className="mt-1 md:mt-0">
               <ToggleButton />
             </div>
           </div>
         </>
       ) : (
-        <div className="bg-white rounded-lg shadow-md p-2 mb-0.5 text-center">
+        <div className="bg-dark rounded-lg shadow-md p-2 mb-0.5 text-center">
           <Spinner />
         </div>
       )}

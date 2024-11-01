@@ -1,30 +1,29 @@
-import React, { useState, useEffect, memo } from "react";
+import React, { memo } from "react";
 import PropTypes from 'prop-types';
 import { formatNumber, toFixed } from '../utils';
+import { useSelector } from "react-redux";
+
 
 const getBackgroundClass = (oc, strike, type) =>
     type === 'ce' ? (oc?.sltp > strike ? 'bg-itm-highlight' : '') : (oc?.sltp < strike ? 'bg-itm-highlight' : '');
 
 const getHighlightClass = (abs, value, isHighlighting, isCe) => {
     if (isNaN(value) || !isHighlighting) return '';
-    const baseClass = isCe ? 'bg-red-300 z-50' : 'bg-green-300 z-50';
-    if (value == '1') return baseClass;
-    if (abs <= 0) return 'text-red-500';
-    if (value == '2') return 'bg-yellow-300';
-    if (['3', '4', '5'].includes(value)) return 'bg-yellow-100';
+    const baseClass = isCe ? 'text-black bg-red-500 z-50' : 'text-black bg-green-500 z-50';
+    if (value === '1') return baseClass;
+    if (abs <= 0) return 'text-black text-red-500';
+    if (value === '2') return ' text-black bg-yellow-300';
+    if (['3', '4', '5'].includes(value)) return 'text-black bg-yellow-100';
     return '';
 };
 
 const getHighlightTextClass = (abs) => (!isNaN(abs) && abs <= 0 ? 'text-red-500' : 'text-green-700');
 const getPCRClass = (pcr) => (pcr > 1.2 ? 'text-green-700' : pcr < 0.8 ? 'text-red-500' : '');
 
-export function renderStrikeRow(strikeData, strike, isHighlighting, optionChain, handlePercentageClick) {
-
+export function renderStrikeRow(strikeData, strike, isHighlighting, optionChain, handlePercentageClick, theme) {
     const ceData = strikeData?.ce || {};
     const peData = strikeData?.pe || {};
     const oc = optionChain || {};
-
-
 
     const DataCell = memo(({ data, valueKey, isCe, strike }) => (
         <td
@@ -61,7 +60,7 @@ export function renderStrikeRow(strikeData, strike, isHighlighting, optionChain,
                 </small>
             </td>
 
-            <td className="font-bold bg-gray-300">
+            <td className={`font-bold ${ theme === 'dark' ? 'bg-gray-700' : "bg-gray-300"}`}>
                 {strike} <br />
                 <small className={`font-normal ${getPCRClass(peData?.OI / ceData?.OI)}`}>
                     {toFixed(peData?.OI / ceData?.OI)}
