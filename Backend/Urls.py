@@ -92,8 +92,8 @@ class Urls:
 
         fut_data = Urls.fetch_expiry(symbol, seg)
 
-        with open('data.json', 'w') as file:
-            json.dump(manipulated_data, file, indent=4)
+        # with open('data.json', 'w') as file:
+        #     json.dump(manipulated_data, file, indent=4)
 
 
         return manipulated_data, spot_response.json(), fut_data
