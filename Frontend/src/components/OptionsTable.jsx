@@ -43,7 +43,7 @@ function OptionsTable() {
     setLoading(true);
     setFetchError(null); // Reset fetch error state
     try {
-      const response = await axios.post("http://127.0.0.1:8000/api/percentage-data", params);
+      const response = await axios.post("https://option-chain-d.onrender.com/api/percentage-data", params);
       if (response.data) {
         setPopupData(response.data);
         setIsPopupVisible(true);
