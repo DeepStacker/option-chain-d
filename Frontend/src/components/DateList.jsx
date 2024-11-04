@@ -55,30 +55,30 @@ export default function DateList() {
   };
 
   return (
-    <div className={`flex flex-col md:flex-row items-center justify-between transition  ease-in-out ${theme === 'dark' ? 'bg-gray-800 text-white' : 'bg-white text-black'} p-0 md:p-2 rounded-lg`}>
+    <div className={`fixed top-11 left-0 right-0 p-3 z-20 shadow-md 
+      ${theme === 'dark' ? 'bg-gray-800 text-white' : 'bg-white text-black'} 
+      flex flex-wrap items-center justify-between`}>
       {data ? (
         <>
-          <div className="flex flex-wrap justify-center md:justify-start w-full md:w-auto">
+          <div className="flex flex-wrap justify-center md:justify-start w-full md:w-auto space-x-1">
             {currentDates.map((date, index) => (
               <button
                 key={index}
                 onClick={() => handleDateSelect(date, index)} // Handle button click
-                className={`m-0.5 px-1.5 py-1 rounded-md transition duration-300 ease-in-out 
+                className={`m-1 px-2 py-1 rounded-md transition  ease-in-out 
                   ${theme === 'dark' ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-blue-500 text-white hover:bg-blue-600'}`}
               >
                 {date}
               </button>
             ))}
           </div>
-          <div className="font-bold  md:mt-0">
-            <TickerDropdown />
-          </div>
-          <div className="gap-3 flex flex-col md:flex-row items-center w-full md:w-auto mt-0 md:mt-0">
-            <div className="flex items-center">
+          <TickerDropdown />
+          <div className="md:ml-3 flex items-center space-x-2">
+            <div className="flex items-center space-x-1">
               <button
                 onClick={handlePrevious}
                 disabled={startIndex === 0}
-                className={`p-1 rounded transition duration-300 ease-in-out 
+                className={`p-2 rounded-full transition ease-in-out 
                   ${theme === 'dark' ? 'bg-blue-600 text-white disabled:bg-gray-600' : 'bg-blue-500 text-white disabled:bg-gray-300'}`}
               >
                 <FaChevronLeft />
@@ -86,19 +86,17 @@ export default function DateList() {
               <button
                 onClick={handleNext}
                 disabled={endIndex >= formattedDates.length}
-                className={`p-1 rounded transition duration-300 ease-in-out ml-2 
+                className={`p-2 rounded-full transition ease-in-out 
                   ${theme === 'dark' ? 'bg-blue-600 text-white disabled:bg-gray-600' : 'bg-blue-500 text-white disabled:bg-gray-300'}`}
               >
                 <FaChevronRight />
               </button>
             </div>
-            <div className="mt-1 md:mt-0">
-              <ToggleButton />
-            </div>
+            <ToggleButton />
           </div>
         </>
       ) : (
-        <div className="bg-dark rounded-lg shadow-md p-2 mb-0.5 text-center">
+        <div className="w-full flex justify-center p-4">
           <Spinner />
         </div>
       )}

@@ -4,6 +4,7 @@ import { formatNumber, toFixed } from '../utils';
 import { useSelector } from "react-redux";
 
 
+
 const getBackgroundClass = (oc, strike, type) =>
     type === 'ce' ? (oc?.sltp > strike ? 'bg-itm-highlight' : '') : (oc?.sltp < strike ? 'bg-itm-highlight' : '');
 
@@ -20,11 +21,21 @@ const getHighlightClass = (abs, value, isHighlighting, isCe) => {
 const getHighlightTextClass = (abs) => (!isNaN(abs) && abs <= 0 ? 'text-red-500' : 'text-green-700');
 const getPCRClass = (pcr) => (pcr > 1.2 ? 'text-green-700' : pcr < 0.8 ? 'text-red-500' : '');
 
+
+
 export function renderStrikeRow(strikeData, strike, isHighlighting, optionChain, handlePercentageClick, theme) {
-    const ceData = strikeData?.ce || {};
-    const peData = strikeData?.pe || {};
+    const { ce: ceData = {}, pe: peData = {} } = strikeData || {};
     const oc = optionChain || {};
 
+    // Precompute ratios with default value of 0
+    const oiRatio = peData?.OI && ceData?.OI ? peData.OI / ceData.OI : 0;
+    const oiChngRatio = peData?.oichng && ceData?.oichng ? peData.oichng / ceData.oichng : 0;
+
+    // Define reusable classes
+    const themeClass = theme === 'dark' ? 'bg-gray-700' : 'bg-gray-300';
+    const strikeCellClass = `font-bold border-spacing-y-1 border border-gray-950 ${themeClass}`;
+
+    // Memoized DataCell component for displaying dynamic cells
     const DataCell = memo(({ data, valueKey, isCe, strike }) => (
         <td
             onClick={() => handlePercentageClick(isCe, strike, oc)}
@@ -44,9 +55,10 @@ export function renderStrikeRow(strikeData, strike, isHighlighting, optionChain,
 
     return (
         <React.Fragment key={strike}>
-            <td className={`${getHighlightClass(ceData?.iv, ceData?.iv, isHighlighting, true)}`}>
-                {formatNumber(ceData?.iv)} <br />
-                <small>{formatNumber(ceData?.optgeeks?.delta)}</small>
+            {/* CE Data Cells */}
+            <td className={`${getHighlightClass(ceData.iv, ceData.iv, isHighlighting, true)}`}>
+                {formatNumber(ceData.iv)} <br />
+                <small>{formatNumber(ceData.optgeeks?.delta)}</small>
             </td>
 
             <DataCell data={ceData} valueKey="oichng" isCe={true} strike={strike} />
@@ -54,26 +66,28 @@ export function renderStrikeRow(strikeData, strike, isHighlighting, optionChain,
             <DataCell data={ceData} valueKey="vol" isCe={true} strike={strike} />
 
             <td>
-                {formatNumber(ceData?.ltp)} <br />
-                <small className={getHighlightTextClass(ceData?.p_chng)}>
-                    {formatNumber(ceData?.p_chng)}
+                {formatNumber(ceData.ltp)} <br />
+                <small className={getHighlightTextClass(ceData.p_chng)}>
+                    {formatNumber(ceData.p_chng)}
                 </small>
             </td>
 
-            <td className={`font-bold ${ theme === 'dark' ? 'bg-gray-700' : "bg-gray-300"}`}>
+            {/* Strike Price with Ratios */}
+            <td className={strikeCellClass}>
                 {strike} <br />
-                <small className={`font-normal ${getPCRClass(peData?.OI / ceData?.OI)}`}>
-                    {toFixed(peData?.OI / ceData?.OI)}
+                <small className={`font-normal ${getPCRClass(oiRatio)}`}>
+                    {toFixed(oiRatio)}
                 </small> /
-                <small className={`font-normal ${getPCRClass(peData?.oichng / ceData?.oichng)}`}>
-                    {toFixed(peData?.oichng / ceData?.oichng)}
+                <small className={`font-normal ${getPCRClass(oiChngRatio)}`}>
+                    {toFixed(oiChngRatio)}
                 </small>
             </td>
 
+            {/* PE Data Cells */}
             <td>
-                {formatNumber(peData?.ltp)} <br />
-                <small className={getHighlightTextClass(peData?.p_chng)}>
-                    {formatNumber(peData?.p_chng)}
+                {formatNumber(peData.ltp)} <br />
+                <small className={getHighlightTextClass(peData.p_chng)}>
+                    {formatNumber(peData.p_chng)}
                 </small>
             </td>
 
@@ -81,17 +95,22 @@ export function renderStrikeRow(strikeData, strike, isHighlighting, optionChain,
             <DataCell data={peData} valueKey="OI" isCe={false} strike={strike} />
             <DataCell data={peData} valueKey="oichng" isCe={false} strike={strike} />
 
-            <td className={`${getHighlightClass(peData?.iv, peData?.iv, isHighlighting, false)}`}>
-                {formatNumber(peData?.iv)} <br />
-                <small>{formatNumber(peData?.optgeeks?.delta)}</small>
+            <td className={`${getHighlightClass(peData.iv, peData.iv, isHighlighting, false)}`}>
+                {formatNumber(peData.iv)} <br />
+                <small>{formatNumber(peData.optgeeks?.delta)}</small>
             </td>
         </React.Fragment>
     );
 }
 
+
 export function findStrikes(options, atmPrice) {
     const nearestStrike = atmPrice;
     const otmStrikes = Object.keys(options).filter((s) => s > atmPrice);
     const itmStrikes = Object.keys(options).filter((s) => s < atmPrice);
+    // console.log(otmStrikes)
+    // console.log(itmStrikes)
+    // console.log(nearestStrike)
+    // console.log(atmPrice)
     return { nearestStrike, otmStrikes, itmStrikes };
 }

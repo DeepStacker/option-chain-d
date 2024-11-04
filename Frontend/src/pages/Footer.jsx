@@ -8,7 +8,7 @@ const Footer = () => {
 
   return (
     <footer
-      className={`py-10 mt-10 text-center transition-all duration-300 ${
+      className={`py-10 mt-10 text-center transition-all  ${
         theme === 'dark' ? 'bg-gray-900 text-gray-300' : 'bg-gray-100 text-gray-700'
       }`}
     >

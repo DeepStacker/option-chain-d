@@ -7,6 +7,7 @@ import Footer from "./pages/Footer";
 import { useSelector } from "react-redux";
 import { useEffect } from "react";
 import Blog from "./pages/Blog";
+import Contact from "./pages/Contact";
 
 const App = () => {
   const theme = useSelector((state) => state.theme.theme);
@@ -24,6 +25,7 @@ const App = () => {
         <Route path="/about" element={<About />} />
         <Route path="/advanced-option-chain" element={<OptionChain />} />
         <Route path="/blog" element={<Blog />} />
+        <Route path="/contact" element={<Contact />} />
       </Routes>
       <Footer />
     </Router>

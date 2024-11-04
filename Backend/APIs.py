@@ -72,6 +72,7 @@ class App:
     def get_percentage_data(symbol, exp, isCe, strike):
         """Function to retrieve percentage data from the JSON file."""
         try:
+            FILE_PATH = f"{str(exp)}.json"
             # Load existing data from the JSON file
             data = Utils.load_existing_data(file_path=FILE_PATH)
 

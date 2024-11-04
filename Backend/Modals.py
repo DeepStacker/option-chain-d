@@ -18,7 +18,8 @@ def load_existing_data(file_path):
     else:
         return {}
 
-def save_data(file_path, data):
+def save_data(file, data):
+    file_path = f"{str(file)}.json"
     #Save data back to the JSON file.#
     with open(file_path, 'w') as file:
         json.dump(data, file, indent=4)
@@ -38,7 +39,7 @@ def get_data(exp):
         curr_time = now.strftime("%H:%M")
 
         # Check if current time is 9:00 AM
-        if "18:00" <= curr_time <= "23:35":
+        if "09:00" <= curr_time <= "23:35":
             if "09:07" <= curr_time <= "09:15":
                     print("Waiting for 10 seconds before the next fetch...")
                     continue
@@ -81,7 +82,7 @@ def get_data(exp):
                     data[str(exp)][str(current_date)][str(current_time)]['pe_data'][key] = {k: pe_data.get(k) for k in keys_of_interest}
 
                 # Save the updated data back to the JSON file
-                save_data(FILE_PATH, data)
+                save_data(exp, data)
 
                 print(f"Data successfully saved to {FILE_PATH} at timestamp {current_time}")
 

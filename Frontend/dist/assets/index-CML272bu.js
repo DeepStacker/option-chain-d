@@ -24389,13 +24389,13 @@ function t2({
         id: "toggleOrder",
         onClick: () => e((r) => !r),
         className:
-          "bg-blue-600 text-white px-4 py-2 rounded-md transition duration-300 ease-in-out hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300",
+          "bg-blue-600 text-white px-4 py-2 rounded-md transition  ease-in-out hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300",
         children: "Toggle Order",
       }),
       S.jsxs("button", {
         id: "toggleHighlight",
         onClick: () => t((r) => !r),
-        className: `bg-green-600 text-white px-4 py-2 rounded-md transition duration-300 ease-in-out ${
+        className: `bg-green-600 text-white px-4 py-2 rounded-md transition  ease-in-out ${
           n ? "hover:bg-green-700" : "hover:bg-green-500"
         } focus:outline-none focus:ring-2 focus:ring-green-300`,
         children: [n ? "Disable" : "Enable", " Highlighting"],
@@ -24453,7 +24453,7 @@ function n2() {
                   {
                     onClick: () => y(w, E),
                     className:
-                      "m-1 px-2 py-0 bg-blue-500 text-white rounded-md transition duration-300 ease-in-out hover:bg-blue-600",
+                      "m-1 px-2 py-0 bg-blue-500 text-white rounded-md transition  ease-in-out hover:bg-blue-600",
                     children: w,
                   },
                   E

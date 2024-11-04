@@ -18,7 +18,7 @@ function SpotData() {
   }
 
   return (
-    <div className={`flex flex-col md:flex-row md:items-center md:justify-between p-4 shadow-md transition ease-in-out ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>
+    <div className={`flex w flex-col md:flex-row md:items-center md:justify-between p-4 shadow-md transition ease-in-out ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>
       <div className="flex items-center md:mb-0">
         <p className={`text-xl font-semibold ${theme === 'dark' ? 'text-gray-300' : 'text-gray-800'}`}>
           {marketData?.d_sym || "N/A"}

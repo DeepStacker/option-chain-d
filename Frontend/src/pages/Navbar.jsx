@@ -42,7 +42,7 @@ const Navbar = () => {
             </Link>
           </li>
           <li>
-            <Link to="/#contact" className="hover:text-blue-600">
+            <Link to="/contact" className="hover:text-blue-600">
               Contact
             </Link>
           </li>
