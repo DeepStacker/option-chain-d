@@ -116,7 +116,7 @@ function OptionsTable() {
   // Early return if data is unavailable
   if (!data?.options?.data) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-center">
+      <div className={` ${theme === "dark" ? "text-gray-300" : "text-gray-700"} flex mt-10 flex-col items-center justify-center h-full text-center`}>
         <div className="flex items-center justify-center">
           <div className="animate-spin rounded-full border-8 border-t-8 border-gray-200 border-t-blue-500 h-16 w-16" role="status" aria-label="Loading">
             <span className="sr-only">Loading...</span>

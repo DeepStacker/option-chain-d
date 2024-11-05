@@ -22,7 +22,7 @@ function LabelSight() {
     const arrowColor = isPriceUp ? "text-green-700" : "text-red-700"; // Lighter color for arrows
 
     return (
-        <div className={`flex items-center justify-evenly rounded-full  border ${priceChangeColor} md:mb-0`}>
+        <div className={`flex items-center justify-evenly rounded-full  border ${priceChangeColor}`}>
             <p className={`text-md text-left font-semibold text-black`}>
                 {marketData?.d_sym || "N/A"}
             </p>
