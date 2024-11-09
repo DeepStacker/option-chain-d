@@ -23,7 +23,7 @@ const getPCRClass = (pcr) => (pcr > 1.2 ? 'text-green-700' : pcr < 0.8 ? 'text-r
 
 
 
-export function renderStrikeRow(strikeData, strike, isHighlighting, optionChain, handlePercentageClick, theme) {
+export function renderStrikeRow(strikeData, strike, isHighlighting, optionChain, handlePercentageClick, handleDeltaClick,handleIVClick, theme) {
     const { ce: ceData = {}, pe: peData = {} } = strikeData || {};
     const oc = optionChain || {};
 
@@ -52,16 +52,43 @@ export function renderStrikeRow(strikeData, strike, isHighlighting, optionChain,
         isCe: PropTypes.bool.isRequired,
         strike: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
     };
+    
+    const DeltaDataCell = memo(({ data, valueKey, strike, isCe }) => (
+        <td
+            onClick={() => handleDeltaClick(strike, oc)}
+            className={`${getHighlightClass(data[valueKey], data[valueKey + '_max_value'], isHighlighting, isCe)} cursor-pointer`}
+        >
+            {formatNumber(data[`${valueKey}_percentage`])}% <br />
+            <small>{formatNumber(data[valueKey])}</small>
+        </td>
+    ));
+
+    DeltaDataCell.propTypes = {
+        data: PropTypes.object.isRequired,
+        valueKey: PropTypes.string.isRequired,
+        strike: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+    };
+    
+    const IVDataCell = memo(({ data, valueKey, strike, isCe }) => (
+        <td 
+        onClick={() => handleIVClick(isCe, strike, oc)}
+        className={`${getHighlightClass(data[valueKey], data[valueKey], isHighlighting, isCe)} cursor-pointer`}>
+                {formatNumber(data[valueKey])} <br />
+                <small>{formatNumber(data.optgeeks?.delta)}</small>
+            </td>
+    ));
+
+    IVDataCell.propTypes = {
+        data: PropTypes.object.isRequired,
+        valueKey: PropTypes.string.isRequired,
+        strike: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+    };
 
     return (
         <React.Fragment key={strike}>
             {/* CE Data Cells */}
-            <td className={`${getHighlightClass(ceData.iv, ceData.iv, isHighlighting, true)}`}>
-                {formatNumber(ceData.iv)} <br />
-                <small>{formatNumber(ceData.optgeeks?.delta)}</small>
-            </td>
-
-            <DataCell data={ceData} valueKey="oichng" isCe={true} strike={strike} />
+            <IVDataCell data={ceData} valueKey="iv" strike={strike} isCe={true} />
+            <DeltaDataCell data={ceData} valueKey="oichng" strike={strike} isCe={true} />
             <DataCell data={ceData} valueKey="OI" isCe={true} strike={strike} />
             <DataCell data={ceData} valueKey="vol" isCe={true} strike={strike} />
 
@@ -93,12 +120,8 @@ export function renderStrikeRow(strikeData, strike, isHighlighting, optionChain,
 
             <DataCell data={peData} valueKey="vol" isCe={false} strike={strike} />
             <DataCell data={peData} valueKey="OI" isCe={false} strike={strike} />
-            <DataCell data={peData} valueKey="oichng" isCe={false} strike={strike} />
-
-            <td className={`${getHighlightClass(peData.iv, peData.iv, isHighlighting, false)}`}>
-                {formatNumber(peData.iv)} <br />
-                <small>{formatNumber(peData.optgeeks?.delta)}</small>
-            </td>
+            <DeltaDataCell data={peData} valueKey="oichng" strike={strike} isCe={false} />
+            <IVDataCell data={peData} valueKey="iv" strike={strike} isCe={false} />
         </React.Fragment>
     );
 }

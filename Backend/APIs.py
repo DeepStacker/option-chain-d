@@ -1,10 +1,13 @@
-from datetime import datetime
+from datetime import datetime, timedelta
+import json
 from flask import jsonify, request
 import traceback
-from Urls import Urls 
-from Utils import Utils 
+from Urls import Urls
+from Utils import Utils
+from retrivedata import retrieve_data
 
-FILE_PATH = 'Percentage_Data.json'
+FILE_PATH = "Percentage_Data.json"
+
 
 class App:
 
@@ -26,21 +29,26 @@ class App:
 
             option_data, spot_data, fut_data = Urls.fetch_data(symbol_id, exp, seg_id)
 
-            return jsonify({
-                "symbol": symbol_id,
-                "expiry": exp,
-                "options": option_data,
-                "spot": spot_data,
-                "fut": fut_data
-            }), 200
+            return (
+                jsonify(
+                    {
+                        "symbol": symbol_id,
+                        "expiry": exp,
+                        "options": option_data,
+                        "spot": spot_data,
+                        "fut": fut_data,
+                    }
+                ),
+                200,
+            )
 
         except Exception as e:
             traceback.print_exc()
-            return jsonify({"error": f"Server encountered an error: {str(e)}"}), 500 
+            return jsonify({"error": f"Server encountered an error: {str(e)}"}), 500
 
-    def get_exp_date(symbol, exp):
+    def get_exp_date(symbol):
         try:
-          
+
             if symbol not in Urls.symbol_list:
                 return jsonify({"error": "Invalid or missing 'sid' parameter"}), 400
 
@@ -48,35 +56,33 @@ class App:
             seg_id = Urls.seg_list[symbol]
             print(f"Symbol ID: {symbol_id}")
 
-            if exp is None:
-                return jsonify({"error": "'exp' must be provided"}), 400
-
-            try:
-                exp = int(exp)
-            except (ValueError, TypeError):
-                return jsonify({"error": "'exp' must be a valid integer"}), 400
-
             fut_data = Urls.fetch_expiry(symbol_id, seg_id)
 
-            return jsonify({
-                "symbol": symbol_id,
-                "fut": fut_data
-            }), 200
+            return jsonify({"symbol": symbol_id, "fut": fut_data}), 200
 
         except Exception as e:
             traceback.print_exc()
-            return jsonify({"error": f"Server encountered an error: {str(e)}"}), 500 
-
-   
+            return jsonify({"error": f"Server encountered an error: {str(e)}"}), 500
 
     def get_percentage_data(symbol, exp, isCe, strike):
-        """Function to retrieve percentage data from the JSON file."""
         try:
-            FILE_PATH = f"{str(exp)}.json"
-            # Load existing data from the JSON file
-            data = Utils.load_existing_data(file_path=FILE_PATH)
+            FILE_PATH = "Percentage"
+            # Retrieve the current day's timestamp at midnight
+            curr_date = int(
+                datetime.now()
+                .replace(hour=0, minute=0, second=0, microsecond=0)
+                .timestamp()
+            )
 
-            curr_date = int(datetime.now().replace(hour=0, minute=0, second=0, microsecond=0).timestamp())
+            # Load data (assuming retrieve_data is a working function that loads JSON data correctly)
+            data = retrieve_data(exp, curr_date, FILE_PATH)
+            # print("Current Date Timestamp:", curr_date)
+
+            with open("temp_data.json", "w") as file:
+                json.dump(data, file, indent=4)
+
+            with open("temp_data.json", "r") as file:
+                data = json.load(file)
 
             # Initialize lists to store the extracted values
             timestamp = []
@@ -84,60 +90,400 @@ class App:
             oichng = []
             vol = []
 
-            # Check if the expiry exists in the data
-            if str(exp) in data.keys(): 
-                # print(f"Expiry {exp} found in data.")
-                for key, value in dict(data[str(exp)][str(curr_date)]).items():
-                    # print(f"Processing key: {key} for expiry: {exp} and date: {curr_date} ...")
-                    percent_data = value.get('ce_data' if isCe else 'pe_data', {})
-                    # print(f"Percent Data: {percent_data}")
+            # Check if the expiry data is available
+            if "day" in data and str(curr_date) in str(data["day"]):
+                print("Day found in data.")
+                for key, value in data["day"][str(curr_date)].items():
+                    percent_type = "ce_data" if isCe else "pe_data"
+                    percent_data = value.get(percent_type, {})
+                    # print(f"Processing {percent_type} for key: {key}")
 
-
+                    # Check if the specific strike price data exists
                     if str(strike) in percent_data:
                         timestamp.append(key)
-                        oi.append(percent_data[strike].get('OI_percentage', 0))  # Default to 0 if not found
-                        oichng.append(percent_data[strike].get('oichng_percentage', 0))  # Default to 0 if not found
-                        vol.append(percent_data[strike].get('vol_percentage', 0))  # Default to 0 if not found
+                        oi.append(percent_data[str(strike)].get("OI_percentage", 0))
+                        oichng.append(
+                            percent_data[str(strike)].get("oichng_percentage", 0)
+                        )
+                        vol.append(percent_data[str(strike)].get("vol_percentage", 0))
                     else:
                         # Return error if the strike is not found
-                        return jsonify({
-                            "error": "Strike not found",
+                        return (
+                            json.dumps(
+                                {
+                                    "error": "Strike not found",
+                                    "symbol": symbol,
+                                    "expiry": exp,
+                                    "strike": strike,
+                                }
+                            ),
+                            404,
+                        )
+            else:
+                # Return error if the expiry or day data is not found
+                print(f"Expiry {exp} or current date {curr_date} not found in data.")
+                return (
+                    json.dumps(
+                        {
+                            "error": "Expiry or date not found",
                             "symbol": symbol,
                             "expiry": exp,
-                        }), 404  
+                        }
+                    ),
+                    404,
+                )
+
+            # Return the extracted data as JSON response
+            return (
+                json.dumps(
+                    {
+                        "symbol": symbol,
+                        "strike": strike,
+                        "isCe": isCe,
+                        "expiry": exp,
+                        "timestamp": timestamp,
+                        "oi": oi,
+                        "oichng": oichng,
+                        "vol": vol,
+                    }
+                ),
+                200,
+            )
+
+        except Exception as e:
+            # Log the error for debugging (you might use logging here in a real application)
+            print(f"An error occurred: {str(e)}")
+            # Return internal server error for any unhandled exceptions
+            return json.dumps({"error": "Internal Server Error"}), 500
+
+    def get_iv_data(symbol, exp, isCe, strike):
+        try:
+            FILE_PATH = "Delta"
+
+            # Current date at midnight for timestamp
+            curr_date = int(
+                datetime.now()
+                .replace(hour=0, minute=0, second=0, microsecond=0)
+                .timestamp()
+            )
+
+            # Retrieve data directly without file I/O (use in-memory data)
+            data = retrieve_data(exp, curr_date, FILE_PATH)
+            with open("temp_data.json", "w") as file:
+                json.dump(data, file, indent=4)
+
+            with open("temp_data.json", "r") as file:
+                data = json.load(file)
+
+            # Initialize lists to store the extracted values
+            timestamp = []
+            ce_iv = []
+            ce_delta, ce_gamma, ce_theta, ce_vega, ce_rho = [], [], [], [], []
+            pe_iv = []
+            pe_delta, pe_gamma, pe_theta, pe_vega, pe_rho = [], [], [], [], []
+
+            # Check if the "day" field is available
+            if "day" in data:
+                # Extract the data for the current date
+                day_data = data["day"].get(str(curr_date))
+
+                for key, value in day_data.items():
+                    ce_percent_data = value.get("ce_data")
+                    pe_percent_data = value.get("pe_data")
+
+                    # Ensure the strike exists in the data for the selected option type
+                    if (
+                        str(strike) in ce_percent_data
+                        and str(strike) in pe_percent_data
+                    ):
+                        timestamp.append(key)
+                        ce_iv.append(ce_percent_data[strike].get("iv", 0))
+                        pe_iv.append(pe_percent_data[strike].get("iv", 0))
+                        ce_delta.append(
+                            ce_percent_data[strike]["optgeeks"].get("delta", 0)
+                        )
+                        pe_delta.append(
+                            pe_percent_data[strike]["optgeeks"].get("delta", 0)
+                        )
+                        ce_theta.append(
+                            ce_percent_data[strike]["optgeeks"].get("theta", 0)
+                        )
+                        pe_theta.append(
+                            pe_percent_data[strike]["optgeeks"].get("theta", 0)
+                        )
+                        ce_gamma.append(
+                            ce_percent_data[strike]["optgeeks"].get("gamma", 0)
+                        )
+                        pe_gamma.append(
+                            pe_percent_data[strike]["optgeeks"].get("gamma", 0)
+                        )
+                        ce_vega.append(
+                            ce_percent_data[strike]["optgeeks"].get("vega", 0)
+                        )
+                        pe_vega.append(
+                            pe_percent_data[strike]["optgeeks"].get("vega", 0)
+                        )
+                        ce_rho.append(ce_percent_data[strike]["optgeeks"].get("rho", 0))
+                        pe_rho.append(pe_percent_data[strike]["optgeeks"].get("rho", 0))
+                    else:
+                        # If strike is not found in the data
+                        return (
+                            jsonify(
+                                {
+                                    "error": "Strike not found",
+                                    "symbol": symbol,
+                                    "expiry": exp,
+                                }
+                            ),
+                            404,
+                        )
+            else:
+                # If "day" is not found in the data
+                return (
+                    jsonify(
+                        {
+                            "error": "Expiry not found",
+                            "symbol": symbol,
+                        }
+                    ),
+                    404,
+                )
+
+            # Return the extracted data as JSON
+            return (
+                jsonify(
+                    {
+                        "symbol": symbol,
+                        "strike": strike,
+                        "isCe": isCe,
+                        "expiry": exp,
+                        "timestamp": timestamp,
+                        "ce_iv": ce_iv,
+                        "ce_delta": ce_delta,
+                        "ce_theta": ce_theta,
+                        "ce_gamma": ce_gamma,
+                        "ce_vega": ce_vega,
+                        "ce_rho": ce_rho,
+                        "pe_iv": pe_iv,
+                        "pe_delta": pe_delta,
+                        "pe_theta": pe_theta,
+                        "pe_gamma": pe_gamma,
+                        "pe_vega": pe_vega,
+                        "pe_rho": pe_rho,
+                    }
+                ),
+                200,
+            )
+
+        except Exception as e:
+            # Return a generic internal server error message if something fails
+            return jsonify({"error": "Internal Server Error"}), 500
+
+    def get_delta_data(symbol, exp, strike):
+        """Function to retrieve percentage data from the JSON file."""
+        try:
+            FILE_PATH = "Delta"
+
+            # Get current date in UNIX timestamp format (at midnight)
+            curr_date = int(
+                datetime.now()
+                .replace(hour=0, minute=0, second=0, microsecond=0)
+                .timestamp()
+            )
+
+            # Retrieve data for the specific expiry and current date
+            data = retrieve_data(exp, curr_date, FILE_PATH)
+
+            with open("temp_data.json", "w") as file:
+                json.dump(data, file, indent=4)
+
+            with open("temp_data.json", "r") as file:
+                data = json.load(file)
+
+            # Initialize lists to store the extracted values
+            timestamp = []
+            ceoi = []
+            ceoichng = []
+            cevol = []
+            peoi = []
+            peoichng = []
+            pevol = []
+            peminusce_vol = []
+            pebyce_vol = []
+            peminusce_oi = []
+            pebyce_oi = []
+            peminusce_oichng = []
+            pebyce_oichng = []
+
+            # Check if the expiry exists in the data
+            if "day" in data and str(curr_date) in data["day"]:
+                # Iterate over the timestamps within the current date
+                for key, value in data["day"][str(curr_date)].items():
+                    percent_datace = value.get("ce_data", {})
+                    percent_datape = value.get("pe_data", {})
+
+                    # Check if the strike exists in ce_data and pe_data
+                    if str(strike) in percent_datace and str(strike) in percent_datape:
+                        timestamp.append(key)
+
+                        # Extract CE data values with default values if not found
+                        ceoi.append(percent_datace[str(strike)].get("OI", 0))
+                        ceoichng.append(percent_datace[str(strike)].get("oichng", 0))
+                        cevol.append(percent_datace[str(strike)].get("vol", 0))
+
+                        # Extract PE data values with default values if not found
+                        peoi.append(percent_datape[str(strike)].get("OI", 0))
+                        peoichng.append(percent_datape[str(strike)].get("oichng", 0))
+                        pevol.append(percent_datape[str(strike)].get("vol", 0))
+
+                        # Calculate additional metrics
+                        peminusce_vol.append(pevol[-1] - cevol[-1])
+                        pebyce_vol.append(
+                            pevol[-1] / cevol[-1] if cevol[-1] != 0 else None
+                        )
+                        peminusce_oi.append(peoi[-1] - ceoi[-1])
+                        pebyce_oi.append(peoi[-1] / ceoi[-1] if ceoi[-1] != 0 else None)
+                        peminusce_oichng.append(peoichng[-1] - ceoichng[-1])
+                        pebyce_oichng.append(
+                            peoichng[-1] / ceoichng[-1] if ceoichng[-1] != 0 else None
+                        )
+                    else:
+                        # Return error if the strike is not found
+                        return (
+                            jsonify(
+                                {
+                                    "error": "Strike not found",
+                                    "symbol": symbol,
+                                    "expiry": exp,
+                                }
+                            ),
+                            404,
+                        )
 
             else:
                 # Return error if the expiry is not found
-                print(f"Expiry {exp} not found in data.")
-                return jsonify({
-                    "error": "Expiry not found",
-                    "symbol": symbol,
-                }), 404 
+                return (
+                    jsonify(
+                        {
+                            "error": "Expiry not found",
+                            "symbol": symbol,
+                        }
+                    ),
+                    404,
+                )
 
-            # Return the extracted data as JSON response
-            # print(f"Symbol: {symbol}")
-            # print(f"Expiry: {exp}")
-            # print(f"Timestamp: {timestamp}")
-            # print(f"Open Interest (OI): {oi}")
-            # print(f"Open Interest Change (OI Change): {oichng}")
-            # print(f"Volume: {vol}")
-
-            return jsonify({
-                "symbol": symbol,
-                "strike":strike,
-                "isCe":isCe,
-                "expiry": exp,
-                "timestamp": timestamp,  # List of timestamps
-                "oi": oi,                # List of OI percentages
-                "oichng": oichng,        # List of OI change percentages
-                "vol": vol               # List of volume percentages
-            }), 200
+            # Return JSON response with the collected data
+            return (
+                jsonify(
+                    {
+                        "symbol": symbol,
+                        "strike": strike,
+                        "expiry": exp,
+                        "timestamp": timestamp,
+                        "ce_oi": ceoi,
+                        "ce_oichng": ceoichng,
+                        "ce_vol": cevol,
+                        "pe_oi": peoi,
+                        "pe_oichng": peoichng,
+                        "pe_vol": pevol,
+                        "peminusce_vol": peminusce_vol,
+                        "pebyce_vol": pebyce_vol,
+                        "peminusce_oi": peminusce_oi,
+                        "pebyce_oi": pebyce_oi,
+                        "peminusce_oichng": peminusce_oichng,
+                        "pebyce_oichng": pebyce_oichng,
+                    }
+                ),
+                200,
+            )
 
         except Exception as e:
             # Log the error for debugging
-            # app.logger.error(f"An error occurred: {str(e)}")
-            # Return internal server error for any unhandled exceptions
-            return jsonify({"error": "Internal Server Error"}), 500 
-        
+            print(f"An error occurred: {e}")
+            return jsonify({"error": "Internal Server Error"}), 500
 
-                    
+    def get_fut_data(symbol, exp):
+        """Function to retrieve percentage data from the JSON file."""
+        try:
+            FILE_PATH = "Future"
+
+            # Get current date in UNIX timestamp format (at midnight)
+            curr_date = int(
+                datetime.now()
+                .replace(hour=0, minute=0, second=0, microsecond=0)
+                .timestamp()
+            )
+
+            data = retrieve_data(exp, curr_date, FILE_PATH)
+
+            # Save retrieved data temporarily to check the structure
+            with open("temp_data.json", "w") as file:
+                json.dump(data, file, indent=4)
+
+            # Load data from temp_data.json (optional step; already in 'data')
+            with open("temp_data.json", "r") as file:
+                data = json.load(file)
+
+            # Initialize lists to store the extracted values
+            timestamp = []
+            oi, oichng, vol, ltp = [], [], [], []
+
+            # Check if "day" and current date exist in the data
+            if "day" in data and str(curr_date) in data["day"]:
+                # Iterate over timestamps within the current date
+                for time_key, value in data["day"][str(curr_date)].items():
+                    fut_date = list(value.keys())[0]
+
+                    # Ensure the keys and values are correctly extracted for CE and PE data
+                    if isinstance(value, dict):
+                        # Extract required data with defaults in case a key is missing
+                        timestamp.append(time_key)
+                        oi.append(value[str(fut_date)].get("oi", 0))
+                        oichng.append(value[str(fut_date)].get("oichng", 0))
+                        vol.append(value[str(fut_date)].get("vol", 0))
+                        ltp.append(value[str(fut_date)].get("ltp", 0))
+                    else:
+                        return (
+                            jsonify(
+                                {
+                                    "error": "Strike not found",
+                                    "symbol": symbol,
+                                    "expiry": exp,
+                                }
+                            ),
+                            404,
+                        )
+
+            else:
+                # Return error if the expiry is not found
+                return (
+                    jsonify(
+                        {
+                            "error": "Expiry not found",
+                            "symbol": symbol,
+                        }
+                    ),
+                    404,
+                )
+
+            print("Data processing completed successfully.")
+
+            return (
+                jsonify(
+                    {
+                        "symbol": symbol,
+                        "expiry": exp,
+                        "timestamp": timestamp,
+                        "oi": oi,
+                        "oichng": oichng,
+                        "vol": vol,
+                        "ltp": ltp,
+                    }
+                ),
+                200,
+            )
+
+        except Exception as e:
+            # Log the error for debugging
+            print(f"An error occurred: {e}")
+            return jsonify({"error": "Internal Server Error"}), 500

@@ -14,6 +14,7 @@ import zoomPlugin from 'chartjs-plugin-zoom'; // Import zoom plugin
 import { FaTimes } from 'react-icons/fa';
 import PropTypes from 'prop-types';
 import { useSelector } from 'react-redux';
+import { formatChartNumber } from '../utils/utils';
 
 // Register Chart.js modules and zoom plugin
 ChartJS.register(
@@ -31,6 +32,15 @@ const Popup = ({ data, onClose }) => {
   const theme = useSelector((state) => state.theme.theme);
   if (!data) return null;
 
+
+
+  const themeColors = {
+    background: theme === 'dark' ? 'bg-gray-800' : 'bg-teal-400',
+    text: theme === 'dark' ? '#e0e0e0' : '#333',
+    gridColor: theme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+  };
+
+
   // Helper function: Convert timestamps to 'HH:MM' format
   const formatTimestamps = (timestamps) =>
     timestamps.map((ts) =>
@@ -38,13 +48,22 @@ const Popup = ({ data, onClose }) => {
     );
 
   const shortTimeLabels = formatTimestamps(data.timestamp);
+  // console.log(data.oichng)
+  // let oi = []
+  // let vol = []
+  // let oichng = []
+  // for (let i = 0; i < data.timestamp.length; i++) {
+  //   oi.push(formatChartNumber(data.oi[i]))
+  //   vol.push(formatChartNumber(data.vol[i]))
+  //   oichng.push(formatChartNumber(data.oichng[i]))
+  // }
 
   const chartData = {
     labels: shortTimeLabels,
     datasets: [
       {
         label: 'OI Change',
-        data: data.oichng,
+        data: (data.oichng),
         borderColor: theme === 'dark' ? 'rgba(150, 230, 150, 1)' : 'rgba(75, 192, 192, 1)',
         backgroundColor: theme === 'dark' ? 'rgba(150, 230, 150, 0.2)' : 'rgba(75, 192, 192, 0.2)',
         fill: false,
@@ -80,17 +99,29 @@ const Popup = ({ data, onClose }) => {
     maintainAspectRatio: false,
     plugins: {
       legend: {
-        display: true,
-        position: 'top',
         labels: {
-          color: theme === 'dark' ? '#e0e0e0' : '#333',
+          color: themeColors.text,
+          font: {
+            size: 12,
+            family: 'Courier New, monospace',
+          },
+          padding: 10,
+          boxWidth: 10,
+          boxHeight: 10,
+        },
+        onHover: (event, legendItem) => {
+          const label = event.native.target;
+          label.style.cursor = 'pointer';
+          label.style.fontSize = '14px';
+          label.style.color = 'rgba(255, 0, 0, 1)'; // Changes color on hover
+        },
+        onLeave: (event) => {
+          const label = event.native.target;
+          label.style.fontSize = '12px';
+          label.style.color = themeColors.text;
         },
       },
-      tooltip: {
-        enabled: true,
-        mode: 'nearest',
-        intersect: false,
-      },
+      
       zoom: {
         zoom: {
           wheel: {
@@ -130,7 +161,7 @@ const Popup = ({ data, onClose }) => {
   return (
     <div
       className={`fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 
-                  ${theme === 'dark' ? 'bg-gray-800' : 'bg-teal-400'} bg-opacity-75 
+                  ${theme === 'dark' ? 'bg-gray-800' : 'bg-teal-400'}  
                   rounded-lg p-1 shadow-lg w-[97%] h-[95%] z-50`}
       role="dialog"
       aria-modal="true"
@@ -167,7 +198,7 @@ Popup.propTypes = {
     oi: PropTypes.arrayOf(PropTypes.number).isRequired,
     vol: PropTypes.arrayOf(PropTypes.number).isRequired,
     strike: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
-    isCe: PropTypes.bool.isRequired,
+    // isCe: PropTypes.bool.isRequired,
   }),
   onClose: PropTypes.func.isRequired,
 };

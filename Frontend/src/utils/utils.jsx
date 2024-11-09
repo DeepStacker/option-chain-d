@@ -10,6 +10,14 @@ export function formatNumber(value) {
   return "N/A";
 }
 
+export function formatChartNumber(value) {
+  if (typeof value === "number") {
+    return (value / 1e5);
+    // return value.toFixed(2);
+  }
+  return "N/A";
+}
+
 export function toFixed(value) {
   return value ? value.toFixed(2) : 0;
 }

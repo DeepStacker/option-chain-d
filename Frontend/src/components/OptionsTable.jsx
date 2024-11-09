@@ -12,6 +12,8 @@ import Ticker from "./Ticker";
 import TickerChange from "./TickerChange";
 import Line from './Line';
 import './tableStyle.css';
+import DeltaPopup from "./DeltaChartPopup";
+import IVPopup from "./Popup";
 
 function OptionsTable() {
   const dispatch = useDispatch();
@@ -30,6 +32,8 @@ function OptionsTable() {
   // State hooks
   const [popupData, setPopupData] = useState(null);
   const [isPopupVisible, setIsPopupVisible] = useState(false);
+  const [isDeltaPopupVisible, setIsDeltaPopupVisible] = useState(false);
+  const [isIVPopupVisible, setIsIVPopupVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState(null);
 
@@ -43,10 +47,48 @@ function OptionsTable() {
     setLoading(true);
     setFetchError(null); // Reset fetch error state
     try {
-      const response = await axios.post("https://option-chain-d.onrender.com/api/percentage-data", params);
+      const response = await axios.post("http://localhost:8000/api/percentage-data", params);
       if (response.data) {
         setPopupData(response.data);
         setIsPopupVisible(true);
+      } else {
+        throw new Error("No data received from API.");
+      }
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      setFetchError("Failed to fetch data. Please try again later."); // Set fetch error message
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+  
+  const fetchIVData = useCallback(async (params) => {
+    setLoading(true);
+    setFetchError(null); // Reset fetch error state
+    try {
+      const response = await axios.post("http://localhost:8000/api/iv-data", params);
+      if (response.data) {
+        setPopupData(response.data);
+        setIsIVPopupVisible(true);
+      } else {
+        throw new Error("No data received from API.");
+      }
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      setFetchError("Failed to fetch data. Please try again later."); // Set fetch error message
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+  
+  const fetchDeltaData = useCallback(async (params) => {
+    setLoading(true);
+    setFetchError(null); // Reset fetch error state
+    try {
+      const response = await axios.post("http://localhost:8000/api/delta-data", params);
+      if (response.data) {
+        setPopupData(response.data);
+        setIsDeltaPopupVisible(true);
       } else {
         throw new Error("No data received from API.");
       }
@@ -106,11 +148,19 @@ function OptionsTable() {
   const handlePercentageClick = (isCe, strike) => {
     fetchData({ strike, exp, isCe, sid: symbol });
   };
+  const handleIVClick = (isCe, strike) => {
+    fetchIVData({ strike, exp, isCe, sid: symbol });
+  };
+  const handleDeltaClick = (strike) => {
+    fetchDeltaData({ strike, exp, sid: symbol });
+  };
 
   // Close popup
   const closePopup = () => {
     setPopupData(null);
     setIsPopupVisible(false);
+    setIsDeltaPopupVisible(false);
+    setIsIVPopupVisible(false);
   };
 
   // Early return if data is unavailable
@@ -162,11 +212,11 @@ function OptionsTable() {
 
   return (
     <div className={`h-[100vh] overflow-y-auto pt-7 ${theme === "dark" ? "bg-gray-900" : "bg-white"}`}>
-      {loading && (
+      {/* {loading && (
         <div className={`${theme === "dark" ? "text-gray-300" : "text-gray-700"}`} role="status">
           Loading...
         </div>
-      )}
+      )} */}
       {fetchError && (
         <div className={`text-red-500 ${theme === "dark" ? "text-red-300" : "text-red-500"}`} role="alert">
           {fetchError}
@@ -221,7 +271,7 @@ function OptionsTable() {
                 className={`text-center transition-all duration-200 ease-in-out divide-x hover:${theme === "dark" ? "bg-gray-800" : "bg-gray-100"
                   } ${theme === "dark" ? "divide-gray-950" : "divide-gray-300"}`}
               >
-                {renderStrikeRow(options[strike], strike, isHighlighting, data.options.data, handlePercentageClick, theme)}
+                {renderStrikeRow(options[strike], strike, isHighlighting, data.options.data, handlePercentageClick,handleDeltaClick,handleIVClick, theme)}
               </tr>
             ))}
 
@@ -256,7 +306,7 @@ function OptionsTable() {
                 className={`text-center transition-all duration-200 ease-in-out divide-x hover:${theme === "dark" ? "bg-gray-800" : "bg-gray-100"
                   } ${theme === "dark" ? "divide-gray-950" : "divide-gray-300"}`}
               >
-                {renderStrikeRow(options[strike], strike, isHighlighting, data.options.data, handlePercentageClick, theme)}
+                {renderStrikeRow(options[strike], strike, isHighlighting, data.options.data, handlePercentageClick,handleDeltaClick,handleIVClick, theme)}
               </tr>
             ))}
           </tbody>
@@ -264,6 +314,8 @@ function OptionsTable() {
       </div>
 
       {isPopupVisible && <Popup data={popupData} onClose={closePopup} />}
+      {isDeltaPopupVisible && <DeltaPopup data={popupData} onClose={closePopup} />}
+      {isIVPopupVisible && <IVPopup data={popupData} onClose={closePopup} />}
     </div>
 
 
