@@ -7,7 +7,7 @@ export const fetchLiveData = createAsyncThunk(
   'data/fetchLiveData',
   async (params, { rejectWithValue }) => {
     try {
-      const response = await axios.get('http://localhost:8000/api/live-data', { params });
+      const response = await axios.get('https://option-chain-d.onrender.com/api/live-data', { params });
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || error.message);
@@ -20,7 +20,7 @@ export const fetchExpiryDate = createAsyncThunk(
   'data/fetchExpiryDate',
   async (params, { rejectWithValue }) => {
     try {
-      const response = await axios.get('http://localhost:8000/api/exp-date', { params });
+      const response = await axios.get('https://option-chain-d.onrender.com/api/exp-date', { params });
       return response.data?.fut?.data?.explist || [];
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || error.message);
@@ -33,7 +33,7 @@ export const dataSlice = createSlice({
   initialState: {
     data: {},
     expDate: [],
-    exp: 1415989800, 
+    exp: 1415989800,
     symbol: 'NIFTY',
     isOc: true,
     error: null,
@@ -53,12 +53,12 @@ export const dataSlice = createSlice({
     builder
       .addCase(fetchLiveData.fulfilled, (state, action) => {
         state.data = action.payload;
-        state.error = null; 
+        state.error = null;
       })
       .addCase(fetchExpiryDate.fulfilled, (state, action) => {
         state.expDate = action.payload;
-        state.exp = action.payload?.[0] ?? state.exp; 
-        state.error = null; 
+        state.exp = action.payload?.[0] ?? state.exp;
+        state.error = null;
       })
       .addCase(fetchLiveData.rejected, (state, action) => {
         state.error = action.payload || 'Failed to fetch live data';
