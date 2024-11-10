@@ -37,6 +37,7 @@ Pygments
 python-dateutil
 python-engineio
 python-socketio
+pymongo
 pytz
 requests
 rich
