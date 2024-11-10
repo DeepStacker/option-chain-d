@@ -36,7 +36,7 @@ protobuf
 Pygments
 python-dateutil
 python-engineio
-dotenv
+python-dotenv
 python-socketio
 pymongo
 pytz
