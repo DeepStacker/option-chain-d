@@ -1,11 +1,23 @@
 import json
 import time
 from datetime import datetime
-from Urls import Urls
+
+# from Urls import Urls
 from pymongo import MongoClient
 import gridfs
-
+import sys
 import os
+
+sys.path.insert(
+    0,
+    os.path.abspath(
+        os.path.join(
+            os.path.dirname(__file__),
+            "..",
+        )
+    ),
+)
+from Urls import Urls
 from dotenv import load_dotenv
 
 load_dotenv()

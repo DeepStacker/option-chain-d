@@ -5,8 +5,20 @@ from concurrent.futures import ThreadPoolExecutor
 from Modals import get_data
 from deltadb import get_delta_data
 from Fut_Live import fetch_and_store_data
-from Urls import Urls
 import pytz
+import sys
+import os
+
+sys.path.insert(
+    0,
+    os.path.abspath(
+        os.path.join(
+            os.path.dirname(__file__),
+            "..",
+        )
+    ),
+)
+from Urls import Urls
 
 # Define Indian Standard Time (IST)
 IST = pytz.timezone("Asia/Kolkata")
