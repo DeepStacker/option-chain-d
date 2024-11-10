@@ -50,7 +50,7 @@ function OptionsTable() {
     setLoading(true);
     setFetchError(null); // Reset fetch error state
     try {
-      const response = await axios.post("http://localhost:8000/api/percentage-data", params);
+      const response = await axios.post("https://option-chain-d.onrender.com/api/percentage-data", params);
       if (response.data) {
         setPopupData(response.data);
         setIsPopupVisible(true);
@@ -69,7 +69,7 @@ function OptionsTable() {
     setLoading(true);
     setFetchError(null); // Reset fetch error state
     try {
-      const response = await axios.post("http://localhost:8000/api/iv-data", params);
+      const response = await axios.post("https://option-chain-d.onrender.com/api/iv-data", params);
       if (response.data) {
         setPopupData(response.data);
         setIsIVPopupVisible(true);
@@ -88,7 +88,7 @@ function OptionsTable() {
     setLoading(true);
     setFetchError(null); // Reset fetch error state
     try {
-      const response = await axios.post("http://localhost:8000/api/delta-data", params);
+      const response = await axios.post("https://option-chain-d.onrender.com/api/delta-data", params);
       if (response.data) {
         setPopupData(response.data);
         setIsDeltaPopupVisible(true);
@@ -107,7 +107,7 @@ function OptionsTable() {
     setLoading(true);
     setFetchError(null); // Reset fetch error state
     try {
-      const response = await axios.post("http://localhost:8000/api/fut-data", params);
+      const response = await axios.post("https://option-chain-d.onrender.com/api/fut-data", params);
       if (response.data) {
         setPopupData(response.data);
         setIsFuturePricePopupVisible(true);
