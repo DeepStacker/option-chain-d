@@ -11,11 +11,11 @@ from dotenv import load_dotenv
 load_dotenv()
 
 connection_string = os.getenv("MONGO_URI")
-client = MongoClient(connection_string)
+# client = MongoClient(connection_string)
 
 
 def retrieve_data(expiry, date, file_path):
-    # client = MongoClient("mongodb://localhost:27017/")
+    client = MongoClient("mongodb://localhost:27017/")
     db = client[str(file_path)]
     collection = db["oc_data"]
     fs = gridfs.GridFS(db)  # Initialize GridFS

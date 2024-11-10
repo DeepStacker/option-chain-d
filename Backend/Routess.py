@@ -1,4 +1,4 @@
-from routes import app
+from app import app
 from DB_Data_Controller import start_schedule, schedule
 import threading
 import time

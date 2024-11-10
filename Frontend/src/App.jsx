@@ -7,8 +7,10 @@ import Footer from "./pages/Footer";
 import { useSelector } from "react-redux";
 import { useEffect } from "react";
 import Blog from "./pages/Blog";
-import Contact from "./pages/Contact";
+// import Contact from "./pages/Contact";
 import Sidebar from "./components/SideBar";
+import ProfitLossCalculator from "./pages/Tca";
+import ContactUs from "./pages/Contact";
 
 const App = () => {
   const theme = useSelector((state) => state.theme.theme);
@@ -26,9 +28,10 @@ const App = () => {
         <Route path="/" element={<Home />} />
         {/* <Route path="/sidebar" element={<Sidebar />} /> */}
         <Route path="/about" element={<About />} />
+        <Route path="/risk-analysis" element={<ProfitLossCalculator />} />
         <Route path="/advanced-option-chain" element={<OptionChain />} />
         <Route path="/blog" element={<Blog />} />
-        <Route path="/contact" element={<Contact />} />
+        <Route path="/contact" element={<ContactUs />} />
       </Routes>
       <Footer />
     </Router>

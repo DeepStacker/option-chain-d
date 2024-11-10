@@ -13,10 +13,10 @@ const Home = () => {
   return (
     <div className={theme === 'dark' ? 'bg-gray-900' : 'bg-white'}>
       {/* Hero Section */}
-      <section 
+      <section
         className="bg-cover bg-center h-screen flex items-center justify-center"
-        style={{ 
-          backgroundImage: `url(https://images.unsplash.com/photo-1705635847741-d38022d08d93?q=80&w=1856&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D)` 
+        style={{
+          backgroundImage: `url(https://images.unsplash.com/photo-1705635847741-d38022d08d93?q=80&w=1856&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D)`
         }}>
         <div className={`text-center transition ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
           <h1 className="text-5xl font-bold mb-4">Welcome to {title}</h1>
@@ -31,7 +31,7 @@ const Home = () => {
       {/* Services Section */}
       <section className={`py-16 transition ${theme === 'dark' ? 'bg-gray-800 text-white' : "bg-gray-50 text-gray-800"} text-center`}>
         <h2 className="text-4xl font-bold mb-10">Our Services</h2>
-        <div className="flex justify-center space-x-6">
+        <div id='services' className="flex justify-center cursor-pointer space-x-6">
           <div className={`w-1/4 p-6 rounded shadow hover:shadow-lg transition ${theme === 'dark' ? 'bg-gray-700' : 'bg-white'}`}>
             <i className="fas fa-chart-line text-5xl text-blue-500 mb-4"></i>
             <h3 className="text-2xl font-semibold mb-2">Option Chain</h3>

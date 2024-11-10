@@ -65,6 +65,11 @@ const Navbar = () => {
               </Link>
             </li>
             <li>
+              <Link to="/risk-analysis" className="hover:text-blue-600">
+                Risk Simulator {/* Fixed typo here */}
+              </Link>
+            </li>
+            <li>
               <Link to="/about" className="hover:text-blue-600">
                 About Us
               </Link>
