@@ -14,7 +14,7 @@ const TickerDropdown = () => {
 
   return (
     <div className="form-group mb-1">
-      <label htmlFor="ticker" className={`block text-sm font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+      <label htmlFor="ticker" className={`block text-md text-center font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
         Ticker
       </label>
       <select

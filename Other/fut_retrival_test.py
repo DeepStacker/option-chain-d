@@ -1,7 +1,13 @@
 from datetime import datetime
 import json
 from flask import jsonify
-from Backend.retrivedata import retrieve_data
+import sys
+import os
+
+sys.path.insert(
+    0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "Backend"))
+)
+from retrivedata import retrieve_data
 
 
 def get_fut_data(symbol, exp):
@@ -46,51 +52,64 @@ def get_fut_data(symbol, exp):
                     vol.append(value[str(fut_date)].get("vol", 0))
                     ltp.append(value[str(fut_date)].get("ltp", 0))
                 else:
-                    return (
-                        jsonify(
-                            {
-                                "error": "Strike not found",
-                                "symbol": symbol,
-                                "expiry": exp,
-                            }
-                        ),
-                        404,
-                    )
+                    # return (
+                    #     jsonify(
+                    #         {
+                    #             "error": "Strike not found",
+                    #             "symbol": symbol,
+                    #             "expiry": exp,
+                    #         }
+                    #     ),
+                    #     404,
+                    # )
+                    pass
 
         else:
             # Return error if the expiry is not found
-            return (
-                jsonify(
-                    {
-                        "error": "Expiry not found",
-                        "symbol": symbol,
-                    }
-                ),
-                404,
-            )
+            # return (
+            #     jsonify(
+            #         {
+            #             "error": "Expiry not found",
+            #             "symbol": symbol,
+            #         }
+            #     ),
+            #     404,
+            # )
+            pass
 
         print("Data processing completed successfully.")
+        new_data = {
+            "symbol": symbol,
+            "expiry": exp,
+            "timestamp": timestamp,
+            "oi": oi,
+            "oichng": oichng,
+            "vol": vol,
+            "ltp": ltp,
+        }
+        with open("temp_data.json", "w") as file:
+            json.dump(new_data, file, indent=4)
 
-        return (
-            jsonify(
-                {
-                    "symbol": symbol,
-                    "expiry": exp,
-                    "timestamp": timestamp,
-                    "oi": oi,
-                    "oichng": oichng,
-                    "vol": vol,
-                    "ltp": ltp,
-                }
-            ),
-            200,
-        )
+        # return (
+        #     jsonify(
+        #         {
+        #             "symbol": symbol,
+        #             "expiry": exp,
+        #             "timestamp": timestamp,
+        #             "oi": oi,
+        #             "oichng": oichng,
+        #             "vol": vol,
+        #             "ltp": ltp,
+        #         }
+        #     ),
+        #     200,
+        # )
 
     except Exception as e:
         # Log the error for debugging
         print(f"An error occurred: {e}")
-        return jsonify({"error": "Internal Server Error"}), 500
+        # return jsonify({"error": "Internal Server Error"}), 500
 
 
 if __name__ == "__main__":
-    get_fut_data(294, 1416076200)
+    get_fut_data(13, 1415989800)

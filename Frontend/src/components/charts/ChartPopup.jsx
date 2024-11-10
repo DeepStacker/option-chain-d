@@ -14,7 +14,7 @@ import zoomPlugin from 'chartjs-plugin-zoom'; // Import zoom plugin
 import { FaTimes } from 'react-icons/fa';
 import PropTypes from 'prop-types';
 import { useSelector } from 'react-redux';
-import { formatChartNumber } from '../utils/utils';
+import { formatChartNumber } from '../../utils/utils';
 
 // Register Chart.js modules and zoom plugin
 ChartJS.register(
@@ -121,7 +121,7 @@ const Popup = ({ data, onClose }) => {
           label.style.color = themeColors.text;
         },
       },
-      
+
       zoom: {
         zoom: {
           wheel: {

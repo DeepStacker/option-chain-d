@@ -1,7 +1,7 @@
 // src/components/OptionsTable.js
 
 import React, { useState, useEffect, useCallback, useMemo, memo } from "react";
-import Popup from "./ChartPopup";
+import Popup from "./charts/ChartPopup";
 import axios from "axios";
 import { findStrikes, renderStrikeRow } from "../utils/optionChainTable/OptionTableUtils";
 import { useDispatch, useSelector } from "react-redux";
@@ -12,8 +12,10 @@ import Ticker from "./Ticker";
 import TickerChange from "./TickerChange";
 import Line from './Line';
 import './tableStyle.css';
-import DeltaPopup from "./DeltaChartPopup";
-import IVPopup from "./Popup";
+import DeltaPopup from "./charts/DeltaChartPopup";
+import IVPopup from "./charts/Popup";
+import FuturePopup from "./charts/FuturePopup";
+
 
 function OptionsTable() {
   const dispatch = useDispatch();
@@ -33,6 +35,7 @@ function OptionsTable() {
   const [popupData, setPopupData] = useState(null);
   const [isPopupVisible, setIsPopupVisible] = useState(false);
   const [isDeltaPopupVisible, setIsDeltaPopupVisible] = useState(false);
+  const [isFuturePricePopupVisible, setIsFuturePricePopupVisible] = useState(false);
   const [isIVPopupVisible, setIsIVPopupVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState(null);
@@ -61,7 +64,7 @@ function OptionsTable() {
       setLoading(false);
     }
   }, []);
-  
+
   const fetchIVData = useCallback(async (params) => {
     setLoading(true);
     setFetchError(null); // Reset fetch error state
@@ -80,7 +83,7 @@ function OptionsTable() {
       setLoading(false);
     }
   }, []);
-  
+
   const fetchDeltaData = useCallback(async (params) => {
     setLoading(true);
     setFetchError(null); // Reset fetch error state
@@ -89,6 +92,25 @@ function OptionsTable() {
       if (response.data) {
         setPopupData(response.data);
         setIsDeltaPopupVisible(true);
+      } else {
+        throw new Error("No data received from API.");
+      }
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      setFetchError("Failed to fetch data. Please try again later."); // Set fetch error message
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const fetchFuturePriceData = useCallback(async (params) => {
+    setLoading(true);
+    setFetchError(null); // Reset fetch error state
+    try {
+      const response = await axios.post("http://localhost:8000/api/fut-data", params);
+      if (response.data) {
+        setPopupData(response.data);
+        setIsFuturePricePopupVisible(true);
       } else {
         throw new Error("No data received from API.");
       }
@@ -154,6 +176,9 @@ function OptionsTable() {
   const handleDeltaClick = (strike) => {
     fetchDeltaData({ strike, exp, sid: symbol });
   };
+  const handleFuturePriceClick = (strike) => {
+    fetchFuturePriceData({ strike, exp, sid: symbol });
+  };
 
   // Close popup
   const closePopup = () => {
@@ -161,12 +186,13 @@ function OptionsTable() {
     setIsPopupVisible(false);
     setIsDeltaPopupVisible(false);
     setIsIVPopupVisible(false);
+    setIsFuturePricePopupVisible(false);
   };
 
   // Early return if data is unavailable
   if (!data?.options?.data) {
     return (
-      <div className={` ${theme === "dark" ? "text-gray-300" : "text-gray-700"} flex mt-10 flex-col items-center justify-center h-full text-center`}>
+      <div className={` ${theme === "dark" ? "text-gray-300" : "text-gray-700"} flex  flex-col items-center justify-center h-full text-center`}>
         <div className="flex items-center justify-center">
           <div className="animate-spin rounded-full border-8 border-t-8 border-gray-200 border-t-blue-500 h-16 w-16" role="status" aria-label="Loading">
             <span className="sr-only">Loading...</span>
@@ -211,7 +237,7 @@ function OptionsTable() {
   ));
 
   return (
-    <div className={`h-[100vh] overflow-y-auto pt-7 ${theme === "dark" ? "bg-gray-900" : "bg-white"}`}>
+    <div className={`h-[100vh] overflow-y-auto  ${theme === "dark" ? "bg-gray-900" : "bg-white"}`}>
       {/* {loading && (
         <div className={`${theme === "dark" ? "text-gray-300" : "text-gray-700"}`} role="status">
           Loading...
@@ -237,7 +263,7 @@ function OptionsTable() {
           {/* Adjust top offset to prevent covering */}
           <thead
             className={`${theme === "dark" ? "bg-gray-700 text-gray-300" : "bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 text-gray-700"
-              } font-semibold sticky top-[-1px] z-10`} // Adjust top value here to match header height
+              } font-semibold sticky top-[-10px] z-10`} // Adjust top value here to match header height
           >
             <tr className={`divide-x ${theme === "dark" ? "divide-gray-600" : "divide-gray-300"}`}>
               {ceHeaders.map((header, index) => (
@@ -271,7 +297,7 @@ function OptionsTable() {
                 className={`text-center transition-all duration-200 ease-in-out divide-x hover:${theme === "dark" ? "bg-gray-800" : "bg-gray-100"
                   } ${theme === "dark" ? "divide-gray-950" : "divide-gray-300"}`}
               >
-                {renderStrikeRow(options[strike], strike, isHighlighting, data.options.data, handlePercentageClick,handleDeltaClick,handleIVClick, theme)}
+                {renderStrikeRow(options[strike], strike, isHighlighting, data.options.data, handlePercentageClick, handleDeltaClick, handleIVClick, theme)}
               </tr>
             ))}
 
@@ -286,7 +312,7 @@ function OptionsTable() {
               <td colSpan={1}>
                 <Line />
               </td>
-              <td colSpan={3} className={`p-0.5`}>
+              <td onClick={() => handleFuturePriceClick()} colSpan={3} className={`p-0.5 cursor-pointer `}>
                 <LabelSight />
               </td>
               <td colSpan={1}>
@@ -306,7 +332,7 @@ function OptionsTable() {
                 className={`text-center transition-all duration-200 ease-in-out divide-x hover:${theme === "dark" ? "bg-gray-800" : "bg-gray-100"
                   } ${theme === "dark" ? "divide-gray-950" : "divide-gray-300"}`}
               >
-                {renderStrikeRow(options[strike], strike, isHighlighting, data.options.data, handlePercentageClick,handleDeltaClick,handleIVClick, theme)}
+                {renderStrikeRow(options[strike], strike, isHighlighting, data.options.data, handlePercentageClick, handleDeltaClick, handleIVClick, theme)}
               </tr>
             ))}
           </tbody>
@@ -316,6 +342,7 @@ function OptionsTable() {
       {isPopupVisible && <Popup data={popupData} onClose={closePopup} />}
       {isDeltaPopupVisible && <DeltaPopup data={popupData} onClose={closePopup} />}
       {isIVPopupVisible && <IVPopup data={popupData} onClose={closePopup} />}
+      {isFuturePricePopupVisible && <FuturePopup data={popupData} onClose={closePopup} />}
     </div>
 
 

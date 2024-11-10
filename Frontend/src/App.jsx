@@ -8,6 +8,7 @@ import { useSelector } from "react-redux";
 import { useEffect } from "react";
 import Blog from "./pages/Blog";
 import Contact from "./pages/Contact";
+import Sidebar from "./components/SideBar";
 
 const App = () => {
   const theme = useSelector((state) => state.theme.theme);
@@ -20,8 +21,10 @@ const App = () => {
   return (
     <Router>
       <Navbar />
+
       <Routes>
         <Route path="/" element={<Home />} />
+        {/* <Route path="/sidebar" element={<Sidebar />} /> */}
         <Route path="/about" element={<About />} />
         <Route path="/advanced-option-chain" element={<OptionChain />} />
         <Route path="/blog" element={<Blog />} />

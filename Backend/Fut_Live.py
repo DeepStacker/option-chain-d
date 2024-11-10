@@ -5,9 +5,15 @@ from Urls import Urls
 from pymongo import MongoClient
 import gridfs
 
+import os
+from dotenv import load_dotenv
 
+load_dotenv()
+
+connection_string = os.getenv("MONGO_URI")
+client = MongoClient(connection_string)
 # MongoDB setup
-client = MongoClient("mongodb://localhost:27017/")
+# client = MongoClient("mongodb://localhost:27017/")
 db = client["Future"]
 collection = db["oc_data"]
 fs = gridfs.GridFS(db)  # Initialize GridFS
@@ -116,6 +122,7 @@ def fetch_and_store_data(expiry, symbol=13, seg=0, interval=10):
                 timestamp=current_time,
                 data=data[str(expiry)][current_date][current_time],
             )
+            print(f"Data successfully saved to MongoDB at timestamp {current_time}")
 
             # Optional: Save to local JSON for backup
             # try:
@@ -134,6 +141,4 @@ def fetch_and_store_data(expiry, symbol=13, seg=0, interval=10):
 
 # Main execution
 if __name__ == "__main__":
-    fetch_and_store_data(
-        1416076200, 294, 5
-    )  # Replace with actual expiry timestamp as needed
+    fetch_and_store_data(1415989800, 13, 0)

@@ -5,7 +5,7 @@ import zoomPlugin from 'chartjs-plugin-zoom';
 import { FaTimes } from 'react-icons/fa';
 import PropTypes from 'prop-types';
 import { useSelector } from 'react-redux';
-import { formatChartNumber } from '../utils/utils';
+import { formatChartNumber } from '../../utils/utils';
 
 // Register Chart.js modules and plugins
 ChartJS.register(LineElement, PointElement, CategoryScale, LinearScale, Tooltip, Legend, Title, zoomPlugin);
@@ -13,7 +13,7 @@ ChartJS.register(LineElement, PointElement, CategoryScale, LinearScale, Tooltip,
 const DeltaPopup = ({ data, onClose }) => {
   const theme = useSelector((state) => state.theme.theme);
   const [activeSection, setActiveSection] = useState('OI Change');
-  
+
   if (!data) return null;
 
   const themeColors = {
@@ -43,21 +43,21 @@ const DeltaPopup = ({ data, onClose }) => {
     datasets:
       activeSection === 'OI Change'
         ? [
-            createDataset('CE OI Change', data.ce_oichng, 'rgba(255, 0, 0, 1)',true),
-            createDataset('PE OI Change', data.pe_oichng, 'rgba(0, 255, 0, 1)',true), // Hidden by default
-            createDataset('PE - CE', data.peminusce_oichng, 'rgba(0, 0, 255, 1)'),
-            createDataset('PE / CE', data.pebyce_oichng, 'rgba(255, 255, 255, 1)', true), // Hidden by default
-          ]
+          createDataset('CE OI Change', data.ce_oichng, 'rgba(255, 0, 0, 1)', true),
+          createDataset('PE OI Change', data.pe_oichng, 'rgba(0, 255, 0, 1)', true), // Hidden by default
+          createDataset('PE - CE', data.peminusce_oichng, 'rgba(0, 0, 255, 1)'),
+          createDataset('PE / CE', data.pebyce_oichng, 'rgba(255, 255, 255, 1)', true), // Hidden by default
+        ]
         : activeSection === 'OI'
-        ? [
+          ? [
             createDataset('CE OI', data.ce_oi, 'rgba(255, 0, 0, 1)'),
             createDataset('PE OI', data.pe_oi, 'rgba(0, 255, 0, 1)'), // Hidden by default
-            createDataset('PE - CE', data.peminusce_oi, 'rgba(0, 0, 255, 1)',true),
+            createDataset('PE - CE', data.peminusce_oi, 'rgba(0, 0, 255, 1)', true),
             createDataset('PE / CE', data.pebyce_oi, 'rgba(255, 255, 255, 1)', true), // Hidden by default
           ]
-        : [
-            createDataset('CE VOL', data.ce_vol, 'rgba(0, 255, 0, 1)',true),
-            createDataset('PE VOL', data.pe_vol, 'rgba(255, 0, 0, 1)',true), // Hidden by default
+          : [
+            createDataset('CE VOL', data.ce_vol, 'rgba(0, 255, 0, 1)', true),
+            createDataset('PE VOL', data.pe_vol, 'rgba(255, 0, 0, 1)', true), // Hidden by default
             createDataset('PE - CE', data.peminusce_vol, 'rgba(0, 0, 255, 1)'),
             createDataset('PE / CE', data.pebyce_vol, 'rgba(255, 255, 255, 1)', true), // Hidden by default
           ],
@@ -89,7 +89,7 @@ const DeltaPopup = ({ data, onClose }) => {
           label.style.fontSize = '12px';
           label.style.color = themeColors.text;
         },
-      },      
+      },
       tooltip: {
         mode: 'nearest',
         intersect: false,
@@ -114,7 +114,7 @@ const DeltaPopup = ({ data, onClose }) => {
       },
     },
   };
-  
+
 
   return (
     <div

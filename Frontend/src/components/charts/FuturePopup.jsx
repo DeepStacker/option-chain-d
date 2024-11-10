@@ -5,14 +5,14 @@ import zoomPlugin from 'chartjs-plugin-zoom';
 import { FaTimes } from 'react-icons/fa';
 import PropTypes from 'prop-types';
 import { useSelector } from 'react-redux';
-import { formatChartNumber } from '../utils/utils';
+import { formatChartNumber } from '../../utils/utils';
 
 // Register Chart.js modules and plugins
 ChartJS.register(LineElement, PointElement, CategoryScale, LinearScale, Tooltip, Legend, Title, zoomPlugin);
 
-const DeltaPopup = ({ data, onClose }) => {
+const FuturePopup = ({ data, onClose }) => {
     const theme = useSelector((state) => state.theme.theme);
-    const [activeSection, setActiveSection] = useState('IV');
+    const [activeSection, setActiveSection] = useState('Future');
 
     if (!data) return null;
 
@@ -26,7 +26,7 @@ const DeltaPopup = ({ data, onClose }) => {
         timestamps.map((ts) => new Date(ts * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
     const shortTimeLabels = formatTimestamps(data.timestamp);
 
-    const createDataset = (label, data, color, hidden = false) => ({
+    const createDataset = (label, data, color, axis, hidden = false) => ({
         label,
         data,
         borderColor: color,
@@ -36,26 +36,19 @@ const DeltaPopup = ({ data, onClose }) => {
         borderWidth: 1,
         tension: 0.1,
         hidden, // Default hidden state
+        yAxisID: axis, // Specify which y-axis to use
     });
 
     const chartData = {
         labels: shortTimeLabels,
         datasets:
-            activeSection === 'IV'
+            activeSection === 'Future'
                 ? [
-                    createDataset('CE IV', data.ce_iv, 'rgba(255, 0, 0, 1)'),
-                    createDataset('PE IV', data.pe_iv, 'rgba(0, 255, 0, 1)'),
+                    createDataset('Future Ltp', data.ltp, 'rgba(0, 0, 255, 1)', 'y1'), // Right y-axis for LTP
+                    createDataset('Future OIChng', data.oichng, 'rgba(0, 255, 0, 1)', 'y', true), // Left y-axis for OI Change
+                    createDataset('Future OI', data.oi, 'rgba(255, 0, 0, 1)', 'y'), // Left y-axis for OI
                 ]
-                : [
-                    createDataset('CE DELTA', data.ce_delta, 'rgba(255, 0, 0, 1)'),
-                    createDataset('PE DELTA', data.pe_delta, 'rgba(0, 255, 0, 1)'),
-                    createDataset('CE GAMMA', data.ce_theta, 'rgba(255, 0, 0, 1)',true), 
-                    createDataset('PE GAMMA', data.pe_theta, 'rgba(0, 255, 0, 1)',true), 
-                    createDataset('CE THETHA', data.ce_gamma, 'rgba(255, 0, 0, 1)', true),
-                    createDataset('PE THETHA', data.pe_gamma, 'rgba(0, 255, 0, 1)', true),
-                    createDataset('CE VEGA', data.ce_vega, 'rgba(255, 0, 0, 1)', true), 
-                    createDataset('PE VEGA', data.pe_vega, 'rgba(0, 255, 0, 1)', true), 
-                ]
+                : [],
     };
 
     const chartOptions = {
@@ -77,7 +70,7 @@ const DeltaPopup = ({ data, onClose }) => {
                     const label = event.native.target;
                     label.style.cursor = 'pointer';
                     label.style.fontSize = '16px';
-                    label.style.color = 'rgba(255, 0, 0, 1)'; // Changes color on hover
+                    label.style.color = 'rgba(255, 0, 0, 1)';
                 },
                 onLeave: (event) => {
                     const label = event.native.target;
@@ -104,12 +97,31 @@ const DeltaPopup = ({ data, onClose }) => {
                 grid: { color: themeColors.gridColor },
             },
             y: {
+                type: 'linear',
+                display: true,
+                position: 'left',
                 ticks: { color: themeColors.text },
                 grid: { color: themeColors.gridColor },
+                title: {
+                    display: true,
+                    text: 'OI / OI Change',
+                    color: themeColors.text,
+                },
+            },
+            y1: {
+                type: 'linear',
+                display: true,
+                position: 'right',
+                ticks: { color: themeColors.text },
+                grid: { drawOnChartArea: false }, // Prevents grid overlap with the left y-axis
+                title: {
+                    display: true,
+                    text: 'LTP',
+                    color: themeColors.text,
+                },
             },
         },
     };
-
 
     return (
         <div
@@ -122,28 +134,16 @@ const DeltaPopup = ({ data, onClose }) => {
                     <FaTimes size={24} color={themeColors.text} />
                 </button>
                 <p className={`text-2xl font-bold ${themeColors.text}`}>
-                    {data.strike} {data.isCe ? 'CE' : 'PE'}
+                    Future Buildup
                 </p>
 
                 <div className="flex justify-center gap-4 my-4">
                     <p
-                        onClick={() => setActiveSection('IV')}
-                        className={`py-0 cursor-pointer px-4 rounded ${activeSection === 'IV' ? 'bg-white text-gray-800' : 'bg-gray-500 text-gray-200'}`}
+                        onClick={() => setActiveSection('Future')}
+                        className={`py-0 cursor-pointer px-4 rounded ${activeSection === 'Future' ? 'bg-white text-gray-800' : 'bg-gray-500 text-gray-200'}`}
                     >
-                        IV
+                        Future
                     </p>
-                    <p
-                        onClick={() => setActiveSection('GREEKS')}
-                        className={`py-0 cursor-pointer px-4 rounded ${activeSection === 'GREEKS' ? 'bg-white text-gray-800' : 'bg-gray-500 text-gray-200'}`}
-                    >
-                        GREEKS
-                    </p>
-                    {/* <p
-            onClick={() => setActiveSection('Volume')}
-            className={`py-0 cursor-pointer px-4 rounded ${activeSection === 'Volume' ? 'bg-white text-gray-800' : 'bg-gray-500 text-gray-200'}`}
-          >
-            Volume
-          </p> */}
                 </div>
 
                 <div className="w-full h-full p-4">
@@ -154,9 +154,9 @@ const DeltaPopup = ({ data, onClose }) => {
     );
 };
 
-DeltaPopup.propTypes = {
+FuturePopup.propTypes = {
     data: PropTypes.object,
     onClose: PropTypes.func.isRequired,
 };
 
-export default DeltaPopup;
+export default FuturePopup;

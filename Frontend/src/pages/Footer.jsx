@@ -8,12 +8,10 @@ const Footer = () => {
 
   return (
     <footer
-      className={`py-10 mt-10 text-center transition-all  ${
-        theme === 'dark' ? 'bg-gray-900 text-gray-300' : 'bg-gray-100 text-gray-700'
-      }`}
+      className={`py-10 mt-10 text-center transition-all  ${theme === 'dark' ? 'bg-gray-900 text-gray-300' : 'bg-gray-100 text-gray-700'}`}
     >
       <div className="container mx-auto px-4">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8">
           {/* About Section */}
           <div>
             <h2 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
@@ -72,9 +70,7 @@ const Footer = () => {
               <input
                 type="email"
                 placeholder="Enter your email"
-                className={`px-3 py-2 rounded ${
-                  theme === 'dark' ? 'bg-gray-800 text-gray-200' : 'bg-white text-gray-800'
-                } focus:outline-none border border-gray-300`}
+                className={`px-3 py-2 rounded ${theme === 'dark' ? 'bg-gray-800 text-gray-200' : 'bg-white text-gray-800'} focus:outline-none border border-gray-300`}
               />
               <button className="px-5 py-2 rounded bg-blue-600 text-white hover:bg-blue-500 transition">
                 Subscribe

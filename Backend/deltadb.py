@@ -7,9 +7,16 @@ from pymongo import MongoClient
 import gridfs
 from retrivedata import retrieve_data
 
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+connection_string = os.getenv("MONGO_URI")
+client = MongoClient(connection_string)
 
 # MongoDB setup
-client = MongoClient("mongodb://localhost:27017/")
+# client = MongoClient("mongodb://localhost:27017/")
 db = client["Delta"]
 collection = db["oc_data"]
 fs = gridfs.GridFS(db)  # Initialize GridFS

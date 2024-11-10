@@ -4,7 +4,7 @@ import { useSelector } from "react-redux";
 
 const OurMission = () => {
   const theme = useSelector((state) => state.theme.theme);
-  
+
   return (
     <section
       className={`max-w-4xl mx-auto rounded-lg p-6 mb-10 shadow-md transition ${theme === 'dark' ? 'bg-gray-800 text-white' : 'bg-white text-gray-700'}`}
