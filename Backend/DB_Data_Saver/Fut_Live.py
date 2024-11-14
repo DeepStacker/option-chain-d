@@ -31,34 +31,34 @@ collection = db["oc_data"]
 fs = gridfs.GridFS(db)  # Initialize GridFS
 
 
-def save_data(expiry, data, timestamp, current_date):
+def save_data(symbol, expiry, data, timestamp, current_date):
     if data:
         data_bytes = json.dumps(data).encode("utf-8")
 
+        # Save data bytes to the file system
         file_id = fs.put(data_bytes)
 
-        # Find an existing document by expiry
-        existing_doc = collection.find_one({"expiry": expiry})
+        # Find an existing document by symbol and expiry
+        existing_doc = collection.find_one({"symbol": symbol, "expiry": expiry})
 
         if existing_doc:
             # Add the current_date to dateList if it's not already present
             if current_date not in existing_doc.get("dateList", []):
                 collection.update_one(
-                    {"expiry": expiry},
-                    {
-                        "$addToSet": {"dateList": current_date}
-                    },  # Add the new date to the array
+                    {"symbol": symbol, "expiry": expiry},
+                    {"$addToSet": {"dateList": current_date}},
                 )
 
             # Update or set the file_id for the specific timestamp under the current date
             collection.update_one(
-                {"expiry": expiry},
+                {"symbol": symbol, "expiry": expiry},
                 {"$set": {f"day.{str(current_date)}.{str(timestamp)}": file_id}},
             )
         else:
             # Insert a new document if expiry doesn't exist
             collection.insert_one(
                 {
+                    "symbol": symbol,
                     "expiry": expiry,
                     "dateList": [current_date],
                     "day": {str(current_date): {str(timestamp): file_id}},
@@ -101,8 +101,6 @@ def fetch_and_store_data(expiry, symbol=13, seg=0, interval=10):
             fetched_data = Urls.fetch_fut_data(
                 symbol=symbol, seg=seg
             )  # Ensure `Urls` is imported and defined
-            # with open("ddata.json", 'w') as file:
-            #         json.dump(fetched_data, file, indent=4)
 
             if (
                 not fetched_data
@@ -129,20 +127,15 @@ def fetch_and_store_data(expiry, symbol=13, seg=0, interval=10):
 
             # Save to MongoDB
             save_data(
+                symbol=symbol,
                 expiry=expiry,
                 current_date=current_date,
                 timestamp=current_time,
                 data=data[str(expiry)][current_date][current_time],
             )
-            print(f"Data successfully saved to MongoDB at timestamp {current_time}")
-
-            # Optional: Save to local JSON for backup
-            # try:
-            #     with open("ddata_saved.json", 'w') as file:
-            #         json.dump(data, file, indent=4)
-            #     print(f"Local backup saved at {current_time} for expiry {expiry}.")
-            # except IOError as io_err:
-            #     print(f"Failed to save local JSON backup: {io_err}")
+            print(
+                f"Data successfully saved to MongoDB at timestamp {current_time} for fut "
+            )
 
         except Exception as e:
             print(f"An error occurred: {e}")

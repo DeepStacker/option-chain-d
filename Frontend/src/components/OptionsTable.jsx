@@ -15,6 +15,7 @@ import './tableStyle.css';
 import DeltaPopup from "./charts/DeltaChartPopup";
 import IVPopup from "./charts/Popup";
 import FuturePopup from "./charts/FuturePopup";
+import ReversalPopup from "./charts/ReversalPopup";
 
 
 function OptionsTable() {
@@ -33,9 +34,11 @@ function OptionsTable() {
 
   // State hooks
   const [popupData, setPopupData] = useState(null);
+  const [strike, setStrike] = useState(null);
   const [isPopupVisible, setIsPopupVisible] = useState(false);
   const [isDeltaPopupVisible, setIsDeltaPopupVisible] = useState(false);
   const [isFuturePricePopupVisible, setIsFuturePricePopupVisible] = useState(false);
+  const [isReversalPopupVisible, setIsReversalPopupVisible] = useState(false);
   const [isIVPopupVisible, setIsIVPopupVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState(null);
@@ -50,7 +53,7 @@ function OptionsTable() {
     setLoading(true);
     setFetchError(null); // Reset fetch error state
     try {
-      const response = await axios.post("https://option-chain-d.onrender.com/api/percentage-data", params);
+      const response = await axios.post("http://localhost:8000/api/percentage-data", params);
       if (response.data) {
         setPopupData(response.data);
         setIsPopupVisible(true);
@@ -69,7 +72,7 @@ function OptionsTable() {
     setLoading(true);
     setFetchError(null); // Reset fetch error state
     try {
-      const response = await axios.post("https://option-chain-d.onrender.com/api/iv-data", params);
+      const response = await axios.post("http://localhost:8000/api/iv-data", params);
       if (response.data) {
         setPopupData(response.data);
         setIsIVPopupVisible(true);
@@ -88,7 +91,7 @@ function OptionsTable() {
     setLoading(true);
     setFetchError(null); // Reset fetch error state
     try {
-      const response = await axios.post("https://option-chain-d.onrender.com/api/delta-data", params);
+      const response = await axios.post("http://localhost:8000/api/delta-data", params);
       if (response.data) {
         setPopupData(response.data);
         setIsDeltaPopupVisible(true);
@@ -107,7 +110,7 @@ function OptionsTable() {
     setLoading(true);
     setFetchError(null); // Reset fetch error state
     try {
-      const response = await axios.post("https://option-chain-d.onrender.com/api/fut-data", params);
+      const response = await axios.post("http://localhost:8000/api/fut-data", params);
       if (response.data) {
         setPopupData(response.data);
         setIsFuturePricePopupVisible(true);
@@ -180,6 +183,22 @@ function OptionsTable() {
     fetchFuturePriceData({ strike, exp, sid: symbol });
   };
 
+  // Handle reversal click
+  const handleReversalClick = (strike) => {
+    setLoading(true);
+    setFetchError(null);
+    try {
+      if (data) {
+        setStrike(strike);
+        setIsReversalPopupVisible(true);
+      }
+    } catch (error) {
+      setFetchError("Failed to fetch data. Please try again later.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Close popup
   const closePopup = () => {
     setPopupData(null);
@@ -187,6 +206,7 @@ function OptionsTable() {
     setIsDeltaPopupVisible(false);
     setIsIVPopupVisible(false);
     setIsFuturePricePopupVisible(false);
+    setIsReversalPopupVisible(false);
   };
 
   // Early return if data is unavailable
@@ -207,17 +227,17 @@ function OptionsTable() {
 
   const ceHeaders = [
     { label: "IV", subtitle: "Delta" },
-    { label: "OI CHANGE", },
+    { label: "OI CHNG", },
     { label: "OI" },
     { label: "VOLUME", },
-    { label: "LTP", subtitle: "Ltp_chng" },
+    { label: "LTP", subtitle: "Ltp_chng (TV)" },
   ];
 
   const peHeaders = [
-    { label: "LTP", subtitle: "Ltp_chng" },
+    { label: "LTP", subtitle: "Ltp_chng (TV)" },
     { label: "VOLUME", },
     { label: "OI" },
-    { label: "OI CHANGE", },
+    { label: "OI CHNG", },
     { label: "IV", subtitle: "Delta" },
   ];
 
@@ -297,22 +317,22 @@ function OptionsTable() {
                 className={`text-center transition-all duration-200 ease-in-out divide-x hover:${theme === "dark" ? "bg-gray-800" : "bg-gray-100"
                   } ${theme === "dark" ? "divide-gray-950" : "divide-gray-300"}`}
               >
-                {renderStrikeRow(options[strike], strike, isHighlighting, data.options.data, handlePercentageClick, handleDeltaClick, handleIVClick, theme)}
+                {renderStrikeRow(options[strike], strike, isHighlighting, data.options.data, handlePercentageClick, handleDeltaClick, handleIVClick, handleReversalClick, theme)}
               </tr>
             ))}
 
             {/* Spot Price Row */}
             <tr>
-              <td colSpan={1}>
+              {/* <td colSpan={1}>
                 <Line />
-              </td>
+              </td> */}
               <td colSpan={2}>
                 <Ticker />
               </td>
               <td colSpan={1}>
                 <Line />
               </td>
-              <td onClick={() => handleFuturePriceClick()} colSpan={3} className={`p-0.5 cursor-pointer `}>
+              <td onClick={() => handleFuturePriceClick()} colSpan={5} className={`p-0.5 cursor-pointer `}>
                 <LabelSight />
               </td>
               <td colSpan={1}>
@@ -321,9 +341,9 @@ function OptionsTable() {
               <td colSpan={2} className={`p-0.5`}>
                 <TickerChange />
               </td>
-              <td colSpan={1}>
+              {/* <td colSpan={1}>
                 <Line />
-              </td>
+              </td> */}
             </tr>
 
             {otm.map((strike) => (
@@ -332,7 +352,7 @@ function OptionsTable() {
                 className={`text-center transition-all duration-200 ease-in-out divide-x hover:${theme === "dark" ? "bg-gray-800" : "bg-gray-100"
                   } ${theme === "dark" ? "divide-gray-950" : "divide-gray-300"}`}
               >
-                {renderStrikeRow(options[strike], strike, isHighlighting, data.options.data, handlePercentageClick, handleDeltaClick, handleIVClick, theme)}
+                {renderStrikeRow(options[strike], strike, isHighlighting, data.options.data, handlePercentageClick, handleDeltaClick, handleIVClick, handleReversalClick, theme)}
               </tr>
             ))}
           </tbody>
@@ -343,6 +363,7 @@ function OptionsTable() {
       {isDeltaPopupVisible && <DeltaPopup data={popupData} onClose={closePopup} />}
       {isIVPopupVisible && <IVPopup data={popupData} onClose={closePopup} />}
       {isFuturePricePopupVisible && <FuturePopup data={popupData} onClose={closePopup} />}
+      {isReversalPopupVisible && <ReversalPopup strike={strike} onClose={closePopup} />}
     </div>
 
 

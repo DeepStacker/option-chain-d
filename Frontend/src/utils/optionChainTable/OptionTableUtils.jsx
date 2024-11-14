@@ -23,9 +23,17 @@ const getPCRClass = (pcr) => (pcr > 1.2 ? 'text-green-700' : pcr < 0.8 ? 'text-r
 
 
 
-export function renderStrikeRow(strikeData, strike, isHighlighting, optionChain, handlePercentageClick, handleDeltaClick,handleIVClick, theme) {
+export function renderStrikeRow(strikeData, strike, isHighlighting, optionChain, handlePercentageClick, handleDeltaClick, handleIVClick, handleReversalClick, theme) {
     const { ce: ceData = {}, pe: peData = {} } = strikeData || {};
     const oc = optionChain || {};
+    const reversal = oc?.oc || {};
+    // console.log(oc)
+    const strike_diff = Object.keys(reversal);
+    // console.log(strike_diff)
+    const stk_diff = strike_diff[1] - strike_diff[0];
+    // console.log(stk_diff)
+
+
 
     // Precompute ratios with default value of 0
     const oiRatio = peData?.OI && ceData?.OI ? peData.OI / ceData.OI : 0;
@@ -52,10 +60,10 @@ export function renderStrikeRow(strikeData, strike, isHighlighting, optionChain,
         isCe: PropTypes.bool.isRequired,
         strike: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
     };
-    
+
     const DeltaDataCell = memo(({ data, valueKey, strike, isCe }) => (
         <td
-            onClick={() => handleDeltaClick(strike, oc)}
+            onClick={() => handleDeltaClick(strike)}
             className={`${getHighlightClass(data[valueKey], data[valueKey + '_max_value'], isHighlighting, isCe)} cursor-pointer`}
         >
             {formatNumber(data[`${valueKey}_percentage`])}% <br />
@@ -68,14 +76,14 @@ export function renderStrikeRow(strikeData, strike, isHighlighting, optionChain,
         valueKey: PropTypes.string.isRequired,
         strike: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
     };
-    
+
     const IVDataCell = memo(({ data, valueKey, strike, isCe }) => (
-        <td 
-        onClick={() => handleIVClick(isCe, strike, oc)}
-        className={`${getHighlightClass(data[valueKey], data[valueKey], isHighlighting, isCe)} cursor-pointer`}>
-                {formatNumber(data[valueKey])} <br />
-                <small>{formatNumber(data.optgeeks?.delta)}</small>
-            </td>
+        <td
+            onClick={() => handleIVClick(isCe, strike, oc)}
+            className={`${getHighlightClass(data[valueKey], data[valueKey], isHighlighting, isCe)} cursor-pointer`}>
+            {formatNumber(data[valueKey])} <br />
+            <small>{formatNumber(data.optgeeks?.delta)}</small>
+        </td>
     ));
 
     IVDataCell.propTypes = {
@@ -94,13 +102,19 @@ export function renderStrikeRow(strikeData, strike, isHighlighting, optionChain,
 
             <td>
                 {formatNumber(ceData.ltp)} <br />
-                <small className={getHighlightTextClass(ceData.p_chng)}>
+                <small className={`${getHighlightTextClass(ceData.p_chng)} gap-x-3 `}>
                     {formatNumber(ceData.p_chng)}
+                    (<span className={getHighlightTextClass(ceData.ltp - reversal?.[strike]?.reversal?.ce_tv || 0)}>
+
+                        {((typeof reversal?.[strike]?.reversal?.ce_tv === 'number') ? (ceData.ltp - reversal?.[strike]?.reversal?.ce_tv).toFixed(0) : 0) || 0}
+                    </span>)
                 </small>
             </td>
 
             {/* Strike Price with Ratios */}
-            <td className={strikeCellClass}>
+            <td
+                className={`${strikeCellClass} cursor-pointer `}
+                onClick={() => handleReversalClick(strike, oc)}>
                 {strike} <br />
                 <small className={`font-normal ${getPCRClass(oiRatio)}`}>
                     {toFixed(oiRatio)}
@@ -115,6 +129,10 @@ export function renderStrikeRow(strikeData, strike, isHighlighting, optionChain,
                 {formatNumber(peData.ltp)} <br />
                 <small className={getHighlightTextClass(peData.p_chng)}>
                     {formatNumber(peData.p_chng)}
+                    (<span className={getHighlightTextClass(peData.ltp - reversal?.[strike]?.reversal?.pe_tv || 0)}>
+
+                        {((typeof reversal?.[strike]?.reversal?.pe_tv === 'number') ? (peData.ltp - reversal?.[strike]?.reversal?.pe_tv).toFixed(0) : 0) || 0}
+                    </span>)
                 </small>
             </td>
 
@@ -124,6 +142,7 @@ export function renderStrikeRow(strikeData, strike, isHighlighting, optionChain,
             <IVDataCell data={peData} valueKey="iv" strike={strike} isCe={false} />
         </React.Fragment>
     );
+
 }
 
 
@@ -131,9 +150,5 @@ export function findStrikes(options, atmPrice) {
     const nearestStrike = atmPrice;
     const otmStrikes = Object.keys(options).filter((s) => s > atmPrice);
     const itmStrikes = Object.keys(options).filter((s) => s < atmPrice);
-    // console.log(otmStrikes)
-    // console.log(itmStrikes)
-    // console.log(nearestStrike)
-    // console.log(atmPrice)
     return { nearestStrike, otmStrikes, itmStrikes };
 }

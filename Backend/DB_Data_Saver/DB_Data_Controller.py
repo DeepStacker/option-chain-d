@@ -96,7 +96,7 @@ start_schedule()
 try:
     while True:
         schedule.run_pending()
-        time.sleep(10)
+        # time.sleep(10)
 except KeyboardInterrupt:
     print("Scheduler stopped.")
     executor.shutdown(wait=True)

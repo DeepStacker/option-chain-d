@@ -235,65 +235,38 @@ class Utils:
 
         return option_chain
 
-    def save_data(expiry, data, timestamp, current_date, file_path):
-        # MongoDB setup
-        client = MongoClient("mongodb://localhost:27017/")
-        db = client[str(file_path)]
-        collection = db["oc_data"]
-
+    def save_data(symbol, expiry, data, timestamp, current_date):
         if data:
-            existing_doc = collection.find_one({"expiry": expiry})
+            data_bytes = json.dumps(data).encode("utf-8")
+
+            # Save data bytes to the file system
+            file_id = fs.put(data_bytes)
+
+            # Find an existing document by symbol and expiry
+            existing_doc = collection.find_one({"symbol": symbol, "expiry": expiry})
 
             if existing_doc:
-                # Check if the current_date is already in the 'date' array.
-                if current_date not in existing_doc["dateList"]:
-                    # If the date is new, add it to the 'date' array.
+                # Add the current_date to dateList if it's not already present
+                if current_date not in existing_doc.get("dateList", []):
                     collection.update_one(
-                        {"expiry": expiry},
-                        {
-                            "$addToSet": {
-                                "dateList": current_date
-                            }  # Add the new date to the array
-                        },
+                        {"symbol": symbol, "expiry": expiry},
+                        {"$addToSet": {"dateList": current_date}},
                     )
 
-                # Update or set the data for the specific timestamp under 'time'
+                # Update or set the file_id for the specific timestamp under the current date
                 collection.update_one(
-                    {"expiry": expiry},
-                    {
-                        "$set": {
-                            f"day.{current_date}.{timestamp}": data
-                        }  # Add data under new timestamp for this date
-                    },
+                    {"symbol": symbol, "expiry": expiry},
+                    {"$set": {f"day.{str(current_date)}.{str(timestamp)}": file_id}},
                 )
             else:
                 # Insert a new document if expiry doesn't exist
                 collection.insert_one(
                     {
+                        "symbol": symbol,
                         "expiry": expiry,
-                        "dateList": [current_date],  # Initialize date as an array
-                        "day": {
-                            str(
-                                current_date
-                            ): {  # Nest timestamp data under the new date
-                                str(timestamp): data
-                            }
-                        },
+                        "dateList": [current_date],
+                        "day": {str(current_date): {str(timestamp): file_id}},
                     }
                 )
         else:
-            print("No data to save.\nCreating blank document...")
-            # Insert a new document if expiry doesn't exist
-            collection.insert_one(
-                {
-                    "expiry": expiry,
-                    "dateList": [current_date],  # Initialize date as an array
-                    "day": {
-                        str(current_date): {  # Nest timestamp data under the new date
-                            str(timestamp): data
-                        }
-                    },
-                }
-            )
-
-            return
+            print("No data to save.")

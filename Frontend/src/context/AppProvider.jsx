@@ -1,8 +1,8 @@
 import React, { createContext, useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { fetchLiveData, fetchExpiryDate } from "../context/dataSlice"; 
+import { fetchLiveData, fetchExpiryDate } from "../context/dataSlice";
 
-export const AppContext = createContext(); 
+export const AppContext = createContext();
 
 export const AppProvider = ({ children }) => {
   const dispatch = useDispatch();
@@ -26,7 +26,7 @@ export const AppProvider = ({ children }) => {
 
   // Fetch expiry dates on symbol change
   useEffect(() => {
-    dispatch(fetchExpiryDate({ sid: symbol, exp}));
+    dispatch(fetchExpiryDate({ sid: symbol, exp }));
   }, [dispatch, symbol]);
 
   // Fetch live data every 3 seconds when `isOc` is true
@@ -40,8 +40,8 @@ export const AppProvider = ({ children }) => {
     };
 
     if (isOc) {
-      fetchData(); 
-      intervalRef.current = setInterval(fetchData, 5000);
+      fetchData();
+      intervalRef.current = setInterval(fetchData, 10000);
     }
 
     return () => {

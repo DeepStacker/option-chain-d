@@ -14,7 +14,7 @@ connection_string = os.getenv("MONGO_URI")
 # client = MongoClient(connection_string)
 
 
-def retrieve_data(expiry, date, file_path):
+def retrieve_data(symbol, expiry, date, file_path):
     client = MongoClient("mongodb://localhost:27017/")
     db = client[str(file_path)]
     collection = db["oc_data"]
@@ -24,6 +24,7 @@ def retrieve_data(expiry, date, file_path):
         # Fetch data for the specified expiry
         data = collection.find_one(
             {
+                "symbol": symbol,
                 "expiry": expiry,
                 f"day.{date}": {
                     "$exists": True
@@ -31,6 +32,7 @@ def retrieve_data(expiry, date, file_path):
             },
             {
                 "_id": 1,  # Include the document ID
+                "symbol": 1,  # Include symbol
                 "expiry": 1,  # Include expiry
                 "dateList": 1,  # Include date list
                 f"day.{date}": 1,  # Include the specific day's data
@@ -38,7 +40,7 @@ def retrieve_data(expiry, date, file_path):
         )
 
         if not data:
-            print(f"No data found for expiry: {expiry}")
+            print(f"No data found for expiry: {expiry} and Symbol: {symbol}.")
             return
 
         # Check if the date exists in the 'day' field
@@ -84,9 +86,6 @@ def retrieve_data(expiry, date, file_path):
             "dateList": data["dateList"],
             "day": {date: retrieved_data},
         }
-
-        # with open("data.json", 'w') as file:
-        #     json.dump(new_data, file, indent=4)
 
     except Exception as e:
         print(f"An error occurred: {str(e)}")

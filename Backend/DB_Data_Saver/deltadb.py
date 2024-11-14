@@ -34,34 +34,34 @@ collection = db["oc_data"]
 fs = gridfs.GridFS(db)  # Initialize GridFS
 
 
-def save_data(expiry, data, timestamp, current_date):
+def save_data(symbol, expiry, data, timestamp, current_date):
     if data:
         data_bytes = json.dumps(data).encode("utf-8")
 
+        # Save data bytes to the file system
         file_id = fs.put(data_bytes)
 
-        # Find an existing document by expiry
-        existing_doc = collection.find_one({"expiry": expiry})
+        # Find an existing document by symbol and expiry
+        existing_doc = collection.find_one({"symbol": symbol, "expiry": expiry})
 
         if existing_doc:
             # Add the current_date to dateList if it's not already present
             if current_date not in existing_doc.get("dateList", []):
                 collection.update_one(
-                    {"expiry": expiry},
-                    {
-                        "$addToSet": {"dateList": current_date}
-                    },  # Add the new date to the array
+                    {"symbol": symbol, "expiry": expiry},
+                    {"$addToSet": {"dateList": current_date}},
                 )
 
             # Update or set the file_id for the specific timestamp under the current date
             collection.update_one(
-                {"expiry": expiry},
+                {"symbol": symbol, "expiry": expiry},
                 {"$set": {f"day.{str(current_date)}.{str(timestamp)}": file_id}},
             )
         else:
             # Insert a new document if expiry doesn't exist
             collection.insert_one(
                 {
+                    "symbol": symbol,
                     "expiry": expiry,
                     "dateList": [current_date],
                     "day": {str(current_date): {str(timestamp): file_id}},
@@ -162,6 +162,7 @@ def get_delta_data(expiry, symbol=13, seg=0):
                 # Save the updated data back to MongoDB
                 # print("i'm here 5")
                 save_data(
+                    symbol,
                     expiry,
                     data["day"][str(current_date)][str(current_time)],
                     current_time,

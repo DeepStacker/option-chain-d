@@ -5,6 +5,7 @@ import traceback
 from Urls import Urls
 from Utils import Utils
 from retrivedata import retrieve_data
+import io
 
 FILE_PATH = "Percentage_Data.json"
 
@@ -74,14 +75,15 @@ class App:
                 .timestamp()
             )
 
+            symbol_id = Urls.symbol_list[symbol]
+
             # Load data (assuming retrieve_data is a working function that loads JSON data correctly)
-            data = retrieve_data(exp, curr_date, FILE_PATH)
+            retrived_data = retrieve_data(symbol_id, exp, curr_date, FILE_PATH)
             # print("Current Date Timestamp:", curr_date)
 
-            with open("temp_data.json", "w") as file:
-                json.dump(data, file, indent=4)
-
-            with open("temp_data.json", "r") as file:
+            with io.StringIO() as file:
+                json.dump(retrived_data, file, indent=4)
+                file.seek(0)
                 data = json.load(file)
 
             # Initialize lists to store the extracted values
@@ -96,10 +98,10 @@ class App:
                 for key, value in data["day"][str(curr_date)].items():
                     percent_type = "ce_data" if isCe else "pe_data"
                     percent_data = value.get(percent_type, {})
-                    # print(f"Processing {percent_type} for key: {key}")
 
                     # Check if the specific strike price data exists
-                    if str(strike) in percent_data:
+                    if str(strike) in percent_data.keys():
+                        # print(strike, "2")
                         timestamp.append(key)
                         oi.append(percent_data[str(strike)].get("OI_percentage", 0))
                         oichng.append(
@@ -107,7 +109,6 @@ class App:
                         )
                         vol.append(percent_data[str(strike)].get("vol_percentage", 0))
                     else:
-                        # Return error if the strike is not found
                         return (
                             json.dumps(
                                 {
@@ -167,12 +168,13 @@ class App:
                 .timestamp()
             )
 
-            # Retrieve data directly without file I/O (use in-memory data)
-            data = retrieve_data(exp, curr_date, FILE_PATH)
-            with open("temp_data.json", "w") as file:
-                json.dump(data, file, indent=4)
+            symbol_id = Urls.symbol_list[symbol]
 
-            with open("temp_data.json", "r") as file:
+            # Retrieve data directly without file I/O (use in-memory data)
+            data = retrieve_data(symbol_id, exp, curr_date, FILE_PATH)
+            with io.StringIO() as file:
+                json.dump(data, file, indent=4)
+                file.seek(0)
                 data = json.load(file)
 
             # Initialize lists to store the extracted values
@@ -291,13 +293,14 @@ class App:
                 .timestamp()
             )
 
+            symbol_id = Urls.symbol_list[symbol]
+
             # Retrieve data for the specific expiry and current date
-            data = retrieve_data(exp, curr_date, FILE_PATH)
+            data = retrieve_data(symbol_id, exp, curr_date, FILE_PATH)
 
-            with open("temp_data.json", "w") as file:
+            with io.StringIO() as file:
                 json.dump(data, file, indent=4)
-
-            with open("temp_data.json", "r") as file:
+                file.seek(0)
                 data = json.load(file)
 
             # Initialize lists to store the extracted values
@@ -414,14 +417,13 @@ class App:
                 .timestamp()
             )
 
-            data = retrieve_data(exp, curr_date, FILE_PATH)
+            symbol_id = Urls.symbol_list[symbol]
 
-            # Save retrieved data temporarily to check the structure
-            with open("temp_data.json", "w") as file:
+            data = retrieve_data(symbol_id, exp, curr_date, FILE_PATH)
+
+            with io.StringIO() as file:
                 json.dump(data, file, indent=4)
-
-            # Load data from temp_data.json (optional step; already in 'data')
-            with open("temp_data.json", "r") as file:
+                file.seek(0)
                 data = json.load(file)
 
             # Initialize lists to store the extracted values

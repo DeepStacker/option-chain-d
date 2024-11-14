@@ -2,6 +2,7 @@ import os
 import requests
 from Utils import Utils
 import json
+from reversal import reversal_calculator
 
 
 class Urls:
@@ -113,6 +114,7 @@ class Urls:
         }
         manipulated_data["data"]["oc"] = filtered_data
         manipulated_data = Utils.fetch_percentage(manipulated_data)
+        manipulated_data = reversal_calculator(manipulated_data, exp)
 
         fut_data = Urls.fetch_expiry(symbol, seg)
 
