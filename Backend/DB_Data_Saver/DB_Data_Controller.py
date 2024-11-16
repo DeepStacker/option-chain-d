@@ -66,9 +66,7 @@ def scheduled_run():
             else:
                 print("Skipping CRUDEOIL as it is past 11:45 PM IST.")
         else:
-            if 9 <= current_time.hour < 15 or (
-                current_time.hour == 15 and current_time.minute <= 30
-            ):
+            if 9 <= current_time.hour < 15:
                 run_tasks(symbol, exp)
             else:
                 print(f"Skipping {symbol} outside of scheduled hours.")

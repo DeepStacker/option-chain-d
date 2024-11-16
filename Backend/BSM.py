@@ -1,5 +1,6 @@
 import math
 import scipy.stats as stats
+import json
 
 
 class BSM:
@@ -70,8 +71,61 @@ class BSM:
         return round(sr, 2), round(rs, 2), round(rr, 2), round(ss, 2)
 
     @staticmethod
+    def new_adjusted_reversal_price(
+        S_chng,
+        T_days,
+        iv_chng,
+        K,
+        alpha,
+        pe_delta,
+        ce_delta,
+        ce_vega,
+        pe_vega,
+        ce_gamma,
+        pe_gamma,
+        pe_theta,
+        ce_theta,
+    ):
+        """
+        Calculate the reversal point for a given strike price using call and put data.
+        """
+
+        strike_price = K
+        delta_s = S_chng
+        delta_t = T_days
+        delta_iv = iv_chng
+
+        # Delta contribution
+        delta_contribution = (ce_delta + pe_delta) * delta_s
+
+        # Gamma contribution
+        gamma_contribution = 0.5 * (ce_gamma + pe_gamma) * (delta_s**2)
+
+        # Vega contribution
+        vega_contribution = (ce_vega + pe_vega) * delta_iv
+
+        # Theta contribution
+        # call_theta_approx = (ce_ltp - call_price) / delta_t
+        # put_theta_approx = (pe_ltp - put_price) / delta_t
+        theta_contribution = ce_theta + pe_theta
+
+        # Total Greek contribution
+        greek_contribution = (
+            delta_contribution
+            + gamma_contribution
+            + theta_contribution
+            + vega_contribution
+        )
+
+        # Calculate the reversal point
+        reversal_point = strike_price + greek_contribution
+        return round(reversal_point, 2)
+
+    @staticmethod
     def get_reversal(
         S,
+        S_chng,
+        iv_chng,
         K,
         T_days,
         sigma_call,
@@ -80,6 +134,12 @@ class BSM:
         curr_put_price,
         pe_delta,
         ce_delta,
+        ce_vega,
+        pe_vega,
+        ce_gamma,
+        pe_gamma,
+        pe_theta,
+        ce_theta,
     ):
         try:
             # Parse and round form input
@@ -134,6 +194,25 @@ class BSM:
                 ce_delta,
             )
 
+            rev = BSM.new_adjusted_reversal_price(
+                S_chng,
+                T_days,
+                iv_chng,
+                K,
+                alpha,
+                pe_delta,
+                ce_delta,
+                ce_vega,
+                pe_vega,
+                ce_gamma,
+                pe_gamma,
+                pe_theta,
+                ce_theta,
+            )
+
+            # with open("temp_data.json", "w") as f:
+            #     json.dump(sr, f)
+
             # Calculate difference between sr and rr
             sr_diff = round(sr - rr, 2)
 
@@ -143,7 +222,7 @@ class BSM:
                 "ce_tv": call_price,
                 "pe_tv": put_price,
                 "difference": sr_diff,
-                "reversal": sr,
+                "reversal": rev,
                 "rs": rs,
                 "rr": rr,
                 "ss": ss,
