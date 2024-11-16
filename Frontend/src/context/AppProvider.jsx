@@ -41,7 +41,7 @@ export const AppProvider = ({ children }) => {
 
     if (isOc) {
       fetchData();
-      intervalRef.current = setInterval(fetchData, 3000);
+      intervalRef.current = setInterval(fetchData, 30000);
     }
 
     return () => {
