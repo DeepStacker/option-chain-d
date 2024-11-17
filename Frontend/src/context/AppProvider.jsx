@@ -1,6 +1,6 @@
 import React, { createContext, useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { fetchLiveData, fetchExpiryDate } from "../context/dataSlice";
+import { fetchLiveData, fetchExpiryDate, setExp } from "../context/dataSlice";
 
 export const AppContext = createContext();
 
@@ -27,13 +27,21 @@ export const AppProvider = ({ children }) => {
   // Fetch expiry dates on symbol change
   useEffect(() => {
     dispatch(fetchExpiryDate({ sid: symbol, exp }));
-  }, [dispatch, symbol]);
+  }, [dispatch, symbol]); // Fetch expiry date when symbol changes
+
+  useEffect(() => {
+    if (data?.fut?.data?.explist) {
+      dispatch(setExp(data.fut.data.explist[0] || 0));
+    }
+  }, [symbol]); // Run when explist is updated
+
+
 
   // Fetch live data every 3 seconds when `isOc` is true
   useEffect(() => {
     const fetchData = async () => {
       try {
-        await dispatch(fetchLiveData({ sid: symbol, exp }));
+        await dispatch(fetchLiveData({ sid: symbol, exp: exp }));
       } catch (error) {
         console.error("Error fetching live data:", error);
       }
@@ -41,13 +49,13 @@ export const AppProvider = ({ children }) => {
 
     if (isOc) {
       fetchData();
-      intervalRef.current = setInterval(fetchData, 30000);
+      intervalRef.current = setInterval(fetchData, 300000);
     }
 
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [exp, isOc, symbol, dispatch]);
+  }, [exp, expDate, dispatch]);
 
   return (
     <AppContext.Provider

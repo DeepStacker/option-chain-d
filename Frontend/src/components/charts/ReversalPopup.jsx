@@ -3,12 +3,14 @@ import { FaTimes, FaCopy } from 'react-icons/fa';
 import PropTypes from 'prop-types';
 import { useSelector } from 'react-redux';
 
-const ReversalPopup = ({ strike, onClose }) => {
+const ReversalPopup = ({ onClose }) => {
+    const strike = useSelector((state) => state.optionChain.strike);
     const theme = useSelector((state) => state.theme.theme);
     const data = useSelector((state) => state.data.data);
     const reversal = data?.options?.data?.oc || {};
     const strike_diff = Object.keys(reversal);
     const stk_diff = strike_diff[1] - strike_diff[0];
+    // console.log("Reversal:", reversal?.[strike]?.reversal?.reversal)
 
     // Close the popup when clicking outside
     const handleOutsideClick = (e) => {

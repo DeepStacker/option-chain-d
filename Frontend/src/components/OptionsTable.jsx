@@ -16,6 +16,7 @@ import DeltaPopup from "./charts/DeltaChartPopup";
 import IVPopup from "./charts/Popup";
 import FuturePopup from "./charts/FuturePopup";
 import ReversalPopup from "./charts/ReversalPopup";
+import { setStrike, setPopupData } from "../context/optionData";
 
 
 function OptionsTable() {
@@ -31,10 +32,12 @@ function OptionsTable() {
   const exp = useSelector((state) => state.data.exp);
   const symbol = useSelector((state) => state.data.symbol);
   const error = useSelector((state) => state.data.error);
+  const strike = useSelector((state) => state.optionChain.strike);
+  const popupData = useSelector((state) => state.optionChain.popupData);
 
   // State hooks
-  const [popupData, setPopupData] = useState(null);
-  const [strike, setStrike] = useState(null);
+  // const [popupData, setPopupData] = useState(null);
+  // const [strike, setStrike] = useState(null);
   const [isPopupVisible, setIsPopupVisible] = useState(false);
   const [isDeltaPopupVisible, setIsDeltaPopupVisible] = useState(false);
   const [isFuturePricePopupVisible, setIsFuturePricePopupVisible] = useState(false);
@@ -53,9 +56,9 @@ function OptionsTable() {
     setLoading(true);
     setFetchError(null); // Reset fetch error state
     try {
-      const response = await axios.post("https://option-chain-d.onrender.com/api/percentage-data", params);
+      const response = await axios.post("http://localhost:10000/api/percentage-data/", params);
       if (response.data) {
-        setPopupData(response.data);
+        dispatch(setPopupData(response.data));
         setIsPopupVisible(true);
       } else {
         throw new Error("No data received from API.");
@@ -72,9 +75,9 @@ function OptionsTable() {
     setLoading(true);
     setFetchError(null); // Reset fetch error state
     try {
-      const response = await axios.post("https://option-chain-d.onrender.com/api/iv-data", params);
+      const response = await axios.post("http://localhost:10000/api/iv-data/", params);
       if (response.data) {
-        setPopupData(response.data);
+        dispatch(setPopupData(response.data));
         setIsIVPopupVisible(true);
       } else {
         throw new Error("No data received from API.");
@@ -91,9 +94,9 @@ function OptionsTable() {
     setLoading(true);
     setFetchError(null); // Reset fetch error state
     try {
-      const response = await axios.post("https://option-chain-d.onrender.com/api/delta-data", params);
+      const response = await axios.post("http://localhost:10000/api/delta-data/", params);
       if (response.data) {
-        setPopupData(response.data);
+        dispatch(setPopupData(response.data));
         setIsDeltaPopupVisible(true);
       } else {
         throw new Error("No data received from API.");
@@ -110,9 +113,9 @@ function OptionsTable() {
     setLoading(true);
     setFetchError(null); // Reset fetch error state
     try {
-      const response = await axios.post("https://option-chain-d.onrender.com/api/fut-data", params);
+      const response = await axios.post("http://localhost:10000/api/fut-data/", params);
       if (response.data) {
-        setPopupData(response.data);
+        dispatch(setPopupData(response.data));
         setIsFuturePricePopupVisible(true);
       } else {
         throw new Error("No data received from API.");
@@ -189,7 +192,7 @@ function OptionsTable() {
     setFetchError(null);
     try {
       if (data) {
-        setStrike(strike);
+        dispatch(setStrike(strike));
         setIsReversalPopupVisible(true);
       }
     } catch (error) {
@@ -201,7 +204,7 @@ function OptionsTable() {
 
   // Close popup
   const closePopup = () => {
-    setPopupData(null);
+    dispatch(setPopupData(null));
     setIsPopupVisible(false);
     setIsDeltaPopupVisible(false);
     setIsIVPopupVisible(false);
@@ -270,9 +273,15 @@ function OptionsTable() {
       )}
       {error && (
         <div className={`text-red-500 ${theme === "dark" ? "text-red-300" : "text-red-500"}`} role="alert">
-          {error}
+          hello
         </div>
       )}
+      {!itm.length && !otm.length && (
+        <div className={`text-center text-gray-500 ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
+          Please Select Expiry Date.
+        </div>
+      )}
+
 
       <div className="overflow-x-auto max-h-full scrollbar-hide">
         <table

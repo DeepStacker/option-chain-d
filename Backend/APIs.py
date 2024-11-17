@@ -30,18 +30,13 @@ class App:
 
             option_data, spot_data, fut_data = Urls.fetch_data(symbol_id, exp, seg_id)
 
-            return (
-                jsonify(
-                    {
-                        "symbol": symbol_id,
-                        "expiry": exp,
-                        "options": option_data,
-                        "spot": spot_data,
-                        "fut": fut_data,
-                    }
-                ),
-                200,
-            )
+            return {
+                "symbol": symbol_id,
+                "expiry": exp,
+                "options": option_data,
+                "spot": spot_data,
+                "fut": fut_data,
+            }
 
         except Exception as e:
             traceback.print_exc()

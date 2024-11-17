@@ -45,7 +45,7 @@ def scheduled_run():
     current_day = current_time.strftime("%A")
 
     # Check for weekend
-    if current_day in ["Saturday", "Sunday"]:
+    if current_day in []:
         print("Today is a weekend. No tasks will be run.")
         return
 

@@ -29,11 +29,12 @@ connection_string = os.getenv("MONGO_URI")
 # MongoDB setup
 client = MongoClient("mongodb://localhost:27017/")
 db = client["Percentage"]
-collection = db["oc_data"]
-fs = gridfs.GridFS(db)  # Initialize GridFS
 
 
 def save_data(symbol, expiry, data, timestamp, current_date):
+    file_path = f"{symbol}_{expiry }"
+    collection = db[file_path]
+    fs = gridfs.GridFS(db)  # Initialize GridFS
     if data:
         data_bytes = json.dumps(data).encode("utf-8")
 

@@ -23,21 +23,21 @@ CORS(
 )
 
 
-@app.route("/api/live-data", methods=["GET"])
+@app.route("/api/live-data/", methods=["GET"])
 def live_data():
     symbol = request.args.get("sid")
     exp = request.args.get("exp")
     return App.get_live_data(symbol, exp)
 
 
-@app.route("/api/exp-date", methods=["GET"])
+@app.route("/api/exp-date/", methods=["GET"])
 def exp_date():
     symbol = request.args.get("sid")
     exp = request.args.get("exp")
     return App.get_exp_date(symbol)
 
 
-@app.route("/api/percentage-data", methods=["POST"])
+@app.route("/api/percentage-data/", methods=["POST"])
 def percentage_data():
     """Endpoint to get percentage data based on strike price."""
     data = request.json
@@ -50,7 +50,7 @@ def percentage_data():
     return response, status_code
 
 
-@app.route("/api/iv-data", methods=["POST"])
+@app.route("/api/iv-data/", methods=["POST"])
 def iv_data():
     """Endpoint to get iv data based on strike price."""
     data = request.json
@@ -63,7 +63,7 @@ def iv_data():
     return response, status_code
 
 
-@app.route("/api/delta-data", methods=["POST"])
+@app.route("/api/delta-data/", methods=["POST"])
 def delta_data():
     """Endpoint to get delta data based on strike price."""
     data = request.json
@@ -75,7 +75,7 @@ def delta_data():
     return response, status_code
 
 
-@app.route("/api/fut-data", methods=["POST"])
+@app.route("/api/fut-data/", methods=["POST"])
 def fut_data():
     """Endpoint to get fut data based on strike price."""
     data = request.json
@@ -87,5 +87,10 @@ def fut_data():
     return response, status_code
 
 
-# if __name__ == "__main__":
-#     app.run(host="0.0.0.0", port=8000, debug=True)
+@app.route("/api/*", methods=["OPTIONS"])
+def handle_options():
+    return "", 200  # Respond with status 200 for OPTIONS requests
+
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=10000, debug=True)

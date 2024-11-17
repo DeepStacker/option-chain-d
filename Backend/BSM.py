@@ -119,6 +119,7 @@ class BSM:
 
         # Calculate the reversal point
         reversal_point = strike_price + greek_contribution
+        # print("executed", reversal_point)
         return round(reversal_point, 2)
 
     @staticmethod

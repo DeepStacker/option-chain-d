@@ -10,7 +10,8 @@ import { formatChartNumber } from '../../utils/utils';
 // Register Chart.js modules and plugins
 ChartJS.register(LineElement, PointElement, CategoryScale, LinearScale, Tooltip, Legend, Title, zoomPlugin);
 
-const FuturePopup = ({ data, onClose }) => {
+const FuturePopup = ({ onClose }) => {
+    const data = useSelector((state) => state.optionChain.popupData);
     const theme = useSelector((state) => state.theme.theme);
     const [activeSection, setActiveSection] = useState('Future');
 

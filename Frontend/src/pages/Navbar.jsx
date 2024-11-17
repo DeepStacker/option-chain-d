@@ -17,7 +17,7 @@ const Navbar = () => {
     <nav
       className={`transition-all duration-300 ${theme === "light" ? "bg-white text-gray-800" : "bg-gray-800 text-white"} shadow-lg sticky top-0 z-50`}
     >
-      <div className="container mx-auto px-6 py-4 flex justify-between items-center">
+      <div className="container mx-auto px-6 py-2 flex justify-between items-center">
         {/* Logo with optional icon */}
         <Link
           to="/"
@@ -53,9 +53,9 @@ const Navbar = () => {
           className={`lg:flex flex-1 justify-end items-center space-x-6 ${isMenuOpen
             ? "transform translate-y-0 opacity-100 ease-in-out"
             : "transform -translate-y-96 opacity-0"
-            } lg:opacity-100 lg:translate-x-0 absolute lg:static w-full lg:w-auto top-16 left-0 lg:top-auto lg:left-auto lg:flex-row lg:space-x-6 space-y-4 lg:space-y-0 px-4 py-4 lg:px-0 transition-all duration-300 ${theme === "light" ? "bg-white" : "bg-gray-800"}`}
+            } lg:opacity-100 lg:translate-x-0 absolute lg:static w-full lg:w-auto top-16 left-0 lg:top-auto lg:left-auto lg:flex-row lg:space-x-6 space-y-0 lg:space-y-0 px-1 py-1 lg:px-0 transition-all duration-300 ${theme === "light" ? "bg-white" : "bg-gray-800"}`}
         >
-          <ul className="flex flex-col lg:flex-row space-y-4 lg:space-y-0 lg:space-x-6 w-full lg:w-auto">
+          <ul className="flex flex-col lg:flex-row space-y-0 lg:space-y-0 lg:space-x-6 w-full lg:w-auto">
             <li className="transition-all duration-300 hover:scale-105">
               <Link to="/" className="flex items-center space-x-2 hover:text-blue-600">
                 <BiHome size={20} />
@@ -89,7 +89,7 @@ const Navbar = () => {
             {/* Theme Toggle Button */}
             <button
               onClick={() => dispatch(toggleTheme())}
-              className={`p-2 rounded-full transition-colors duration-300 ease-in-out ${theme === "light"
+              className={`p-0 rounded-full transition-colors duration-300 ease-in-out ${theme === "light"
                 ? "bg-gray-200 text-gray-800 hover:bg-gray-300"
                 : "bg-gray-700 text-white hover:bg-gray-600"
                 }`}

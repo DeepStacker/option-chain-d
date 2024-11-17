@@ -27,6 +27,7 @@ class Utils:
             int_exp_list = [int(exp) for exp in exp_list if exp.isdigit()]
 
             data["data"]["explist"] = int_exp_list
+            print(data["data"]["explist"][0])
 
         except KeyError as e:
             print(f"KeyError: {e} - Please check the input data structure.")

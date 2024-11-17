@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import { ToggleButton, TickerDropdown, Spinner } from "./Index";
 import { useDispatch, useSelector } from "react-redux";
@@ -12,6 +12,8 @@ export default function DateList() {
 
   // Data state
   const data = useSelector((state) => state.data.data);
+  const dates = data?.fut?.data?.explist || [];
+
 
   const formatTimestamps = (timestamps) => {
     return timestamps.map((timestamp) => {
@@ -28,7 +30,6 @@ export default function DateList() {
   const formattedDates = data?.fut?.data?.explist
     ? formatTimestamps(data.fut.data.explist)
     : [];
-  const dates = data?.fut?.data?.explist || [];
 
   const [currentPage, setCurrentPage] = useState(0);
   const itemsPerPage = 8;

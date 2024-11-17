@@ -17,7 +17,8 @@ connection_string = os.getenv("MONGO_URI")
 def retrieve_data(symbol, expiry, date, file_path):
     client = MongoClient("mongodb://localhost:27017/")
     db = client[str(file_path)]
-    collection = db["oc_data"]
+    file_pathh = f"{symbol}_{expiry }"
+    collection = db[file_pathh]
     fs = gridfs.GridFS(db)  # Initialize GridFS
 
     try:

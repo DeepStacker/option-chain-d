@@ -28,7 +28,8 @@ ChartJS.register(
   zoomPlugin
 );
 
-const Popup = ({ data, onClose }) => {
+const Popup = ({ onClose }) => {
+  const data = useSelector((state) => state.optionChain.popupData);
   const theme = useSelector((state) => state.theme.theme);
   if (!data) return null;
 
@@ -48,15 +49,6 @@ const Popup = ({ data, onClose }) => {
     );
 
   const shortTimeLabels = formatTimestamps(data.timestamp);
-  // console.log(data.oichng)
-  // let oi = []
-  // let vol = []
-  // let oichng = []
-  // for (let i = 0; i < data.timestamp.length; i++) {
-  //   oi.push(formatChartNumber(data.oi[i]))
-  //   vol.push(formatChartNumber(data.vol[i]))
-  //   oichng.push(formatChartNumber(data.oichng[i]))
-  // }
 
   const chartData = {
     labels: shortTimeLabels,

@@ -14,23 +14,22 @@ function OptionChain() {
     <div
       className={`min-h-screen flex flex-col items-center ${theme === "dark" ? "bg-gray-900" : "bg-gray-100"}`}
     >
-      <div className="w-full max-w-full px-4 py-2">
+      <div className="w-full max-w-full px-2 py-1">
         {data ? (
           <>
             <div
-              className={`p-4 mb-1 shadow-lg rounded-lg relative transition-all ${theme === "dark" ? "bg-gray-800" : "bg-white"}`}
+              className={` mb-1 shadow-lg rounded-lg relative transition-all ${theme === "dark" ? "bg-gray-800" : "bg-white"}`}
             >
-              {/* Expiry Date label */}
-              <h2 className={`font-semibold flex bg-transparent absolute top-[-10px] left-4 ${theme === "dark" ? "bg-gray-800 text-gray-100" : "bg-white text-gray-950"} px-2 text-sm `}>
+              {/* <h2 className={`font-semibold flex bg-transparent absolute top-[-2px] left-2 ${theme === "dark" ? "bg-gray-800 text-gray-100" : "bg-white text-gray-950"} px-2 text-sm `}>
                 <FaCalendarAlt className="mr-2 text-green-600" size={16} />
                 Expiry Date
-              </h2>
+              </h2> */}
               <DateList />
             </div>
 
 
             <div
-              className={`flex flex-col mb-10 bg-white shadow-lg rounded-lg overflow-hidden transition-all ${theme === "dark" ? "bg-gray-800" : "bg-white"}`}
+              className={`flex flex-col mb-10 bg-white shadow-lg  rounded-lg overflow-hidden transition-all ${theme === "dark" ? "bg-gray-800" : "bg-white"}`}
             >
               <OptionsTable />
             </div>
