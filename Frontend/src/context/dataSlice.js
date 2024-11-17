@@ -7,7 +7,7 @@ export const fetchLiveData = createAsyncThunk(
   'data/fetchLiveData',
   async (params, { rejectWithValue }) => {
     try {
-      const response = await axios.get('http://localhost:10000/api/live-data/', { params });
+      const response = await axios.get('https://option-chain-d.onrender.com/api/live-data/', { params });
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || error.message);
@@ -20,7 +20,7 @@ export const fetchExpiryDate = createAsyncThunk(
   'data/fetchExpiryDate',
   async (params, { rejectWithValue }) => {
     try {
-      const response = await axios.get('http://localhost:10000/api/exp-date/', { params });
+      const response = await axios.get('https://option-chain-d.onrender.com/api/exp-date/', { params });
       // console.log(response.data?.fut?.data?.explist)
       return response.data?.fut?.data?.explist || [];
     } catch (error) {
