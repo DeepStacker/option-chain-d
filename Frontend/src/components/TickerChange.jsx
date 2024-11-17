@@ -25,17 +25,7 @@ function TickerChange() {
         <div className={`flex items-center justify-evenly rounded-full  border ${priceChangeColor} md:mb-0`}>
             <div className={` flex   items-right`} >
 
-                <p className={`text-md font-medium ${textColor}`}>
-                    {formatNumber(marketData?.ch)}
-                </p>
 
-                <p className={`text-md font-medium ${textColor}`}>
-                    {isPriceUp ? (
-                        <FaArrowUp className={`inline ml-1 ${arrowColor}`} />
-                    ) : (
-                        <FaArrowDown className={`inline ml-1 ${arrowColor}`} />
-                    )}
-                </p>
                 <p className={`text-md font-medium ${textColor}`}>
                     ({formatNumber(marketData?.p_ch)}%)
                 </p>

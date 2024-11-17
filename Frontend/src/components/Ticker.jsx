@@ -23,8 +23,16 @@ function LabelSight() {
 
     return (
         <div className={`flex items-center justify-evenly rounded-full  border ${priceChangeColor}`}>
-            <p className={`text-md text-left font-semibold text-black`}>
-                {marketData?.d_sym || "N/A"}
+            <p className={`text-md font-medium ${textColor}`}>
+                {formatNumber(marketData?.ch)}
+            </p>
+
+            <p className={`text-md font-medium ${textColor}`}>
+                {isPriceUp ? (
+                    <FaArrowUp className={`inline ml-1 ${arrowColor}`} />
+                ) : (
+                    <FaArrowDown className={`inline ml-1 ${arrowColor}`} />
+                )}
             </p>
         </div>
     );
