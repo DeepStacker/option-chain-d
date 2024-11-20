@@ -44,23 +44,23 @@ const DeltaPopup = ({ onClose }) => {
     datasets:
       activeSection === 'OI Change'
         ? [
-          createDataset('CE OI Change', data.ce_oichng, 'rgba(255, 0, 0, 1)', true),
-          createDataset('PE OI Change', data.pe_oichng, 'rgba(0, 255, 0, 1)', true), // Hidden by default
-          createDataset('PE - CE', data.peminusce_oichng, 'rgba(0, 0, 255, 1)'),
+          createDataset('CE OI Change', data.ce_oichng, 'rgba(255, 0, 0, 1)'),
+          createDataset('PE OI Change', data.pe_oichng, 'rgba(0, 255, 0, 1)'), // Hidden by default
+          createDataset('PE - CE', data.peminusce_oichng, 'rgba(18, 180, 255)', true),
           createDataset('PE / CE', data.pebyce_oichng, 'rgba(255, 255, 255, 1)', true), // Hidden by default
         ]
         : activeSection === 'OI'
           ? [
             createDataset('CE OI', data.ce_oi, 'rgba(255, 0, 0, 1)'),
             createDataset('PE OI', data.pe_oi, 'rgba(0, 255, 0, 1)'), // Hidden by default
-            createDataset('PE - CE', data.peminusce_oi, 'rgba(0, 0, 255, 1)', true),
+            createDataset('PE - CE', data.peminusce_oi, 'rgba(18, 180, 255)', true),
             createDataset('PE / CE', data.pebyce_oi, 'rgba(255, 255, 255, 1)', true), // Hidden by default
           ]
           : [
-            createDataset('CE VOL', data.ce_vol, 'rgba(0, 255, 0, 1)', true),
-            createDataset('PE VOL', data.pe_vol, 'rgba(255, 0, 0, 1)', true), // Hidden by default
-            createDataset('PE - CE', data.peminusce_vol, 'rgba(0, 0, 255, 1)'),
-            createDataset('PE / CE', data.pebyce_vol, 'rgba(255, 255, 255, 1)', true), // Hidden by default
+            createDataset('CE VOL', data.ce_vol, 'rgba(0, 255, 0, 1)'),
+            createDataset('PE VOL', data.pe_vol, 'rgba(255, 0, 0, 1)'), // Hidden by default
+            createDataset('CE - PE', data.peminusce_vol, 'rgba(18, 180, 255)', true),
+            createDataset('CE / PE', data.pebyce_vol, 'rgba(255, 255, 255, 1)', true), // Hidden by default
           ],
   };
 

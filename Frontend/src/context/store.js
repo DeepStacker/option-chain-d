@@ -4,6 +4,8 @@ import userReducer from './userSlice';
 import themeReducer from './themeSlice';
 import dataReducer from './dataSlice';
 import optionChainReducer from './optionData';
+import tcaReducer from './tcaSlice';
+
 
 
 export const store = configureStore({
@@ -12,6 +14,7 @@ export const store = configureStore({
     theme: themeReducer,
     data: dataReducer,
     optionChain: optionChainReducer,
+    tca: tcaReducer,
   },
 });
 

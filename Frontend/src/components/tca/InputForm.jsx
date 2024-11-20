@@ -1,22 +1,29 @@
 import React from "react";
-import { useSelector } from "react-redux";
-
-const InputForm = ({
-    tradePerDay,
-    ndtpc,
-    tradeAmount,
-    riskReward,
-    chancePercent,
-    chargesPerTrade,
+import { useSelector, useDispatch } from "react-redux";
+import {
     setTradePerDay,
     setNdtpc,
     setTradeAmount,
     setRiskReward,
     setChancePercent,
     setChargesPerTrade,
-    handleGenerateClick,
-}) => {
+} from '../../context/tcaSlice';
+
+const InputForm = ({ handleGenerateClick }) => {
+    const dispatch = useDispatch();
+
     const theme = useSelector((state) => state.theme.theme);
+
+    const {
+        tradePerDay,
+        ndtpc,
+        tradeAmount,
+        riskReward,
+        chancePercent,
+        chargesPerTrade,
+        results,
+        profitLossChart,
+    } = useSelector((state) => state.tca);
 
     return (
         <div className={`rounded-3xl ${theme === 'dark' ? 'bg-black text-white' : 'bg-gray-100 text-black'} p-5  pb-10`} >
@@ -25,7 +32,7 @@ const InputForm = ({
                 <input
                     type="number"
                     value={tradePerDay}
-                    onChange={(e) => setTradePerDay(parseInt(e.target.value))}
+                    onChange={(e) => dispatch(setTradePerDay(parseInt(e.target.value)))}
                     className={`${theme === 'dark' ? 'bg-gray-800 text-white' : 'bg-gray-100 text-black'} w-full p-3 mt-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500`}
                 />
             </div>
@@ -35,7 +42,7 @@ const InputForm = ({
                 <input
                     type="number"
                     value={ndtpc}
-                    onChange={(e) => setNdtpc(parseInt(e.target.value))}
+                    onChange={(e) => dispatch(setNdtpc(parseInt(e.target.value)))}
                     className={`${theme === 'dark' ? 'bg-gray-800 text-white' : 'bg-gray-100 text-black'} w-full p-3 mt-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500`}
                 />
             </div>
@@ -45,7 +52,7 @@ const InputForm = ({
                 <input
                     type="number"
                     value={tradeAmount}
-                    onChange={(e) => setTradeAmount(parseFloat(e.target.value))}
+                    onChange={(e) => dispatch(setTradeAmount(parseFloat(e.target.value)))}
                     className={`${theme === 'dark' ? 'bg-gray-800 text-white' : 'bg-gray-100 text-black'}  w-full p-3 mt-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500`}
                 />
             </div>
@@ -55,7 +62,7 @@ const InputForm = ({
                 <input
                     type="number"
                     value={riskReward}
-                    onChange={(e) => setRiskReward(parseFloat(e.target.value))}
+                    onChange={(e) => dispatch(setRiskReward(parseFloat(e.target.value)))}
                     className={`${theme === 'dark' ? 'bg-gray-800 text-white' : 'bg-gray-100 text-black'}  w-full p-3 mt-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500`}
                 />
             </div>
@@ -65,7 +72,7 @@ const InputForm = ({
                 <input
                     type="number"
                     value={chancePercent}
-                    onChange={(e) => setChancePercent(parseFloat(e.target.value))}
+                    onChange={(e) => dispatch(setChancePercent(parseFloat(e.target.value)))}
                     className={`${theme === 'dark' ? 'bg-gray-800 text-white' : 'bg-gray-100 text-black'}  w-full p-3 mt-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500`}
                 />
             </div>
@@ -75,7 +82,7 @@ const InputForm = ({
                 <input
                     type="number"
                     value={chargesPerTrade}
-                    onChange={(e) => setChargesPerTrade(parseFloat(e.target.value))}
+                    onChange={(e) => dispatch(setChargesPerTrade(parseFloat(e.target.value)))}
                     className={`${theme === 'dark' ? 'bg-gray-800 text-white' : 'bg-gray-100 text-black'}  w-full p-3 mt-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500`}
                 />
             </div>

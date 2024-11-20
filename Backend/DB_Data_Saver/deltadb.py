@@ -2,10 +2,12 @@ import json
 import time
 import os
 from datetime import datetime, timedelta
-from pymongo import MongoClient
 import gridfs
 import sys
 import os
+from pymongo.mongo_client import MongoClient
+from pymongo.server_api import ServerApi
+from urllib.parse import quote_plus
 
 sys.path.insert(
     0,
@@ -19,16 +21,14 @@ sys.path.insert(
 from Urls import Urls
 from retrivedata import retrieve_data
 
-# import os
-from dotenv import load_dotenv
 
-load_dotenv()
+username = quote_plus("svmsingh01")
+password = quote_plus("Shivam@977140")
 
-connection_string = os.getenv("MONGO_URI")
-# client = MongoClient(connection_string)
+uri = f"mongodb+srv://{username}:{password}@stockifydb.wekf6.mongodb.net/stockifydb?retryWrites=true&w=majority"
+client = MongoClient(uri, server_api=ServerApi("1"))
 
 # MongoDB setup
-client = MongoClient("mongodb://localhost:27017/")
 db = client["Delta"]
 
 

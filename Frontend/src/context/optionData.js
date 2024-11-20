@@ -13,6 +13,18 @@ export const optionChainSlice = createSlice({
         isIVPopupVisible: false,
         loading: false,
         fetchError: null,
+        tickerOptions: [
+            "NIFTY", "BANKNIFTY", "FINNIFTY", "MIDCPNIFTY", "NIFTYNXT50", "SENSEX",
+            "BANKEX", "SHRIRAMFIN", "MM", "HDFCLIFE", "DIVISLAB", "LT",
+            "CRUDEOIL", "ADANIENT", "ADANIPORTS", "APOLLOHOSP", "ASIANPAINT", "AXISBANK",
+            "BAJAJ-AUTO", "BAJFINANCE", "BAJAJFINSV", "BEL", "BPCL", "BHARTIARTL",
+            "BRITANNIA", "CIPLA", "COALINDIA", "DRREDDY", "EICHERMOT", "GRASIM",
+            "HCLTECH", "HDFCBANK", "HEROMOTOCO", "HINDALCO", "HINDUNILVR", "ICICIBANK",
+            "ITC", "INDUSINDBK", "INFY", "JSWSTEEL", "KOTAKBANK", "MARUTI", "NTPC",
+            "NESTLEIND", "ONGC", "POWERGRID", "RELIANCE", "SBILIFE", "SBIN", "SUNPHARMA",
+            "TCS", "TATACONSUM", "TATAMOTORS", "TATASTEEL", "TECHM", "TRENT",
+            "ULTRACEMCO", "WIPRO"
+        ],
     },
     reducers: {
         setPopupData: (state, action) => {

@@ -104,10 +104,10 @@ export function renderStrikeRow(strikeData, strike, isHighlighting, optionChain,
                 {formatNumber(ceData.ltp)} <br />
                 <small className={`${getHighlightTextClass(ceData.p_chng)} gap-x-3 `}>
                     {formatNumber(ceData.p_chng)}
-                    (<span className={getHighlightTextClass(ceData.ltp - reversal?.[strike]?.reversal?.ce_tv || 0)}>
+                    <span className={`${theme === 'dark' ? 'text-white' : 'text-black'}`} > ( </span><span className={getHighlightTextClass(ceData.ltp - reversal?.[strike]?.reversal?.ce_tv || 0)}>
 
                         {((typeof reversal?.[strike]?.reversal?.ce_tv === 'number') ? (ceData.ltp - reversal?.[strike]?.reversal?.ce_tv).toFixed(0) : 0) || 0}
-                    </span>)
+                    </span><span className={`${theme === 'dark' ? 'text-white' : 'text-black'}`} > )</span>
                 </small>
             </td>
 
@@ -129,10 +129,10 @@ export function renderStrikeRow(strikeData, strike, isHighlighting, optionChain,
                 {formatNumber(peData.ltp)} <br />
                 <small className={getHighlightTextClass(peData.p_chng)}>
                     {formatNumber(peData.p_chng)}
-                    (<span className={getHighlightTextClass(peData.ltp - reversal?.[strike]?.reversal?.pe_tv || 0)}>
+                    <span className={`${theme === 'dark' ? 'text-white' : 'text-black'}`} > ( </span><span className={getHighlightTextClass(peData.ltp - reversal?.[strike]?.reversal?.pe_tv || 0)}>
 
                         {((typeof reversal?.[strike]?.reversal?.pe_tv === 'number') ? (peData.ltp - reversal?.[strike]?.reversal?.pe_tv).toFixed(0) : 0) || 0}
-                    </span>)
+                    </span><span className={`${theme === 'dark' ? 'text-white' : 'text-black'}`} > )</span>
                 </small>
             </td>
 

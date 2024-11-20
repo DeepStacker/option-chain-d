@@ -1,5 +1,7 @@
 from datetime import datetime
-from pymongo import MongoClient
+from pymongo.mongo_client import MongoClient
+from pymongo.server_api import ServerApi
+from urllib.parse import quote_plus
 import gridfs
 import json
 from bson import ObjectId  # Import ObjectId to handle the conversion
@@ -8,14 +10,16 @@ from gridfs.errors import NoFile
 import os
 from dotenv import load_dotenv
 
-load_dotenv()
 
-connection_string = os.getenv("MONGO_URI")
-# client = MongoClient(connection_string)
+username = quote_plus("svmsingh01")
+password = quote_plus("Shivam@977140")
+
+uri = f"mongodb+srv://{username}:{password}@stockifydb.wekf6.mongodb.net/stockifydb?retryWrites=true&w=majority"
 
 
 def retrieve_data(symbol, expiry, date, file_path):
-    client = MongoClient("mongodb://localhost:27017/")
+    client = MongoClient(uri, server_api=ServerApi("1"))
+    # client = MongoClient("mongodb://localhost:27017/")
     db = client[str(file_path)]
     file_pathh = f"{symbol}_{expiry }"
     collection = db[file_pathh]

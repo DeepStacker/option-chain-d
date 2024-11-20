@@ -92,5 +92,5 @@ def handle_options():
     return "", 200  # Respond with status 200 for OPTIONS requests
 
 
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=10000, debug=True)
+# if __name__ == "__main__":
+#     app.run(host="0.0.0.0", port=10000, debug=True)

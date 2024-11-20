@@ -2,9 +2,9 @@ import json
 import time
 import os
 from datetime import datetime
-
-# from Urls import Urls  # Import the module for fetching data (assuming Urls.py exists)
-from pymongo import MongoClient
+from pymongo.mongo_client import MongoClient
+from pymongo.server_api import ServerApi
+from urllib.parse import quote_plus
 import gridfs
 import sys
 
@@ -22,12 +22,12 @@ sys.path.insert(
 from Urls import Urls
 from dotenv import load_dotenv
 
-load_dotenv()
+username = quote_plus("svmsingh01")
+password = quote_plus("Shivam@977140")
 
-connection_string = os.getenv("MONGO_URI")
-# client = MongoClient(connection_string)
-# MongoDB setup
-client = MongoClient("mongodb://localhost:27017/")
+uri = f"mongodb+srv://{username}:{password}@stockifydb.wekf6.mongodb.net/stockifydb?retryWrites=true&w=majority"
+client = MongoClient(uri, server_api=ServerApi("1"))
+
 db = client["Percentage"]
 
 
