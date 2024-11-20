@@ -6,6 +6,7 @@ from Urls import Urls
 from Utils import Utils
 from retrivedata import retrieve_data
 import io
+import pytz
 
 FILE_PATH = "Percentage_Data.json"
 
@@ -63,12 +64,12 @@ class App:
     def get_percentage_data(symbol, exp, isCe, strike):
         try:
             FILE_PATH = "Percentage"
-            # Retrieve the current day's timestamp at midnight
-            curr_date = int(
-                datetime.now()
-                .replace(hour=0, minute=0, second=0, microsecond=0)
-                .timestamp()
+            # Define the IST timezone
+            ist = pytz.timezone("Asia/Kolkata")
+            curr_date_ist = datetime.now(ist).replace(
+                hour=0, minute=0, second=0, microsecond=0
             )
+            curr_date = int(curr_date_ist.timestamp())
 
             symbol_id = Urls.symbol_list[symbol]
 
@@ -156,12 +157,12 @@ class App:
         try:
             FILE_PATH = "Delta"
 
-            # Current date at midnight for timestamp
-            curr_date = int(
-                datetime.now()
-                .replace(hour=0, minute=0, second=0, microsecond=0)
-                .timestamp()
+            # Define the IST timezone
+            ist = pytz.timezone("Asia/Kolkata")
+            curr_date_ist = datetime.now(ist).replace(
+                hour=0, minute=0, second=0, microsecond=0
             )
+            curr_date = int(curr_date_ist.timestamp())
 
             symbol_id = Urls.symbol_list[symbol]
 
@@ -281,12 +282,12 @@ class App:
         try:
             FILE_PATH = "Delta"
 
-            # Get current date in UNIX timestamp format (at midnight)
-            curr_date = int(
-                datetime.now()
-                .replace(hour=0, minute=0, second=0, microsecond=0)
-                .timestamp()
+            # Define the IST timezone
+            ist = pytz.timezone("Asia/Kolkata")
+            curr_date_ist = datetime.now(ist).replace(
+                hour=0, minute=0, second=0, microsecond=0
             )
+            curr_date = int(curr_date_ist.timestamp())
 
             symbol_id = Urls.symbol_list[symbol]
 
@@ -405,12 +406,12 @@ class App:
         try:
             FILE_PATH = "Future"
 
-            # Get current date in UNIX timestamp format (at midnight)
-            curr_date = int(
-                datetime.now()
-                .replace(hour=0, minute=0, second=0, microsecond=0)
-                .timestamp()
+            # Define the IST timezone
+            ist = pytz.timezone("Asia/Kolkata")
+            curr_date_ist = datetime.now(ist).replace(
+                hour=0, minute=0, second=0, microsecond=0
             )
+            curr_date = int(curr_date_ist.timestamp())
 
             symbol_id = Urls.symbol_list[symbol]
 
