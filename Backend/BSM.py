@@ -91,7 +91,7 @@ class BSM:
         """
 
         strike_price = K
-        delta_s = S_chng
+        delta_s = 0 * S_chng
         delta_t = T_days
         delta_iv = iv_chng
 
@@ -105,8 +105,6 @@ class BSM:
         vega_contribution = (ce_vega + pe_vega) * delta_iv
 
         # Theta contribution
-        # call_theta_approx = (ce_ltp - call_price) / delta_t
-        # put_theta_approx = (pe_ltp - put_price) / delta_t
         theta_contribution = ce_theta + pe_theta
 
         # Total Greek contribution
@@ -141,6 +139,7 @@ class BSM:
         pe_gamma,
         pe_theta,
         ce_theta,
+        fut_price=0,
     ):
         try:
             # Parse and round form input
@@ -216,6 +215,8 @@ class BSM:
 
             # Calculate difference between sr and rr
             sr_diff = round(sr - rr, 2)
+            fut_rev = round(rev + (fut_price - S), 2)
+            # print(fut_price - S)
 
             # Define the data dictionary
             data = {
@@ -224,10 +225,12 @@ class BSM:
                 "pe_tv": put_price,
                 "difference": sr_diff,
                 "reversal": rev,
+                "wkly_reversal": sr,
                 "rs": rs,
                 "rr": rr,
                 "ss": ss,
                 "sr_diff": sr_diff,
+                "fut_reversal": fut_rev,
             }
 
             return data

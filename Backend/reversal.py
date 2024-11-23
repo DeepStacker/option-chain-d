@@ -9,6 +9,10 @@ def reversal_calculator(option_chain, exp):
         data = option_chain["data"]["oc"]
         sltp = option_chain["data"]["sltp"]
 
+        fut_price_key = list(dict(option_chain["data"]["fl"]).keys())[0]
+        fut_price = option_chain["data"]["fl"][str(fut_price_key)]["ltp"]
+        # print(fut_price)
+
         if option_chain["data"]["u_id"] == 294:
             S_chng = 0
         else:
@@ -94,6 +98,7 @@ def reversal_calculator(option_chain, exp):
                     pe_gamma=pe_gamma[i],
                     pe_theta=pe_theta[i],
                     ce_theta=ce_theta[i],
+                    fut_price=fut_price,
                 )
 
                 # Add the reversal data to option_chain
@@ -114,10 +119,3 @@ def reversal_calculator(option_chain, exp):
     except Exception as e:
         print("An unexpected error occurred:", e)
         return option_chain
-
-
-# Example usage:
-# Assume option_chain is a dictionary loaded with JSON data
-# exp = some integer timestamp or value for expiration
-# modified_option_chain = reversal_calculator(option_chain, exp)
-# print(json.dumps(modified_option_chain, indent=2))

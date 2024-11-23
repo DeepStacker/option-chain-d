@@ -21,6 +21,7 @@
     "clsx": "^2.1.1",
     "crypto-js": "^4.2.0",
     "fernet": "^0.3.2",
+    "framer-motion": "^11.11.17",
     "next": "^15.0.3",
     "prop-types": "^15.8.1",
     "react": "^18.3.1",

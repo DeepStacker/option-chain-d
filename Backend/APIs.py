@@ -51,7 +51,7 @@ class App:
 
             symbol_id = Urls.symbol_list[symbol]
             seg_id = Urls.seg_list[symbol]
-            print(f"Symbol ID: {symbol_id}")
+            # print(f"Symbol ID: {symbol_id}")
 
             fut_data = Urls.fetch_expiry(symbol_id, seg_id)
 

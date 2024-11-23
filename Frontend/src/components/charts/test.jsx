@@ -49,7 +49,7 @@ const ReversalPopup = ({ onClose }) => {
     const handleCopy = (text) => {
         if (navigator.clipboard) {
             navigator.clipboard.writeText(text);
-            // alert("Copied to clipboard!");
+            alert("Copied to clipboard!");
         } else {
             alert("Clipboard not supported");
         }

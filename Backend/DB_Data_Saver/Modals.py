@@ -7,6 +7,7 @@ from pymongo.server_api import ServerApi
 from urllib.parse import quote_plus
 import gridfs
 import sys
+import pytz
 
 # import os
 
@@ -72,14 +73,20 @@ def save_data(symbol, expiry, data, timestamp, current_date):
 
 
 def get_current_timestamp():
-    """
-    Get the current date and time as UNIX timestamps.
-    """
-    current_date = int(
-        datetime.now().replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
+    # Define the IST timezone
+    ist = pytz.timezone("Asia/Kolkata")
+
+    # Get the current date and time in IST
+    current_date_ist = datetime.now(ist).replace(
+        hour=0, minute=0, second=0, microsecond=0
     )
-    current_time = int(datetime.now().timestamp())
-    return current_date, current_time
+    current_time_ist = datetime.now(ist)
+
+    # Convert the datetime objects to UNIX timestamps
+    current_date_timestamp = int(current_date_ist.timestamp())
+    current_time_timestamp = int(current_time_ist.timestamp())
+
+    return current_date_timestamp, current_time_timestamp
 
 
 def get_data(expiry, symbol=13, seg=0):
@@ -175,6 +182,7 @@ def get_data(expiry, symbol=13, seg=0):
             except KeyboardInterrupt:
                 print("Process interrupted by user.")
                 break
+    return
 
 
 # Main execution
