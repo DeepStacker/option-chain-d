@@ -10,6 +10,10 @@ colorama
 Flask
 flask_cors
 Flask-SocketIO
+Flask-Caching>=2.0.2
+Flask-Limiter>=3.3.1
+Flask-Compress>=1.13
+prometheus-flask-exporter>=0.22.3
 flatbuffers
 gast
 gunicorn

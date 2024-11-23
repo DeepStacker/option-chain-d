@@ -181,38 +181,52 @@ class Urls:
 
     @staticmethod
     def fetch_data(symbol, exp, seg):
-        # print()
-        # print(f"Fetching data for symbol: {symbol}, exp: {exp}, seg: {seg}")
-        # print()
-        response = requests.post(
-            Urls.url, headers=Urls.headers, json=Urls.create_payload(symbol, exp, seg)
-        )
-        spot_response = requests.post(
-            Urls.spot_url,
-            headers=Urls.headers,
-            json=Urls.create_spot_payload(symbol, seg),
-        )
+        try:
+            print(f"Fetching data for symbol: {symbol}, exp: {exp}, seg: {seg}")
+            
+            # Fetch option chain data
+            response = requests.post(
+                Urls.url, headers=Urls.headers, json=Urls.create_payload(symbol, exp, seg)
+            )
+            response.raise_for_status()
+            option_data = response.json()
+            print(f"Option chain response status: {response.status_code}")
+            # print(f"Option chain data: {json.dumps(option_data, indent=2)}")
 
-        response.raise_for_status()
-        spot_response.raise_for_status()
+            # Fetch spot data
+            spot_response = requests.post(
+                Urls.spot_url,
+                headers=Urls.headers,
+                json=Urls.create_spot_payload(symbol, seg),
+            )
+            spot_response.raise_for_status()
+            spot_data = spot_response.json()
+            print(f"Spot data response status: {spot_response.status_code}")
+            # print(f"Spot data: {json.dumps(spot_data, indent=2)}")
 
-        # print(response.json())
+            # Process the data
+            manipulated_data = Utils.modify_oc_keys(option_data)
+            # print(f"Processed data: {json.dumps(manipulated_data, indent=2)}")
 
-        manipulated_data = Utils.modify_oc_keys(response.json())
-        option_chain = manipulated_data["data"]["oc"]
-        atm_price = spot_response.json()["data"]["Ltp"]
-        result = Utils.find_strikes(option_chain, atm_price)
+            atm_price = spot_data["data"]["Ltp"]
+            result = Utils.find_strikes(option_data["data"]["oc"], atm_price)
 
-        filtered_data = {
-            key: value for key, value in option_chain.items() if int(key) in result
-        }
-        manipulated_data["data"]["oc"] = filtered_data
-        manipulated_data = Utils.fetch_percentage(manipulated_data)
-        manipulated_data = reversal_calculator(manipulated_data, exp)
+            filtered_data = {
+                key: value for key, value in option_data["data"]["oc"].items() if int(key) in result
+            }
+            manipulated_data["data"]["oc"] = filtered_data
+            manipulated_data = Utils.fetch_percentage(manipulated_data)
+            manipulated_data = reversal_calculator(manipulated_data, exp)
 
-        fut_data = Urls.fetch_expiry(symbol, seg)
+            fut_data = Urls.fetch_expiry(symbol, seg)
 
-        # with open('data.json', 'w') as file:
-        #     json.dump(manipulated_data, file, indent=4)
+            return manipulated_data, spot_data, fut_data
 
-        return manipulated_data, spot_response.json(), fut_data
+        except requests.exceptions.RequestException as e:
+            print(f"Request error: {str(e)}")
+            if hasattr(e.response, 'text'):
+                print(f"Response text: {e.response.text}")
+            return None, None, None
+        except Exception as e:
+            print(f"Unexpected error in fetch_data: {str(e)}")
+            return None, None, None
