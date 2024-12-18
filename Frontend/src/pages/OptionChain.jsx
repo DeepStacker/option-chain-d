@@ -43,9 +43,9 @@ function OptionChain() {
 
   return (
     <div
-      className={`min-h-screen flex flex-col items-center ${theme === "dark" ? "bg-gray-900" : "bg-gray-100"}`}
+      className={`min-h-screen flex flex-col items-center ${theme === "dark" ? "bg-gray-900" : "bg-gray-100"} z-0`}
     >
-      <div className="w-full max-w-full px-2 py-1">
+      <div className="w-full max-w-full px-2 py-1 relative">
         {!isAuthenticated ? (
           <div
             className={`rounded-lg shadow-md p-6 mb-0.5 text-center transition-all ${theme === "dark" ? "bg-gray-700 text-gray-300" : "bg-white text-gray-800"}`}

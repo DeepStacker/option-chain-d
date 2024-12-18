@@ -10,7 +10,7 @@ class EmailService:
         verification_url = f"{current_app.config['FRONTEND_URL']}/verify-email/{token}"
         
         html_content = '''
-        <h2>Welcome to Dhan API Trading Platform!</h2>
+        <h2>Welcome to Stockify  Trading Platform!</h2>
         <p>Thank you for registering. Please verify your email address by clicking the link below:</p>
         <p><a href="{{ verification_url }}">Verify Email Address</a></p>
         <p>If you did not create an account, please ignore this email.</p>

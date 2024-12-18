@@ -1,4 +1,4 @@
-# Dhan API Trading Platform
+# Stockify  Trading Platform
 
 ## Overview
 A sophisticated real-time options trading platform that integrates with Dhan's trading APIs. This platform provides comprehensive options chain data, advanced charting capabilities, and real-time market analysis tools. Built with a modern tech stack, it offers a responsive interface for traders to analyze market data and make informed trading decisions.
@@ -254,6 +254,6 @@ gunicorn -k geventwebsocket.gunicorn.workers.GeventWebSocketWorker -w 1 new_app:
 [Add your support contact information]
 
 ## Acknowledgments
-- Dhan API team
+- Stockify  team
 - Contributors
 - Open source community

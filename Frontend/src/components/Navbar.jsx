@@ -1,170 +1,254 @@
-import React, { useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { Link, useNavigate } from 'react-router-dom';
-import { logout } from '../context/authSlice';
-import { FaSun, FaMoon, FaBars, FaTimes } from 'react-icons/fa';
-import { toggleTheme } from '../context/themeSlice';
-import UserAvatar from './common/UserAvatar';
+import React, { useState } from "react";
+import { useSelector, useDispatch } from "react-redux";
+import { motion, AnimatePresence } from "framer-motion";
+import { Menu } from "@headlessui/react";
+import { useNavigate } from "react-router-dom";
+import {
+  BellIcon,
+  MoonIcon,
+  SunIcon,
+  UserCircleIcon,
+  Cog6ToothIcon,
+  ArrowRightOnRectangleIcon,
+} from "@heroicons/react/24/outline";
+import { toggleTheme } from "../context/themeSlice";
+import { logout } from "../context/authSlice";
+import { FaGithub } from "react-icons/fa";
 
 const Navbar = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { isAuthenticated } = useSelector((state) => state.auth);
   const theme = useSelector((state) => state.theme.theme);
-  const getAuthToken = () => localStorage.getItem("user");
-  const user = getAuthToken() ? JSON.parse(getAuthToken()) : null;
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const [notifications, setNotifications] = useState([
+    { id: 1, message: "Welcome to Stockify  Trading Platform!" },
+    { id: 2, message: "New feature: Position Sizing Calculator" },
+  ]);
 
   const handleLogout = () => {
     dispatch(logout());
-    navigate('/login');
-    setIsProfileMenuOpen(false);
   };
 
-  const toggleMenu = () => {
-    setIsMenuOpen(!isMenuOpen);
-    setIsProfileMenuOpen(false);
+  const handleSettings = () => {
+    navigate('/profile');
   };
 
-  const toggleProfileMenu = () => {
-    setIsProfileMenuOpen(!isProfileMenuOpen);
-  };
+  const NavButton = ({ icon: Icon, onClick, className = "", children }) => (
+    <motion.button
+      whileHover={{ scale: 1.05, y: -2 }}
+      whileTap={{ scale: 0.95 }}
+      className={`relative flex items-center gap-2 px-4 py-2 rounded-lg 
+        ${
+          theme === "dark"
+            ? "bg-gray-800/80 hover:bg-gray-700/90 text-gray-200"
+            : "bg-white/90 hover:bg-gray-50/95 text-gray-700"
+        } 
+        transform transition-all duration-200 ${className}
+        shadow-lg hover:shadow-xl
+        before:absolute before:inset-0 before:rounded-lg 
+        before:bg-gradient-to-r before:from-blue-500/20 before:to-purple-500/20 
+        before:opacity-0 hover:before:opacity-100 before:transition-opacity
+        backdrop-blur-sm`}
+      onClick={onClick}
+    >
+      <Icon className="h-5 w-5" />
+      {children}
+    </motion.button>
+  );
+
+  const MenuTransition = ({ children }) => (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -10 }}
+        transition={{ duration: 0.2 }}
+      >
+        {children}
+      </motion.div>
+    </AnimatePresence>
+  );
 
   return (
-    <nav className={`fixed top-0 left-0 right-0 z-50 ${theme === 'dark' ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'} shadow-lg`}>
+    <nav
+      className={`fixed top-0 right-0 left-20 z-30 border-b ${
+        theme === "dark"
+          ? "bg-gray-900/85 border-gray-700/50"
+          : "bg-white/85 border-gray-200/50"
+      } backdrop-blur-md shadow-lg`}
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16">
-          {/* Logo and main nav items */}
-          <div className="flex items-center">
-            <Link to="/" className="flex-shrink-0 flex items-center">
-              <span className="text-xl font-bold">DhanAPI</span>
-            </Link>
-            
-            {/* Desktop Navigation */}
-            <div className="hidden md:ml-6 md:flex md:space-x-4">
-              <Link to="/" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-700 hover:text-white">
-                Dashboard
-              </Link>
-              <Link to="/option-chain" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-700 hover:text-white">
-                Option Chain
-              </Link>
-            </div>
-          </div>
+        <div className="flex items-center justify-between h-16">
+          {/* Left side - Brand */}
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="flex items-center"
+          >
+            <motion.h1
+              className={`text-2xl font-bold bg-clip-text text-transparent 
+                bg-gradient-to-r from-blue-500 to-purple-600`}
+              whileHover={{ scale: 1.05 }}
+              transition={{ type: "spring", stiffness: 300 }}
+            >
+              Stockify 
+            </motion.h1>
+          </motion.div>
 
-          {/* Right side items */}
-          <div className="flex items-center">
-            {/* Theme toggle */}
-            <button
+          {/* Right side - Actions */}
+          <div className="flex items-center gap-4">
+            {/* GitHub Link */}
+            <NavButton
+              icon={FaGithub}
+              onClick={() =>
+                window.open(
+                  "https://github.com/yourusername/dhan-api",
+                  "_blank"
+                )
+              }
+            />
+
+            {/* Theme Toggle */}
+            <NavButton
+              icon={theme === "dark" ? SunIcon : MoonIcon}
               onClick={() => dispatch(toggleTheme())}
-              className={`p-2 rounded-full ${theme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}
-            >
-              {theme === 'dark' ? <FaSun size={20} /> : <FaMoon size={20} />}
-            </button>
+            />
 
-            {/* User menu - desktop */}
-            {isAuthenticated ? (
-              <div className="hidden md:ml-4 md:flex md:items-center">
-                <div className="relative">
-                  <button
-                    onClick={toggleProfileMenu}
-                    className="flex items-center space-x-2 focus:outline-none"
+            {/* Notifications */}
+            <Menu as="div" className="relative">
+              {({ open }) => (
+                <>
+                  <Menu.Button
+                    as={motion.button}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className={`relative p-2 rounded-lg ${
+                      theme === "dark"
+                        ? "hover:bg-gray-800/90"
+                        : "hover:bg-gray-100/90"
+                    } shadow-lg hover:shadow-xl backdrop-blur-sm`}
                   >
-                    <UserAvatar user={user} size="sm" />
-                  </button>
+                    <BellIcon className="h-6 w-6" />
+                    {notifications.length > 0 && (
+                      <motion.span
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        className="absolute -top-1 -right-1 h-5 w-5 text-xs 
+                          bg-red-500 text-white rounded-full flex items-center justify-center
+                          shadow-lg"
+                      >
+                        {notifications.length}
+                      </motion.span>
+                    )}
+                  </Menu.Button>
 
-                  {/* Profile dropdown */}
-                  {isProfileMenuOpen && (
-                    <div className={`absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 ${theme === 'dark' ? 'bg-gray-700' : 'bg-white'} ring-1 ring-black ring-opacity-5`}>
-                      <Link
-                        to="/profile"
-                        onClick={() => setIsProfileMenuOpen(false)}
-                        className={`block px-4 py-2 text-sm ${theme === 'dark' ? 'hover:bg-gray-600' : 'hover:bg-gray-100'}`}
+                  <MenuTransition>
+                    {open && (
+                      <Menu.Items
+                        static
+                        className={`absolute right-0 mt-2 w-72 rounded-xl 
+                          ${
+                            theme === "dark"
+                              ? "bg-gray-800/95 border border-gray-700/50"
+                              : "bg-white/95 border border-gray-200/50"
+                          } divide-y ${
+                          theme === "dark"
+                            ? "divide-gray-700/50"
+                            : "divide-gray-200/50"
+                        } shadow-xl backdrop-blur-sm overflow-hidden`}
                       >
-                        Profile
-                      </Link>
-                      <button
-                        onClick={handleLogout}
-                        className={`block w-full text-left px-4 py-2 text-sm ${theme === 'dark' ? 'hover:bg-gray-600' : 'hover:bg-gray-100'}`}
-                      >
-                        Logout
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <div className="hidden md:flex md:items-center md:ml-6 md:space-x-4">
-                <Link
-                  to="/login"
-                  className={`px-4 py-2 rounded-md text-sm font-medium ${
-                    theme === 'dark' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'
-                  } text-white`}
+                        {notifications.map((notification) => (
+                          <Menu.Item key={notification.id}>
+                            {({ active }) => (
+                              <motion.div
+                                whileHover={{ x: 4 }}
+                                className={`px-4 py-3 ${
+                                  active &&
+                                  (theme === "dark"
+                                    ? "bg-gray-700/50"
+                                    : "bg-gray-50/50")
+                                }`}
+                              >
+                                <p className="text-sm">
+                                  {notification.message}
+                                </p>
+                              </motion.div>
+                            )}
+                          </Menu.Item>
+                        ))}
+                      </Menu.Items>
+                    )}
+                  </MenuTransition>
+                </>
+              )}
+            </Menu>
+
+            {/* User Profile Menu */}
+            <Menu as="div" className="relative">
+              <Menu.Button as={motion.button}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg 
+                  ${theme === "dark"
+                    ? "bg-gray-800 hover:bg-gray-700 text-gray-200"
+                    : "bg-white hover:bg-gray-50 text-gray-700"
+                  } 
+                  transform transition-all duration-200`}
+              >
+                <UserCircleIcon className="h-6 w-6" />
+              </Menu.Button>
+
+              <MenuTransition>
+                <Menu.Items
+                  className={`absolute right-0 mt-2 w-48 origin-top-right rounded-lg 
+                    ${theme === "dark"
+                      ? "bg-gray-800 ring-1 ring-gray-700"
+                      : "bg-white ring-1 ring-black ring-opacity-5"
+                    } shadow-lg focus:outline-none`}
                 >
-                  Login
-                </Link>
-              </div>
-            )}
-
-            {/* Mobile menu button */}
-            <button
-              onClick={toggleMenu}
-              className="md:hidden ml-4 p-2 rounded-md focus:outline-none"
-            >
-              {isMenuOpen ? <FaTimes size={24} /> : <FaBars size={24} />}
-            </button>
+                  <div className="py-1">
+                    <Menu.Item>
+                      {({ active }) => (
+                        <button
+                          onClick={handleSettings}
+                          className={`${active
+                            ? theme === "dark"
+                              ? "bg-gray-700 text-gray-200"
+                              : "bg-gray-100 text-gray-900"
+                            : theme === "dark"
+                              ? "text-gray-200"
+                              : "text-gray-700"
+                          } flex items-center w-full px-4 py-2 text-sm`}
+                        >
+                          <Cog6ToothIcon className="h-5 w-5 mr-2" />
+                          Settings
+                        </button>
+                      )}
+                    </Menu.Item>
+                    <Menu.Item>
+                      {({ active }) => (
+                        <button
+                          onClick={handleLogout}
+                          className={`${active
+                            ? theme === "dark"
+                              ? "bg-gray-700 text-gray-200"
+                              : "bg-gray-100 text-gray-900"
+                            : theme === "dark"
+                              ? "text-gray-200"
+                              : "text-gray-700"
+                          } flex items-center w-full px-4 py-2 text-sm`}
+                        >
+                          <ArrowRightOnRectangleIcon className="h-5 w-5 mr-2" />
+                          Logout
+                        </button>
+                      )}
+                    </Menu.Item>
+                  </div>
+                </Menu.Items>
+              </MenuTransition>
+            </Menu>
           </div>
         </div>
       </div>
-
-      {/* Mobile menu */}
-      {isMenuOpen && (
-        <div className="md:hidden">
-          <div className={`px-2 pt-2 pb-3 space-y-1 ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>
-            <Link
-              to="/"
-              onClick={() => setIsMenuOpen(false)}
-              className="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-700 hover:text-white"
-            >
-              Dashboard
-            </Link>
-            <Link
-              to="/option-chain"
-              onClick={() => setIsMenuOpen(false)}
-              className="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-700 hover:text-white"
-            >
-              Option Chain
-            </Link>
-            {isAuthenticated ? (
-              <>
-                <Link
-                  to="/profile"
-                  onClick={() => setIsMenuOpen(false)}
-                  className="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-700 hover:text-white"
-                >
-                  Profile
-                </Link>
-                <button
-                  onClick={handleLogout}
-                  className="block w-full text-left px-3 py-2 rounded-md text-base font-medium hover:bg-gray-700 hover:text-white"
-                >
-                  Logout
-                </button>
-              </>
-            ) : (
-              <Link
-                to="/login"
-                onClick={() => setIsMenuOpen(false)}
-                className={`block px-3 py-2 rounded-md text-base font-medium ${
-                  theme === 'dark' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'
-                } text-white`}
-              >
-                Login
-              </Link>
-            )}
-          </div>
-        </div>
-      )}
     </nav>
   );
 };

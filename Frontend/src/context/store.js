@@ -6,6 +6,7 @@ import dataReducer from './dataSlice';
 import optionChainReducer from './optionData';
 import tcaReducer from './tcaSlice';
 import authReducer from './authSlice';
+import toastReducer from './toastSlice';
 
 // Load token from localStorage
 const token = localStorage.getItem('token');
@@ -18,6 +19,7 @@ export const store = configureStore({
     optionChain: optionChainReducer,
     tca: tcaReducer,
     auth: authReducer,
+    toast: toastReducer,
   },
   preloadedState: {
     auth: {

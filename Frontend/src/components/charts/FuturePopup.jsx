@@ -1,16 +1,15 @@
-import { useState, useMemo } from 'react';
-import dynamic from 'next/dynamic';
+import { useState, useMemo, lazy, Suspense } from 'react';
 import { FaTimes } from 'react-icons/fa';
 import PropTypes from 'prop-types';
 import { useSelector } from 'react-redux';
-
-// Dynamic import for react-chartjs-2 to enable better loading performance
-const Line = dynamic(() => import('react-chartjs-2').then((mod) => mod.Line), { ssr: false });
 import { Chart as ChartJS, LineElement, PointElement, CategoryScale, LinearScale, Tooltip, Legend, Title } from 'chart.js';
 import zoomPlugin from 'chartjs-plugin-zoom';
 
 // Register Chart.js modules and plugins
 ChartJS.register(LineElement, PointElement, CategoryScale, LinearScale, Tooltip, Legend, Title, zoomPlugin);
+
+// Lazy load the Line component
+const Line = lazy(() => import('react-chartjs-2').then((mod) => ({ default: mod.Line })));
 
 const FuturePopup = ({ onClose }) => {
     const data = useSelector((state) => state.optionChain.popupData);
@@ -115,30 +114,35 @@ const FuturePopup = ({ onClose }) => {
     }), [themeColors]);
 
     return (
-        <div
-            className={`fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 ${themeColors.background} rounded-lg p-4 w-[97%] h-[95%] z-50`}
-            role="dialog"
-            aria-modal="true"
-        >
-            <div className="flex flex-col items-center relative w-full h-full">
-                <button onClick={onClose} aria-label="Close Popup" className="absolute top-1 right-2 text-gray-800 hover:text-gray-600">
-                    <FaTimes size={24} color={themeColors.text} />
-                </button>
-                <p className={`text-2xl font-bold ${themeColors.text}`}>
-                    Future Buildup
-                </p>
-
-                <div className="flex justify-center gap-4 my-4">
-                    <p
-                        onClick={() => setActiveSection('Future')}
-                        className={`py-0 cursor-pointer px-4 rounded ${activeSection === 'Future' ? 'bg-white text-gray-800' : 'bg-gray-500 text-gray-200'}`}
-                    >
-                        Future
+        <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 ${
+            theme === 'dark' ? 'bg-black/50' : 'bg-gray-500/50'
+        }`}>
+            <div className={`relative w-full max-w-4xl rounded-xl shadow-2xl ${
+                theme === 'dark' ? 'bg-gray-800' : 'bg-white'
+            } p-6`}>
+                {/* Content */}
+                <div className="space-y-4">
+                    {/* Chart */}
+                    <div className="h-[400px] w-full">
+                        <Suspense fallback={<div className="h-full w-full flex items-center justify-center">Loading chart...</div>}>
+                            <Line data={chartData} options={chartOptions} />
+                        </Suspense>
+                    </div>
+                    <button onClick={onClose} aria-label="Close Popup" className="absolute top-1 right-2 text-gray-800 hover:text-gray-600">
+                        <FaTimes size={24} color={themeColors.text} />
+                    </button>
+                    <p className={`text-2xl font-bold ${themeColors.text}`}>
+                        Future Buildup
                     </p>
-                </div>
 
-                <div className="w-full h-full p-4">
-                    <Line data={chartData} options={chartOptions} />
+                    <div className="flex justify-center gap-4 my-4">
+                        <p
+                            onClick={() => setActiveSection('Future')}
+                            className={`py-0 cursor-pointer px-4 rounded ${activeSection === 'Future' ? 'bg-white text-gray-800' : 'bg-gray-500 text-gray-200'}`}
+                        >
+                            Future
+                        </p>
+                    </div>
                 </div>
             </div>
         </div>

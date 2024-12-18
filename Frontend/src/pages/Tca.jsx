@@ -6,6 +6,7 @@ import ResultSection from '../components/tca/ResultSection';
 import PNL from '../components/tca/PNL';
 import ChartSection from '../components/tca/ChartSection';
 import GeneratedTrades from '../components/tca/GeneratedTrades';
+import TradeAnalysis from '../components/tca/TradeAnalysis';
 import {
     setTradePerDay,
     setNdtpc,
@@ -30,7 +31,6 @@ const ProfitLossCalculator = () => {
         profitLossChart,
     } = useSelector((state) => state.tca);
     const theme = useSelector((state) => state.theme.theme);
-
 
     const encryptionKey = 'Shivam';
 
@@ -78,41 +78,52 @@ const ProfitLossCalculator = () => {
 
     return (
         <div
-            className={`min-h-screen flex flex-col items-center transition-colors duration-300 ${theme === "dark" ? "bg-gray-900 text-white" : "bg-gray-100 text-black"
-                }`}
+            className={`min-h-screen flex flex-col items-center transition-colors duration-300 ${
+                theme === "dark" ? "bg-gray-900 text-white" : "bg-gray-100 text-black"
+            }`}
         >
             {/* Header Section */}
             <div className="w-full p-4 flex flex-col md:flex-row justify-between items-center border-b border-gray-300">
-                <h2 className="text-3xl font-bold text-center md:text-left">Profit & Loss Calculator</h2>
+                <h2 className="text-3xl font-bold text-center md:text-left">Trading Strategy Analysis</h2>
                 <PNL results={results} />
             </div>
 
             {/* Main Content */}
-            <div className="w-full max-w-7xl flex flex-col md:flex-row gap-6 p-4">
-
-                <div className="w-full md:w-1/3 bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg">
-                    <InputForm handleGenerateClick={handleGenerateClick} />
-                    <div className="mt-6">
-                        <ResultSection results={results} />
-                    </div>
-                </div>
-
-                {/* Main Panel Section */}
-                <div className="w-full md:w-2/3 flex flex-col gap-6">
-                    {results ? (
-                        <>
-                            <ChartSection
-                                profitLossChart={profitLossChart}
-                                profitLossData={results.netProfitLossValues}
-                                theme={theme}
-                            />
-                            <GeneratedTrades results={results} />
-                        </>
-                    ) : (
-                        <div className="flex justify-center items-center h-full text-xl text-gray-600 dark:text-gray-400">
-                            Generate results to view profit/loss chart and trades
+            <div className="w-full max-w-7xl flex flex-col gap-6 p-4">
+                {/* Input and Results Section */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div className="lg:col-span-1">
+                        <div className={`p-6 rounded-lg shadow-lg ${
+                            theme === "dark" ? "bg-gray-800" : "bg-white"
+                        }`}>
+                            <InputForm handleGenerateClick={handleGenerateClick} />
+                            <div className="mt-6">
+                                <ResultSection results={results} />
+                            </div>
                         </div>
-                    )}
+                    </div>
+
+                    <div className="lg:col-span-2">
+                        {results ? (
+                            <div className="space-y-6">
+                                <ChartSection
+                                    profitLossChart={profitLossChart}
+                                    profitLossData={results.netProfitLossValues}
+                                    theme={theme}
+                                />
+                                <TradeAnalysis results={results} theme={theme} />
+                                <GeneratedTrades results={results} />
+                            </div>
+                        ) : (
+                            <div className={`flex justify-center items-center h-64 rounded-lg ${
+                                theme === "dark" ? "bg-gray-800" : "bg-white"
+                            } shadow-lg`}>
+                                <p className="text-xl text-gray-600 dark:text-gray-400">
+                                    Generate results to view detailed trading analysis
+                                </p>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
         </div>
