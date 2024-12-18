@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, jsonify, request, send_from_directory
 from flask_socketio import SocketIO
 from flask_cors import CORS
 from routes.auth import auth_bp, token_required
@@ -27,38 +27,39 @@ app.config["SECRET_KEY"] = os.environ.get('JWT_SECRET_KEY', 'your-secret-key')
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get('DATABASE_URL', 'sqlite:///app.db')
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-# Initialize extensions with specific CORS configuration
-CORS(app, resources={
-    r"/*": {
-        "origins": [
-            os.environ.get('FRONTEND_URL', 'http://localhost:5173'),
-            "http://127.0.0.1:5173",
-            "http://192.168.56.1:5173",
-            "https://stockify-oc.vercel.app",
-            "https://stockify-oc.onrender.com",
-        ],
-        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        "allow_headers": ["Content-Type", "Authorization", "Access-Control-Allow-Credentials"],
-        "supports_credentials": True
-    }
-})
+# Upload folder configuration
+app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(__file__), 'uploads')
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 
+# Ensure upload directory exists
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
+# Initialize CORS
+CORS(app, 
+    resources={
+        r"/*": {
+            "origins": "*",
+            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+            "allow_headers": ["Content-Type", "Authorization", "Accept"],
+            "expose_headers": ["Content-Range", "X-Content-Range"],
+            "supports_credentials": False,
+            "max_age": 3600
+        }
+    })
+
+# Initialize database
 db.init_app(app)
+
+# Initialize SocketIO
 socketio = SocketIO(app, 
-    cors_allowed_origins=[
-        os.environ.get('FRONTEND_URL', 'http://localhost:5173'),
-        "http://127.0.0.1:5173",
-        "http://192.168.56.1:5173",
-        "https://stockify-oc.vercel.app",
-        "https://stockify-oc.onrender.com",
-    ],
+    cors_allowed_origins="*",
     logger=True,
     engineio_logger=True,
     ping_timeout=5000,
-    ping_interval=25000,
+    ping_interval=2500,
     async_mode='threading',
     always_connect=True,
-    cors_credentials=True
+    cors_credentials=False
 )
 
 # Initialize rate limiter
@@ -67,8 +68,17 @@ limiter = Limiter(
     app=app,
     storage_uri="memory://",
     strategy="fixed-window",
-    default_limits=["200 per day"]
+    default_limits=["200 per day", "50 per hour"]
 )
+
+# Global error handler
+@app.errorhandler(Exception)
+def handle_error(error):
+    logger.error(f"An error occurred: {str(error)}")
+    return jsonify({
+        "error": "Internal Server Error",
+        "message": str(error)
+    }), 500
 
 # Register blueprints
 app.register_blueprint(auth_bp, url_prefix='/api/auth')
@@ -76,6 +86,11 @@ app.register_blueprint(auth_bp, url_prefix='/api/auth')
 # Create database tables
 with app.app_context():
     db.create_all()
+
+# Serve static files from uploads directory
+@app.route('/uploads/<path:filename>')
+def uploaded_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 # Event to control the live data stream
 client_streams = {}  # Dictionary to track active streams per client
@@ -171,6 +186,142 @@ def stop_streaming():
     
     logger.info(f"Stopped streaming - Client ID: {client_id}")
     socketio.emit("stream_stopped", {"status": "Streaming stopped"}, room=client_id)
+
+# Add API endpoints for percentage and IV data
+@app.route('/api/percentage-data/', methods=['POST', 'OPTIONS'])
+@token_required
+def get_percentage_data(current_user):
+    if request.method == 'OPTIONS':
+        return '', 200
+        
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+            
+        required_fields = ['sid', 'exp_sid', 'strike', 'option_type']
+        missing_fields = [field for field in required_fields if field not in data]
+        if missing_fields:
+            return jsonify({"error": f"Missing required fields: {', '.join(missing_fields)}"}), 400
+            
+        logger.info(f"Percentage data request: {data}")
+        
+        # Get data from App
+        result = App.get_percentage_data(
+            sid=data.get('sid'),
+            exp_sid=data.get('exp_sid'),
+            strike=data.get('strike'),
+            option_type=data.get('option_type')
+        )
+        
+        return jsonify(result), 200
+        
+    except Exception as e:
+        logger.error(f"Error in get_percentage_data: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/iv-data/', methods=['POST', 'OPTIONS'])
+@token_required
+def get_iv_data(current_user):
+    if request.method == 'OPTIONS':
+        return '', 200
+        
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+            
+        required_fields = ['sid', 'exp_sid', 'strike', 'option_type']
+        missing_fields = [field for field in required_fields if field not in data]
+        if missing_fields:
+            return jsonify({"error": f"Missing required fields: {', '.join(missing_fields)}"}), 400
+            
+        logger.info(f"IV data request: {data}")
+        
+        # Get data from App
+        result = App.get_iv_data(
+            sid=data.get('sid'),
+            exp_sid=data.get('exp_sid'),
+            strike=data.get('strike'),
+            option_type=data.get('option_type')
+        )
+        
+        return jsonify(result), 200
+        
+    except Exception as e:
+        logger.error(f"Error in get_iv_data: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/delta-data/', methods=['POST', 'OPTIONS'])
+@token_required
+def get_delta_data(current_user):
+    if request.method == 'OPTIONS':
+        return '', 200
+        
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+            
+        required_fields = ['sid', 'exp_sid', 'strike']
+        missing_fields = [field for field in required_fields if field not in data]
+        if missing_fields:
+            return jsonify({"error": f"Missing required fields: {', '.join(missing_fields)}"}), 400
+            
+        logger.info(f"Delta data request: {data}")
+        
+        # Get data from App
+        result = App.get_delta_data(
+            sid=data.get('sid'),
+            exp_sid=data.get('exp_sid'),
+            strike=data.get('strike')
+        )
+        
+        return jsonify(result), 200
+        
+    except Exception as e:
+        logger.error(f"Error in get_delta_data: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/fut-data/', methods=['POST', 'OPTIONS'])
+@token_required
+def get_future_price_data(current_user):
+    if request.method == 'OPTIONS':
+        return '', 200
+        
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+            
+        required_fields = ['sid', 'exp_sid', 'strike']
+        missing_fields = [field for field in required_fields if field not in data]
+        if missing_fields:
+            return jsonify({"error": f"Missing required fields: {', '.join(missing_fields)}"}), 400
+            
+        logger.info(f"Future price data request: {data}")
+        
+        # Get data from App
+        result = App.get_future_price_data(
+            sid=data.get('sid'),
+            exp_sid=data.get('exp_sid'),
+            strike=data.get('strike')
+        )
+        
+        return jsonify(result), 200
+        
+    except Exception as e:
+        logger.error(f"Error in get_future_price_data: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+# Add CORS headers to all responses
+@app.after_request
+def after_request(response):
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept')
+    response.headers.add('Access-Control-Allow-Methods', 'GET, PUT, POST, DELETE, OPTIONS')
+    response.headers.add('Access-Control-Max-Age', '3600')
+    return response
 
 @limiter.limit("200 per day")
 @app.route('/')

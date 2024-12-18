@@ -1,27 +1,59 @@
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify, current_app, send_from_directory
 from models.user import User, db, UserRole
 from datetime import datetime, timedelta
 import jwt
 from functools import wraps
 import os
 from werkzeug.utils import secure_filename
+from PIL import Image
+import uuid
 from utils.email_service import EmailService
 import secrets
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from utils.token_manager import token_manager
 
 # Create blueprint
 auth_bp = Blueprint('auth', __name__)
 
-# Rate limiter setup
+# Initialize rate limiter
 limiter = Limiter(
     key_func=get_remote_address,
     default_limits=["200 per day", "50 per hour"]
 )
 
-# JWT Configuration
-JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY', 'your-secret-key')
-JWT_EXPIRATION_HOURS = 24
+# Add these configurations
+UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'uploads')
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
+
+# Create uploads directory if it doesn't exist
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def optimize_image(image_path, max_size=(800, 800)):
+    """Optimize the image size while maintaining aspect ratio"""
+    try:
+        with Image.open(image_path) as img:
+            # Convert RGBA to RGB if necessary
+            if img.mode == 'RGBA':
+                img = img.convert('RGB')
+            
+            # Calculate new size maintaining aspect ratio
+            width, height = img.size
+            if width > max_size[0] or height > max_size[1]:
+                ratio = min(max_size[0]/width, max_size[1]/height)
+                new_size = (int(width * ratio), int(height * ratio))
+                img = img.resize(new_size, Image.Resampling.LANCZOS)
+            
+            # Save optimized image
+            img.save(image_path, 'JPEG', quality=85, optimize=True)
+            return True
+    except Exception as e:
+        print(f"Image optimization error: {str(e)}")
+        return False
 
 def token_required(f):
     @wraps(f)
@@ -38,14 +70,13 @@ def token_required(f):
             return jsonify({'message': 'Token is missing'}), 401
         
         try:
-            data = jwt.decode(token, JWT_SECRET_KEY, algorithms=["HS256"])
-            current_user = User.query.get(data['user_id'])
+            # Verify token using token manager
+            payload = token_manager.verify_token(token)
+            current_user = User.query.get(payload['user_id'])
             if not current_user:
                 return jsonify({'message': 'User not found'}), 401
-        except jwt.ExpiredSignatureError:
-            return jsonify({'message': 'Token has expired'}), 401
-        except jwt.InvalidTokenError:
-            return jsonify({'message': 'Invalid token'}), 401
+        except ValueError as e:
+            return jsonify({'message': str(e)}), 401
         
         return f(current_user, *args, **kwargs)
     
@@ -63,7 +94,7 @@ def role_required(required_role):
                 return jsonify({'message': 'Token is missing'}), 401
             
             try:
-                data = jwt.decode(token, JWT_SECRET_KEY, algorithms=["HS256"])
+                data = token_manager.verify_token(token)
                 current_user = User.query.get(data['user_id'])
                 
                 if not current_user.has_permission(required_role):
@@ -105,19 +136,12 @@ def register():
         
         # Skip email verification for now
         # Create and return token immediately
-        token = jwt.encode(
-            {
-                'user_id': new_user.id,
-                'exp': datetime.utcnow() + timedelta(hours=JWT_EXPIRATION_HOURS)
-            },
-            JWT_SECRET_KEY,
-            algorithm="HS256"
-        )
+        tokens = token_manager.generate_tokens(new_user)
         
         return jsonify({
             'message': 'User created successfully',
-            'token': token,
-            'user': new_user.to_dict()
+            'user': new_user.to_dict(),
+            **tokens
         }), 201
     except Exception as e:
         db.session.rollback()
@@ -137,60 +161,80 @@ def verify_email(token):
     return jsonify({'message': 'Email verified successfully'})
 
 @auth_bp.route('/login', methods=['POST'])
-@limiter.limit("10 per minute")
+@limiter.limit("5 per minute")
 def login():
-    data = request.get_json()
-    
-    if not data or not data.get('email') or not data.get('password'):
-        return jsonify({'message': 'Missing email or password'}), 400
-    
-    user = User.query.filter_by(email=data['email']).first()
-    if not user:
-        return jsonify({'message': 'Invalid email or password'}), 401
-    
-    # Check if account is locked
-    if user.is_account_locked():
-        return jsonify({
-            'message': 'Account is temporarily locked. Please try again later.',
-            'locked_until': user.account_locked_until
-        }), 403
-    
-    if not user.check_password(data['password']):
-        # Increment failed login attempts
-        user.failed_login_attempts += 1
+    try:
+        data = request.get_json()
         
-        # Lock account if too many failed attempts
-        if user.failed_login_attempts >= 5:
-            user.account_locked_until = datetime.utcnow() + timedelta(minutes=15)
+        if not data or not data.get('email') or not data.get('password'):
+            return jsonify({'message': 'Missing email or password'}), 400
+        
+        user = User.query.filter_by(email=data['email']).first()
+        
+        if not user:
+            return jsonify({'message': 'User not found'}), 401
+        
+        if user.is_account_locked():
+            return jsonify({'message': 'Account is locked. Try again later'}), 403
+        
+        if not user.check_password(data['password']):
+            user.increment_failed_login()
             db.session.commit()
-            return jsonify({
-                'message': 'Account locked due to too many failed attempts. Please try again later.',
-                'locked_until': user.account_locked_until
-            }), 403
+            return jsonify({'message': 'Invalid password'}), 401
         
+        # Reset failed login attempts on successful login
+        user.reset_failed_login()
+        user.last_login = datetime.utcnow()
         db.session.commit()
-        return jsonify({'message': 'Invalid email or password'}), 401
-    
-    # Reset failed login attempts on successful login
-    user.failed_login_attempts = 0
-    user.last_login = datetime.utcnow()
-    db.session.commit()
-    
-    # Generate token
-    token = jwt.encode(
-        {
-            'user_id': user.id,
-            'exp': datetime.utcnow() + timedelta(hours=JWT_EXPIRATION_HOURS)
-        },
-        JWT_SECRET_KEY,
-        algorithm="HS256"
-    )
-    
-    return jsonify({
-        'message': 'Login successful',
-        'token': token,
-        'user': user.to_dict()
-    })
+        
+        # Generate tokens
+        tokens = token_manager.generate_tokens(user)
+        
+        return jsonify({
+            'message': 'Login successful',
+            'user': user.to_dict(),
+            **tokens
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'message': str(e)}), 500
+
+@auth_bp.route('/refresh-token', methods=['POST'])
+def refresh_token():
+    try:
+        refresh_token = request.json.get('refresh_token')
+        if not refresh_token:
+            return jsonify({'message': 'Refresh token is required'}), 400
+        
+        # Get new access token
+        new_tokens = token_manager.refresh_access_token(refresh_token)
+        return jsonify(new_tokens), 200
+        
+    except ValueError as e:
+        return jsonify({'message': str(e)}), 401
+    except Exception as e:
+        return jsonify({'message': 'Failed to refresh token'}), 500
+
+@auth_bp.route('/logout', methods=['POST'])
+@token_required
+def logout(current_user):
+    try:
+        # Get tokens from request
+        auth_header = request.headers.get('Authorization', '')
+        access_token = auth_header.split(' ')[1] if auth_header else None
+        refresh_token = current_user.refresh_token
+        
+        # Revoke both tokens
+        if access_token:
+            token_manager.revoke_token(access_token)
+        if refresh_token:
+            token_manager.revoke_token(refresh_token)
+            current_user.refresh_token = None
+            db.session.commit()
+        
+        return jsonify({'message': 'Successfully logged out'}), 200
+    except Exception as e:
+        return jsonify({'message': str(e)}), 500
 
 @auth_bp.route('/forgot-password', methods=['POST'])
 @limiter.limit("3 per hour")
@@ -270,30 +314,77 @@ def change_password(current_user):
     
     return jsonify({'message': 'Password updated successfully'})
 
-@auth_bp.route('/profile/image', methods=['POST'])
+@auth_bp.route('/profile/upload-image', methods=['POST', 'OPTIONS'])
 @token_required
 def upload_profile_image(current_user):
-    if 'image' not in request.files:
-        return jsonify({'message': 'No image file provided'}), 400
-    
-    file = request.files['image']
-    if file.filename == '':
-        return jsonify({'message': 'No selected file'}), 400
-    
-    if file and allowed_file(file.filename):
-        filename = secure_filename(f"{current_user.id}_{file.filename}")
-        filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
+    # Handle preflight request
+    if request.method == 'OPTIONS':
+        return '', 200
+
+    try:
+        if 'profile_image' not in request.files:
+            return jsonify({'message': 'No file provided'}), 400
+        
+        file = request.files['profile_image']
+        if file.filename == '':
+            return jsonify({'message': 'No file selected'}), 400
+        
+        if not allowed_file(file.filename):
+            return jsonify({'message': 'Invalid file type. Allowed types: jpg, jpeg, png, gif'}), 400
+        
+        # Check file size
+        file.seek(0, os.SEEK_END)
+        size = file.tell()
+        file.seek(0)
+        
+        if size > MAX_FILE_SIZE:
+            return jsonify({'message': 'File size exceeds 5MB limit'}), 400
+        
+        # Generate unique filename
+        ext = file.filename.rsplit('.', 1)[1].lower()
+        new_filename = f"{uuid.uuid4()}.{ext}"
+        filepath = os.path.join(UPLOAD_FOLDER, new_filename)
+        
+        # Save the file
         file.save(filepath)
         
-        current_user.profile_image = f'/uploads/{filename}'
+        # Optimize the image
+        if not optimize_image(filepath):
+            os.remove(filepath)  # Clean up if optimization fails
+            return jsonify({'message': 'Failed to process image'}), 500
+        
+        # Update user's profile image URL
+        image_url = f"/uploads/{new_filename}"
+        
+        # Delete old profile image if it exists
+        if current_user.profile_image:
+            old_image_path = os.path.join(UPLOAD_FOLDER, os.path.basename(current_user.profile_image))
+            if os.path.exists(old_image_path):
+                os.remove(old_image_path)
+        
+        current_user.profile_image = image_url
         db.session.commit()
         
         return jsonify({
-            'message': 'Profile image updated successfully',
-            'profile_image': current_user.profile_image
-        })
-    
-    return jsonify({'message': 'Invalid file type'}), 400
+            'message': 'Profile image uploaded successfully',
+            'image_url': image_url
+        }), 200
+        
+    except Exception as e:
+        print(f"Upload error: {str(e)}")  # Log the error
+        # Clean up file if it was saved
+        if 'filepath' in locals() and os.path.exists(filepath):
+            os.remove(filepath)
+        return jsonify({'message': f'Upload failed: {str(e)}'}), 500
+
+# Serve uploaded files
+@auth_bp.route('/uploads/<filename>')
+def serve_upload(filename):
+    try:
+        return send_from_directory(UPLOAD_FOLDER, filename, as_attachment=False)
+    except Exception as e:
+        print(f"File serving error: {str(e)}")
+        return jsonify({'message': 'File not found'}), 404
 
 @auth_bp.route('/subscription/upgrade', methods=['POST'])
 @token_required
@@ -309,9 +400,5 @@ def upgrade_subscription(current_user):
         'message': 'Subscription upgraded successfully',
         'user': current_user.to_dict()
     })
-
-def allowed_file(filename):
-    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 __all__ = ['auth_bp', 'token_required', 'role_required']

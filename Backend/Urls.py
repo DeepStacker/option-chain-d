@@ -159,14 +159,37 @@ class Urls:
 
     @staticmethod
     def fetch_expiry(symbol, seg):
-        fut_response = requests.post(
-            Urls.fut_url,
-            headers=Urls.headers,
-            json=Urls.create_fut_payload(symbol, seg),
-        )
-        fut_response.raise_for_status()
-        fut_data = fut_response.json()
-        return Utils.filter_fut_data(fut_data)
+        try:
+            print(f"Fetching expiry dates for symbol {symbol} with segment {seg}")
+            payload = Urls.create_fut_payload(symbol, seg)
+            print(f"Request payload: {json.dumps(payload)}")
+            
+            fut_response = requests.post(
+                Urls.fut_url,
+                headers=Urls.headers,
+                json=payload,
+                timeout=10
+            )
+            print(f"Response status code: {fut_response.status_code}")
+            
+            fut_response.raise_for_status()
+            fut_data = fut_response.json()
+            print(f"Raw response data: {json.dumps(fut_data)}")
+            
+            filtered_data = Utils.filter_fut_data(fut_data)
+            print(f"Filtered expiry dates: {json.dumps(filtered_data.get('data', {}).get('explist', []))}")
+            
+            return filtered_data
+            
+        except requests.exceptions.RequestException as e:
+            print(f"Request failed: {str(e)}")
+            raise
+        except json.JSONDecodeError as e:
+            print(f"Failed to decode response JSON: {str(e)}")
+            raise
+        except Exception as e:
+            print(f"Unexpected error in fetch_expiry: {str(e)}")
+            raise
 
     @staticmethod
     def fetch_fut_data(symbol, seg):

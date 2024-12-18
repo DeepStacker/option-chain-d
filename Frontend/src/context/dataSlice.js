@@ -1,20 +1,34 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
-import { object } from 'prop-types';
 import { io } from 'socket.io-client';
 
 let socket = null; // Global variable for WebSocket connection
 
-const API_BASE_URL = 'http://127.0.0.1:10000/api'; // Regular API requests go to app.py
-const SOCKET_URL = 'http://127.0.0.1:5000'; // WebSocket connections go to new_app.py
+// API configuration
+const API_BASE_URL = 'http://127.0.0.1:10001/api';
+const SOCKET_URL = 'http://127.0.0.1:5000';
+
+// Configure axios defaults
+axios.defaults.withCredentials = true;
 
 // Helper function to handle API errors
 const handleApiError = (error) => {
-  return error.response?.data?.message || error.message || 'An unexpected error occurred';
+  if (error.response) {
+    console.error('API Error Response:', error.response);
+    return error.response.data?.message || 'Server error occurred';
+  } else if (error.request) {
+    console.error('API No Response:', error.request);
+    return 'No response from server';
+  } else {
+    console.error('API Error:', error);
+    return error.message || 'An error occurred';
+  }
 };
 
 // Helper function to get the auth token
-const getAuthToken = () => localStorage.getItem('token');
+const getAuthToken = () => {
+  return localStorage.getItem('token');
+};
 
 // Helper function to create socket connection with auth
 const createSocketConnection = () => {
@@ -24,66 +38,31 @@ const createSocketConnection = () => {
     return null;
   }
 
-  if (socket?.connected) {
-    // console.log('Reusing existing socket connection');
-    return socket;
+  if (!socket) {
+    socket = io(SOCKET_URL, {
+      auth: {
+        token
+      },
+      withCredentials: true,
+      transports: ['websocket'],
+      upgrade: false,
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000
+    });
+
+    socket.on('connect', () => {
+      console.log('Socket connected');
+    });
+
+    socket.on('connect_error', (error) => {
+      console.error('Socket connection error:', error);
+    });
+
+    socket.on('error', (error) => {
+      console.error('Socket error:', error);
+    });
   }
-
-  // Close existing socket if it exists but isn't connected
-  if (socket) {
-    socket.close();
-  }
-
-  socket = io(SOCKET_URL, {
-    auth: {
-      token: `Bearer ${token}`
-    },
-    transports: ['websocket'],
-    autoConnect: false,
-    reconnection: true,
-    reconnectionDelay: 1000,
-    reconnectionDelayMax: 5000,
-    reconnectionAttempts: 5,
-    withCredentials: true,
-    timeout: 10000
-  });
-
-  socket.on('connect', () => {
-    console.log('Socket connected successfully');
-  });
-
-  socket.on('connection_established', (data) => {
-    console.log('Connection established with sid:', data.sid);
-  });
-
-  socket.on('connect_error', (error) => {
-    console.error('Socket connection error:', error);
-    // Try to reconnect after connection error
-    setTimeout(() => {
-      if (!socket.connected) {
-        socket.connect();
-      }
-    }, 1000);
-  });
-
-  socket.on('disconnect', (reason) => {
-    console.log('Socket disconnected:', reason);
-    if (reason === 'io server disconnect' || reason === 'transport close') {
-      // Server disconnected us, try to reconnect
-      setTimeout(() => {
-        if (!socket.connected) {
-          socket.connect();
-        }
-      }, 1000);
-    }
-  });
-
-  socket.on('error', (error) => {
-    console.error('Socket error:', error);
-  });
-
-  // Connect the socket
-  socket.connect();
 
   return socket;
 };
@@ -111,8 +90,7 @@ export const fetchLiveData = createAsyncThunk(
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
-        },
-        withCredentials: true
+        }
       });
 
       // Then establish WebSocket connection for live updates
@@ -309,7 +287,7 @@ export const dataSlice = createSlice({
       .addCase(fetchExpiryDate.fulfilled, (state, action) => {
         // Ensure we have an array of expiry dates
         const expiryDates = Array.isArray(action.payload) ? action.payload : 
-                          (action.payload?.fut?.data?.explist || []);
+                          (action.payload?.expiry_dates || []);
         state.expDate = expiryDates;
         state.exp_sid = expiryDates[0] ?? state.exp_sid; // Default to first expiry date
         state.loading = false;

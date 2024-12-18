@@ -7,6 +7,7 @@ from Utils import Utils
 from retrivedata import retrieve_data
 import io
 import pytz
+import requests
 
 FILE_PATH = "Percentage_Data.json"
 
@@ -45,19 +46,38 @@ class App:
 
     def get_exp_date(symbol):
         try:
+            if not symbol:
+                return jsonify({"error": "Symbol parameter is required"}), 400
 
             if symbol not in Urls.symbol_list:
-                return jsonify({"error": "Invalid or missing 'sid' parameter"}), 400
+                return jsonify({"error": f"Invalid symbol: {symbol}. Valid symbols are: {list(Urls.symbol_list.keys())}"}), 400
 
             symbol_id = Urls.symbol_list[symbol]
             seg_id = Urls.seg_list[symbol]
-            # print(f"Symbol ID: {symbol_id}")
+            print(f"Fetching expiry dates for symbol: {symbol} (ID: {symbol_id}, Seg: {seg_id})")
 
-            fut_data = Urls.fetch_expiry(symbol_id, seg_id)
+            try:
+                fut_data = Urls.fetch_expiry(symbol_id, seg_id)
+                if not fut_data:
+                    return jsonify({"error": "No data received from API"}), 500
+                    
+                if isinstance(fut_data, dict):
+                    expiry_list = fut_data.get('data', {}).get('explist', [])
+                    return jsonify({
+                        "symbol": symbol_id,
+                        "expiry_dates": expiry_list,
+                        "count": len(expiry_list)
+                    }), 200
+                else:
+                    print(f"Unexpected response type: {type(fut_data)}")
+                    return jsonify({"error": "Invalid response format from API"}), 500
 
-            return jsonify({"symbol": symbol_id, "fut": fut_data}), 200
+            except requests.exceptions.RequestException as e:
+                print(f"API request failed: {str(e)}")
+                return jsonify({"error": "Failed to connect to the external API"}), 503
 
         except Exception as e:
+            print(f"Error in get_exp_date: {str(e)}")
             traceback.print_exc()
             return jsonify({"error": f"Server encountered an error: {str(e)}"}), 500
 
@@ -485,3 +505,213 @@ class App:
             # Log the error for debugging
             print(f"An error occurred: {e}")
             return jsonify({"error": "Internal Server Error"}), 500
+
+    @staticmethod
+    def get_percentage_data(sid, exp_sid, strike, option_type):
+        try:
+            if sid not in Urls.symbol_list:
+                raise ValueError("Invalid symbol")
+
+            symbol_id = Urls.symbol_list[sid]
+            seg_id = Urls.seg_list[sid]
+
+            try:
+                exp_sid = int(exp_sid)
+                strike = float(strike)
+            except (ValueError, TypeError):
+                raise ValueError("Invalid expiry or strike value")
+
+            # Get option data
+            option_data, _, _ = Urls.fetch_data(symbol_id, exp_sid, seg_id)
+            
+            # Find the specific option
+            options = option_data.get('data', {}).get('oc', {}).get('data', [])
+            target_option = None
+            
+            for option in options:
+                if (float(option.get('strike')) == strike and 
+                    option.get('option_type').upper() == option_type.upper()):
+                    target_option = option
+                    break
+            
+            if not target_option:
+                raise ValueError("Option not found")
+                
+            # Calculate percentage data
+            result = {
+                'strike': strike,
+                'option_type': option_type,
+                'ltp': target_option.get('ltp'),
+                'change_percentage': target_option.get('change_percentage'),
+                'iv': target_option.get('iv'),
+                'volume': target_option.get('volume'),
+                'oi': target_option.get('oi'),
+                'delta': target_option.get('delta'),
+                'theta': target_option.get('theta'),
+                'gamma': target_option.get('gamma')
+            }
+            
+            return result
+            
+        except Exception as e:
+            raise Exception(f"Error calculating percentage data: {str(e)}")
+
+    @staticmethod
+    def get_iv_data(sid, exp_sid, strike, option_type):
+        try:
+            if sid not in Urls.symbol_list:
+                raise ValueError("Invalid symbol")
+
+            symbol_id = Urls.symbol_list[sid]
+            seg_id = Urls.seg_list[sid]
+
+            try:
+                exp_sid = int(exp_sid)
+                strike = float(strike)
+            except (ValueError, TypeError):
+                raise ValueError("Invalid expiry or strike value")
+
+            # Get option data
+            option_data, _, _ = Urls.fetch_data(symbol_id, exp_sid, seg_id)
+            
+            # Find the specific option
+            options = option_data.get('data', {}).get('oc', {}).get('data', [])
+            target_option = None
+            
+            for option in options:
+                if (float(option.get('strike')) == strike and 
+                    option.get('option_type').upper() == option_type.upper()):
+                    target_option = option
+                    break
+            
+            if not target_option:
+                raise ValueError("Option not found")
+                
+            # Calculate IV data
+            result = {
+                'strike': strike,
+                'option_type': option_type,
+                'iv': target_option.get('iv'),
+                'iv_percentile': target_option.get('iv_percentile'),
+                'iv_historical': target_option.get('iv_historical', []),
+                'vega': target_option.get('vega'),
+                'theta': target_option.get('theta')
+            }
+            
+            return result
+            
+        except Exception as e:
+            raise Exception(f"Error calculating IV data: {str(e)}")
+
+    @staticmethod
+    def get_delta_data(sid, exp_sid, strike):
+        try:
+            if sid not in Urls.symbol_list:
+                raise ValueError("Invalid symbol")
+
+            symbol_id = Urls.symbol_list[sid]
+            seg_id = Urls.seg_list[sid]
+
+            try:
+                exp_sid = int(exp_sid)
+                strike = float(strike)
+            except (ValueError, TypeError):
+                raise ValueError("Invalid expiry or strike value")
+
+            # Get option data
+            option_data, _, _ = Urls.fetch_data(symbol_id, exp_sid, seg_id)
+            
+            # Find the CE and PE options for the strike
+            options = option_data.get('data', {}).get('oc', {}).get('data', [])
+            ce_option = None
+            pe_option = None
+            
+            for option in options:
+                if float(option.get('strike')) == strike:
+                    if option.get('option_type').upper() == 'CE':
+                        ce_option = option
+                    elif option.get('option_type').upper() == 'PE':
+                        pe_option = option
+                        
+                if ce_option and pe_option:
+                    break
+            
+            if not ce_option or not pe_option:
+                raise ValueError("Options not found")
+                
+            # Calculate delta data
+            result = {
+                'strike': strike,
+                'ce_delta': ce_option.get('delta'),
+                'pe_delta': pe_option.get('delta'),
+                'ce_gamma': ce_option.get('gamma'),
+                'pe_gamma': pe_option.get('gamma'),
+                'ce_theta': ce_option.get('theta'),
+                'pe_theta': pe_option.get('theta'),
+                'ce_vega': ce_option.get('vega'),
+                'pe_vega': pe_option.get('vega')
+            }
+            
+            return result
+            
+        except Exception as e:
+            raise Exception(f"Error calculating delta data: {str(e)}")
+
+    @staticmethod
+    def get_future_price_data(sid, exp_sid, strike):
+        try:
+            if sid not in Urls.symbol_list:
+                raise ValueError("Invalid symbol")
+
+            symbol_id = Urls.symbol_list[sid]
+            seg_id = Urls.seg_list[sid]
+
+            try:
+                exp_sid = int(exp_sid)
+                strike = float(strike)
+            except (ValueError, TypeError):
+                raise ValueError("Invalid expiry or strike value")
+
+            # Get option and futures data
+            option_data, _, fut_data = Urls.fetch_data(symbol_id, exp_sid, seg_id)
+            
+            # Get futures price and other data
+            fut_price = fut_data.get('data', {}).get('Ltp')
+            if not fut_price:
+                raise ValueError("Future price not available")
+                
+            # Find the CE and PE options for the strike
+            options = option_data.get('data', {}).get('oc', {}).get('data', [])
+            ce_option = None
+            pe_option = None
+            
+            for option in options:
+                if float(option.get('strike')) == strike:
+                    if option.get('option_type').upper() == 'CE':
+                        ce_option = option
+                    elif option.get('option_type').upper() == 'PE':
+                        pe_option = option
+                        
+                if ce_option and pe_option:
+                    break
+            
+            if not ce_option or not pe_option:
+                raise ValueError("Options not found")
+                
+            # Calculate future price data
+            result = {
+                'strike': strike,
+                'future_price': fut_price,
+                'ce_price': ce_option.get('ltp'),
+                'pe_price': pe_option.get('ltp'),
+                'ce_oi': ce_option.get('oi'),
+                'pe_oi': pe_option.get('oi'),
+                'ce_volume': ce_option.get('volume'),
+                'pe_volume': pe_option.get('volume'),
+                'price_difference': float(fut_price) - strike if fut_price else None
+            }
+            
+            return result
+            
+        except Exception as e:
+            raise Exception(f"Error calculating future price data: {str(e)}")

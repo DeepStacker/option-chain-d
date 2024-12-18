@@ -23,6 +23,67 @@ import { setStrike, setPopupData } from "../context/optionData";
 // 2. Update dependency arrays to use sid
 // 3. Remove unnecessary state updates
 
+// API configuration
+const API_BASE_URL = 'http://localhost:10000';
+const axiosInstance = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: 10000,
+  withCredentials: false,
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${localStorage.getItem('token')}`,
+    'Accept': '*/*'
+  }
+});
+
+// Add request interceptor for debugging
+axiosInstance.interceptors.request.use(
+  (config) => {
+    console.log('Making request:', {
+      url: config.url,
+      method: config.method,
+      data: config.data,
+      headers: config.headers
+    });
+    return config;
+  },
+  (error) => {
+    console.error('Request error:', error);
+    return Promise.reject(error);
+  }
+);
+
+// Add response interceptor for debugging
+axiosInstance.interceptors.response.use(
+  (response) => {
+    console.log('Response received:', {
+      status: response.status,
+      data: response.data,
+      headers: response.headers
+    });
+    return response;
+  },
+  (error) => {
+    if (error.response) {
+      // The request was made and the server responded with a status code
+      // that falls out of the range of 2xx
+      console.error('Response error:', {
+        data: error.response.data,
+        status: error.response.status,
+        headers: error.response.headers
+      });
+    } else if (error.request) {
+      // The request was made but no response was received
+      // `error.request` is an instance of XMLHttpRequest
+      console.error('No response received:', error.request);
+    } else {
+      // Something happened in setting up the request that triggered an Error
+      console.error('Request setup error:', error.message);
+    }
+    return Promise.reject(error);
+  }
+);
+
 function OptionsTable() {
   const dispatch = useDispatch();
 
@@ -33,7 +94,7 @@ function OptionsTable() {
 
   // Data state
   const data = useSelector((state) => state.data.data);
-  const exp = useSelector((state) => state.data.exp);
+  const exp = useSelector((state) => state.data.exp_sid);
   const sid = useSelector((state) => state.data.sid); // Changed from symbol to sid
   const error = useSelector((state) => state.data.error);
   const strike = useSelector((state) => state.optionChain.strike);
@@ -64,11 +125,17 @@ function OptionsTable() {
   }, [dispatch]);
 
   // Fetch data from the API
-  const fetchData = useCallback(async (params) => {
+  const fetchPercentageData = useCallback(async (params) => {
     setLoading(true);
-    setFetchError(null); // Reset fetch error state
+    setFetchError(null);
     try {
-      const response = await axios.post("http://127.0.0.1:10000/api/percentage-data/", params);
+      const requestData = {
+        ...params,
+        option_type: params.option_type || 'CE'
+      };
+      console.log('Fetching percentage data:', requestData);
+      const response = await axiosInstance.post('/api/percentage-data/', requestData);
+      
       if (response.data) {
         dispatch(setPopupData(response.data));
         setIsPopupVisible(true);
@@ -77,17 +144,27 @@ function OptionsTable() {
       }
     } catch (error) {
       console.error("Error fetching data:", error);
-      setFetchError("Failed to fetch data. Please try again later."); // Set fetch error message
+      setFetchError(
+        error.response?.data?.message || 
+        error.message || 
+        "Failed to fetch data. Please try again later."
+      );
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [dispatch]);
 
   const fetchIVData = useCallback(async (params) => {
     setLoading(true);
-    setFetchError(null); // Reset fetch error state
+    setFetchError(null);
     try {
-      const response = await axios.post("http://127.0.0.1:10000/api/iv-data/", params);
+      const requestData = {
+        ...params,
+        option_type: params.option_type || 'CE'
+      };
+      console.log('Fetching IV data:', requestData);
+      const response = await axiosInstance.post('/api/iv-data/', requestData);
+      
       if (response.data) {
         dispatch(setPopupData(response.data));
         setIsIVPopupVisible(true);
@@ -96,17 +173,27 @@ function OptionsTable() {
       }
     } catch (error) {
       console.error("Error fetching data:", error);
-      setFetchError("Failed to fetch data. Please try again later."); // Set fetch error message
+      setFetchError(
+        error.response?.data?.message || 
+        error.message || 
+        "Failed to fetch data. Please try again later."
+      );
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [dispatch]);
 
   const fetchDeltaData = useCallback(async (params) => {
     setLoading(true);
-    setFetchError(null); // Reset fetch error state
+    setFetchError(null);
     try {
-      const response = await axios.post("http://127.0.0.1:10000/api/delta-data/", params);
+      const requestData = {
+        ...params,
+        option_type: params.option_type || 'CE'
+      };
+      console.log('Fetching delta data:', requestData);
+      const response = await axiosInstance.post('/api/delta-data/', requestData);
+      
       if (response.data) {
         dispatch(setPopupData(response.data));
         setIsDeltaPopupVisible(true);
@@ -115,17 +202,27 @@ function OptionsTable() {
       }
     } catch (error) {
       console.error("Error fetching data:", error);
-      setFetchError("Failed to fetch data. Please try again later."); // Set fetch error message
+      setFetchError(
+        error.response?.data?.message || 
+        error.message || 
+        "Failed to fetch data. Please try again later."
+      );
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [dispatch]);
 
   const fetchFuturePriceData = useCallback(async (params) => {
     setLoading(true);
-    setFetchError(null); // Reset fetch error state
+    setFetchError(null);
     try {
-      const response = await axios.post("http://127.0.0.1:10000/api/fut-data/", params);
+      const requestData = {
+        ...params,
+        option_type: params.option_type || 'CE'
+      };
+      console.log('Fetching future price data:', requestData);
+      const response = await axiosInstance.post('/api/fut-data/', requestData);
+      
       if (response.data) {
         dispatch(setPopupData(response.data));
         setIsFuturePricePopupVisible(true);
@@ -134,11 +231,15 @@ function OptionsTable() {
       }
     } catch (error) {
       console.error("Error fetching data:", error);
-      setFetchError("Failed to fetch data. Please try again later."); // Set fetch error message
+      setFetchError(
+        error.response?.data?.message || 
+        error.message || 
+        "Failed to fetch data. Please try again later."
+      );
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [dispatch]);
 
   // Option data and ATM price
   const options = data?.options?.data?.oc || {};
@@ -186,17 +287,39 @@ function OptionsTable() {
   }, [isReversed, otmActiveStrikes, itmActiveStrikes]);
 
   const handlePercentageClick = (isCe, strike) => {
-    fetchData({ strike, exp, isCe, sid }); // Changed from symbol to sid
+    fetchPercentageData({
+      sid,
+      exp_sid: exp,
+      strike,
+      option_type: isCe 
+    });
   };
+
   const handleIVClick = (isCe, strike) => {
-    fetchIVData({ strike, exp, isCe, sid }); // Changed from symbol to sid
+    fetchIVData({
+      sid,
+      exp_sid: exp,
+      strike,
+      option_type: isCe 
+    });
   };
+
   const handleDeltaClick = (strike) => {
-    fetchDeltaData({ strike, exp, sid }); // Changed from symbol to sid
+    fetchDeltaData({
+      sid,
+      exp_sid: exp,
+      strike
+    });
   };
+
   const handleFuturePriceClick = (strike) => {
-    fetchFuturePriceData({ strike, exp, sid }); // Changed from symbol to sid
+    fetchFuturePriceData({
+      sid,
+      exp_sid: exp,
+      strike
+    });
   };
+
   const toggleExpiryPopup = () => setExpiryPopupVisible(!isExpiryPopupVisible);
 
   // Handle reversal click

@@ -24,14 +24,16 @@ export default function DateList() {
     }
     return timestamps.map((timestamp) => {
       try {
-        const date = new Date(timestamp * 1000);
-        return date.toLocaleDateString('en-IN', {
-          day: 'numeric',
-          month: 'short',
-        });
+        const date = new Date(timestamp * 1000); // Convert UNIX timestamp to milliseconds
+        const day = date.getUTCDate().toString().padStart(2, "0"); // Ensure two-digit day
+        const month = date.toLocaleString("en-US", {
+          month: "short",
+          timeZone: "UTC",
+        }); // Specify timezone explicitly
+        return `${day} ${month}`;
       } catch (error) {
-        console.error('Error formatting timestamp:', error);
-        return '';
+        console.error("Error formatting timestamp:", error);
+        return "";
       }
     });
   };
@@ -66,9 +68,11 @@ export default function DateList() {
 
   if (!Array.isArray(dates) || dates.length === 0) {
     return (
-      <div className={`w-full p-4 text-center ${
-        theme === "dark" ? "text-gray-300" : "text-gray-600"
-      }`}>
+      <div
+        className={`w-full p-4 text-center ${
+          theme === "dark" ? "text-gray-300" : "text-gray-600"
+        }`}
+      >
         Loading expiry dates...
       </div>
     );
@@ -76,11 +80,13 @@ export default function DateList() {
 
   return (
     <div
-      className={`p-1 z-20 shadow-md ${theme === "dark" ? "bg-gray-800 text-white" : "bg-white text-black"} flex flex-col md:flex-row items-center justify-between md:space-x-4 space-y-1 md:space-y-0`}
+      className={`p-1 z-20 shadow-md ${
+        theme === "dark" ? "bg-gray-800 text-white" : "bg-white text-black"
+      } flex flex-col md:flex-row items-center justify-between md:space-x-4 space-y-1 md:space-y-0`}
     >
       {/* Mobile dropdown */}
       <select
-        value={selectedExpiry || ''}
+        value={selectedExpiry || ""}
         onChange={handleDateDropdownSelect}
         className={`w-full md:hidden p-2 rounded-lg ${
           theme === "dark"
@@ -141,7 +147,12 @@ export default function DateList() {
 
         <button
           onClick={() =>
-            setCurrentPage(Math.min(Math.ceil(dates.length / itemsPerPage) - 1, currentPage + 1))
+            setCurrentPage(
+              Math.min(
+                Math.ceil(dates.length / itemsPerPage) - 1,
+                currentPage + 1
+              )
+            )
           }
           disabled={endIndex >= formattedDates.length}
           className={`p-2 rounded-lg transition-colors ${
