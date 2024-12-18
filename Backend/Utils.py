@@ -101,7 +101,7 @@ class Utils:
                 diff_between_strike = valid_strikes[index] - valid_strikes[index - 1]
 
             # Generate ITM and OTM strikes within the specified range
-            for i in range(1, max_range + 2):
+            for i in range(1, max_range + 1):
                 upper_strike = nearest_strike + i * diff_between_strike
                 # lower_strike = nearest_strike - i * diff_between_strike
 

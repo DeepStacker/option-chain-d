@@ -1,77 +1,165 @@
-import React, { createContext, useEffect, useRef } from "react";
+import React, { createContext, useEffect, useCallback, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { fetchLiveData, fetchExpiryDate, setExp } from "../context/dataSlice";
+import { createSelector } from "reselect";
+import {
+  fetchExpiryDate,
+  setExp_sid,  // Changed from setExp to setExp_sid
+  startLiveStream,
+  stopLiveStream,
+} from "./dataSlice";
+import axios from 'axios';
 
+// Create a context for app-wide state management
 export const AppContext = createContext();
+
+// Create memoized selectors
+const selectUser = (state) => state.auth.user;  
+const selectToken = (state) => state.auth.token;
+const selectIsAuthenticated = (state) => state.auth.isAuthenticated;
+const selectTheme = (state) => state.theme.theme;
+const selectIsReversed = (state) => state.theme.isReversed;
+const selectIsHighlighting = (state) => state.theme.isHighlighting;
+const selectData = (state) => state.data.data;
+const selectExp = (state) => state.data.exp;
+const selectSymbol = (state) => state.data.symbol;
+const selectExpDate = (state) => state.data.expDate;
+const selectIsOc = (state) => state.data.isOc;
+const selectIsStreaming = (state) => state.data.isStreaming;
+
+const selectAppState = createSelector(
+  [
+    selectUser,
+    selectToken,
+    selectIsAuthenticated,
+    selectTheme,
+    selectIsReversed,
+    selectIsHighlighting,
+    selectData,
+    selectExp,
+    selectSymbol,
+    selectExpDate,
+    selectIsOc,
+    selectIsStreaming,
+  ],
+  (
+    user,
+    token,
+    isAuthenticated,
+    theme,
+    isReversed,
+    isHighlighting,
+    data,
+    exp,
+    symbol,
+    expDate,
+    isOc,
+    isStreaming
+  ) => ({
+    user,
+    token,
+    isAuthenticated,
+    theme,
+    isReversed,
+    isHighlighting,
+    data,
+    exp,
+    symbol,
+    expDate,
+    isOc,
+    isStreaming,
+  })
+);
 
 export const AppProvider = ({ children }) => {
   const dispatch = useDispatch();
+  const socketInitialized = useRef(false);
 
-  // User state from Redux
-  const user = useSelector((state) => state.user.user);
+  const {
+    user,
+    token,
+    isAuthenticated,
+    theme,
+    isReversed,
+    isHighlighting,
+    data,
+    exp,
+    symbol,
+    expDate,
+    isOc,
+    isStreaming,
+  } = useSelector(selectAppState);
 
-  // Theme state from Redux
-  const theme = useSelector((state) => state.theme.theme);
-  const isReversed = useSelector((state) => state.theme.isReversed);
-  const isHighlighting = useSelector((state) => state.theme.isHighlighting);
-
-  // Data state from Redux
-  const data = useSelector((state) => state.data.data);
-  const exp = useSelector((state) => state.data.exp);
-  const symbol = useSelector((state) => state.data.symbol);
-  const expDate = useSelector((state) => state.data.expDate);
-  const isOc = useSelector((state) => state.data.isOc);
-
-  const intervalRef = useRef(null);
-
-  // Fetch expiry dates on symbol change
+  // Set up axios auth header when token changes
   useEffect(() => {
-    dispatch(fetchExpiryDate({ sid: symbol, exp }));
-  }, [dispatch, symbol]); // Fetch expiry date when symbol changes
-
-  useEffect(() => {
-    if (data?.fut?.data?.explist) {
-      dispatch(setExp(data.fut.data.explist[0] || 0));
+    if (token) {
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    } else {
+      delete axios.defaults.headers.common['Authorization'];
     }
-  }, [symbol]); // Run when explist is updated
+  }, [token]);
 
+  // Fetch expiry dates when the symbol changes and user is authenticated
+  const fetchExpiryDates = useCallback(() => {
+    if (symbol && isAuthenticated && isOc) {  
+      dispatch(fetchExpiryDate({ sid: symbol, exp }));
+    }
+  }, [dispatch, symbol, isAuthenticated, exp, isOc]);  
 
-
-  // Fetch live data every 3 seconds when `isOc` is true
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        await dispatch(fetchLiveData({ sid: symbol, exp: exp }));
-      } catch (error) {
-        console.error("Error fetching live data:", error);
-      }
-    };
+    fetchExpiryDates();
+  }, [fetchExpiryDates]);
 
-    if (isOc) {
-      fetchData();
-      intervalRef.current = setInterval(fetchData, 3000);
+  // Update expiry when expiry list changes
+  useEffect(() => {
+    if (data?.fut?.data?.explist?.length && isOc) {  
+      const firstExpiry = data.fut.data.explist[0];
+      if (firstExpiry) {
+        dispatch(setExp_sid(firstExpiry));  
+      }
+    }
+  }, [dispatch, data, isOc]);  
+
+  // Manage WebSocket streaming state
+  useEffect(() => {
+    if (!isOc || !isAuthenticated) {
+      // Stop the live stream if Open Chain is disabled or user is not authenticated
+      if (isStreaming) {
+        dispatch(stopLiveStream());
+        socketInitialized.current = false;  
+      }
+      return;
+    }
+
+    if (!socketInitialized.current && isAuthenticated) {
+      // Initialize WebSocket only once and when authenticated
+      socketInitialized.current = true;
+      dispatch(startLiveStream());
     }
 
     return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
+      if (isStreaming) {
+        dispatch(stopLiveStream());
+        socketInitialized.current = false;
+      }
     };
-  }, [exp, expDate, dispatch]);
+  }, [dispatch, exp, symbol, isOc, isStreaming, isAuthenticated]);
+
+  const contextValue = {
+    user,
+    token,
+    isAuthenticated,
+    theme,
+    isReversed,
+    isHighlighting,
+    data,
+    exp,
+    symbol,
+    expDate,
+    isOc,
+    isStreaming,
+  };
 
   return (
-    <AppContext.Provider
-      value={{
-        user,
-        theme,
-        isReversed,
-        isHighlighting,
-        data,
-        exp,
-        symbol,
-        expDate,
-        isOc,
-      }}
-    >
-      {children}
-    </AppContext.Provider>
+    <AppContext.Provider value={contextValue}>{children}</AppContext.Provider>
   );
 };

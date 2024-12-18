@@ -18,6 +18,10 @@ import FuturePopup from "./charts/FuturePopup";
 import ReversalPopup from "./charts/ReversalPopup";
 import { setStrike, setPopupData } from "../context/optionData";
 
+// Updated OptionsTable.jsx to:
+// 1. Use sid instead of symbol from state
+// 2. Update dependency arrays to use sid
+// 3. Remove unnecessary state updates
 
 function OptionsTable() {
   const dispatch = useDispatch();
@@ -30,14 +34,12 @@ function OptionsTable() {
   // Data state
   const data = useSelector((state) => state.data.data);
   const exp = useSelector((state) => state.data.exp);
-  const symbol = useSelector((state) => state.data.symbol);
+  const sid = useSelector((state) => state.data.sid); // Changed from symbol to sid
   const error = useSelector((state) => state.data.error);
   const strike = useSelector((state) => state.optionChain.strike);
   const popupData = useSelector((state) => state.optionChain.popupData);
 
   // State hooks
-  // const [popupData, setPopupData] = useState(null);
-  // const [strike, setStrike] = useState(null);
   const [isPopupVisible, setIsPopupVisible] = useState(false);
   const [isDeltaPopupVisible, setIsDeltaPopupVisible] = useState(false);
   const [isFuturePricePopupVisible, setIsFuturePricePopupVisible] = useState(false);
@@ -48,15 +50,13 @@ function OptionsTable() {
   const [isExpiryPopupVisible, setExpiryPopupVisible] = useState(false);
 
   useEffect(() => {
-    if (symbol) {
+    if (sid) { // Changed from symbol to sid
       const timer = setTimeout(() => {
         setExpiryPopupVisible(false);
-      }, 500); // 2-second delay
-
-      return () => clearTimeout(timer); // Cleanup to avoid memory leaks
+      }, 500);
+      return () => clearTimeout(timer);
     }
-  }, [symbol]);
-
+  }, [sid]); // Changed from symbol to sid
 
   useEffect(() => {
     dispatch(setIsOc(true));
@@ -68,7 +68,7 @@ function OptionsTable() {
     setLoading(true);
     setFetchError(null); // Reset fetch error state
     try {
-      const response = await axios.post("https://option-chain-d.onrender.com/api/percentage-data/", params);
+      const response = await axios.post("http://127.0.0.1:10000/api/percentage-data/", params);
       if (response.data) {
         dispatch(setPopupData(response.data));
         setIsPopupVisible(true);
@@ -87,7 +87,7 @@ function OptionsTable() {
     setLoading(true);
     setFetchError(null); // Reset fetch error state
     try {
-      const response = await axios.post("https://option-chain-d.onrender.com/api/iv-data/", params);
+      const response = await axios.post("http://127.0.0.1:10000/api/iv-data/", params);
       if (response.data) {
         dispatch(setPopupData(response.data));
         setIsIVPopupVisible(true);
@@ -106,7 +106,7 @@ function OptionsTable() {
     setLoading(true);
     setFetchError(null); // Reset fetch error state
     try {
-      const response = await axios.post("https://option-chain-d.onrender.com/api/delta-data/", params);
+      const response = await axios.post("http://127.0.0.1:10000/api/delta-data/", params);
       if (response.data) {
         dispatch(setPopupData(response.data));
         setIsDeltaPopupVisible(true);
@@ -125,7 +125,7 @@ function OptionsTable() {
     setLoading(true);
     setFetchError(null); // Reset fetch error state
     try {
-      const response = await axios.post("https://option-chain-d.onrender.com/api/fut-data/", params);
+      const response = await axios.post("http://127.0.0.1:10000/api/fut-data/", params);
       if (response.data) {
         dispatch(setPopupData(response.data));
         setIsFuturePricePopupVisible(true);
@@ -146,7 +146,6 @@ function OptionsTable() {
   const [lastSpotPrice, setLastSpotPrice] = useState(atmPrice);
   const spotPrice = data?.spot?.data?.Ltp !== undefined ? parseFloat(data.spot.data.Ltp).toFixed(2) : null;
   const [isPriceUp, setIsPriceUp] = useState(false);
-
 
   // Effect to update the lastSpotPrice and determine the price direction
   useEffect(() => {
@@ -180,25 +179,25 @@ function OptionsTable() {
 
   // Effect to update OTM and ITM whenever active strikes or reversal flag changes
   useEffect(() => {
-    setOtm(isReversed ? itmActiveStrikes : otmActiveStrikes);
-    setItm(isReversed ? otmActiveStrikes : itmActiveStrikes);
-  }, [otmActiveStrikes, itmActiveStrikes]);
-
+    if (otmActiveStrikes.length > 0 || itmActiveStrikes.length > 0) {
+      setOtm(isReversed ? itmActiveStrikes : otmActiveStrikes);
+      setItm(isReversed ? otmActiveStrikes : itmActiveStrikes);
+    }
+  }, [isReversed, otmActiveStrikes, itmActiveStrikes]);
 
   const handlePercentageClick = (isCe, strike) => {
-    fetchData({ strike, exp, isCe, sid: symbol });
+    fetchData({ strike, exp, isCe, sid }); // Changed from symbol to sid
   };
   const handleIVClick = (isCe, strike) => {
-    fetchIVData({ strike, exp, isCe, sid: symbol });
+    fetchIVData({ strike, exp, isCe, sid }); // Changed from symbol to sid
   };
   const handleDeltaClick = (strike) => {
-    fetchDeltaData({ strike, exp, sid: symbol });
+    fetchDeltaData({ strike, exp, sid }); // Changed from symbol to sid
   };
   const handleFuturePriceClick = (strike) => {
-    fetchFuturePriceData({ strike, exp, sid: symbol });
+    fetchFuturePriceData({ strike, exp, sid }); // Changed from symbol to sid
   };
   const toggleExpiryPopup = () => setExpiryPopupVisible(!isExpiryPopupVisible);
-
 
   // Handle reversal click
   const handleReversalClick = (strike) => {
@@ -427,9 +426,6 @@ function OptionsTable() {
       {isFuturePricePopupVisible && <FuturePopup data={popupData} onClose={closePopup} />}
       {isReversalPopupVisible && <ReversalPopup strike={strike} onClose={closePopup} />}
     </div>
-
-
-
   );
 }
 

@@ -1,10 +1,10 @@
 import React, { useState, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { setSymbol } from "../context/dataSlice";
+import { setSid } from "../context/dataSlice";
 
 const TickerDropdown = () => {
   const dispatch = useDispatch();
-  const symbol = useSelector((state) => state.data.symbol);
+  const sid = useSelector((state) => state.data.sid);
   const theme = useSelector((state) => state.theme.theme);
   const tickerOptions = useSelector((state) => state.optionChain.tickerOptions);
 
@@ -22,7 +22,7 @@ const TickerDropdown = () => {
   );
 
   const handleSelect = (option) => {
-    dispatch(setSymbol(option));
+    dispatch(setSid(option));
     setIsPopupOpen(false);
     setSearchTerm(""); // Reset search term
     setHighlightedIndex(-1); // Reset highlighted index
@@ -55,91 +55,77 @@ const TickerDropdown = () => {
 
   return (
     <div className="relative">
-      {/* Dropdown Button */}
-      <button
-        className={`block w-full rounded-md border px-2 py-2 text-left transition-all focus:outline-none focus:ring-2 ${theme === "dark"
-          ? "bg-gray-700 text-gray-300 border-gray-600 focus:ring-blue-500"
-          : "bg-white text-gray-900 border-gray-300 focus:ring-blue-300"
+      <div className="flex items-center">
+        <button
+          onClick={() => setIsPopupOpen(!isPopupOpen)}
+          className={`flex items-center justify-between w-32 px-4 py-2 text-sm font-medium rounded-lg focus:outline-none ${
+            theme === "dark"
+              ? "bg-gray-700 text-gray-200 hover:bg-gray-600"
+              : "bg-white text-gray-700 hover:bg-gray-50"
           }`}
-        onClick={() => setIsPopupOpen((prev) => !prev)}
-        aria-haspopup="listbox"
-        aria-expanded={isPopupOpen}
-      >
-        {symbol || "Select a ticker"}
-      </button>
+        >
+          {sid}
+          <svg
+            className={`w-4 h-4 ml-2 transition-transform ${
+              isPopupOpen ? "transform rotate-180" : ""
+            }`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M19 9l-7 7-7-7"
+            />
+          </svg>
+        </button>
+      </div>
 
       {isPopupOpen && (
         <div
-          className={`fixed inset-0 z-50 bg-opacity-50 transition-all ${theme === "dark" ? "bg-black" : "bg-gray-500"
-            }`}
-          onClick={() => setIsPopupOpen(false)}
+          className={`absolute z-10 w-full mt-2 rounded-md shadow-lg ${
+            theme === "dark" ? "bg-gray-700" : "bg-white"
+          }`}
         >
-          <div
-            className={`relative w-96 h-[35rem] max-h-full mx-auto mt-20 p-2 rounded-md shadow-lg overflow-hidden transition-all ${theme === "dark" ? "bg-gray-800 text-gray-300" : "bg-gray-100 text-gray-900"
-              }`}
-            onClick={(e) => e.stopPropagation()}
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
             onKeyDown={handleKeyDown}
-            role="dialog"
+            placeholder="Search..."
+            className={`w-full px-4 py-2 text-sm border-b focus:outline-none ${
+              theme === "dark"
+                ? "bg-gray-700 text-gray-200 border-gray-600"
+                : "bg-white text-gray-700 border-gray-200"
+            }`}
+            autoFocus
+          />
+          <ul
+            className={`max-h-60 overflow-auto ${
+              theme === "dark" ? "bg-gray-700" : "bg-white"
+            }`}
           >
-            {/* Search Bar */}
-            <div className="mb-2">
-              <input
-                type="text"
-                placeholder="Search tickers..."
-                className={`w-full px-3 py-2 rounded-md border transition-all focus:outline-none focus:ring-2 ${theme === "dark"
-                  ? "bg-gray-700 text-gray-300 border-gray-600 focus:ring-blue-500"
-                  : "bg-gray-200 text-gray-900 border-gray-300 focus:ring-blue-300"
-                  }`}
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                aria-label="Search tickers"
-              />
-            </div>
-
-            {/* Options List */}
-            <ul
-              className={`max-h-full overflow-y-auto relative -mx-2 px-2 ${theme === "dark" ? "bg-gray-800" : "bg-gray-100"
+            {filteredOptions.map((option, index) => (
+              <li
+                key={option}
+                onClick={() => handleSelect(option)}
+                onMouseEnter={() => setHighlightedIndex(index)}
+                className={`px-4 py-2 text-sm cursor-pointer ${
+                  index === highlightedIndex
+                    ? theme === "dark"
+                      ? "bg-gray-600 text-white"
+                      : "bg-gray-100 text-gray-900"
+                    : theme === "dark"
+                    ? "text-gray-200 hover:bg-gray-600"
+                    : "text-gray-700 hover:bg-gray-50"
                 }`}
-              style={{
-                scrollbarWidth: "none", // For Firefox
-                msOverflowStyle: "none", // For IE 10+
-              }}
-              role="listbox"
-            >
-              {/* Hide scrollbar for Webkit browsers */}
-              <style>
-                {`
-                  ul::-webkit-scrollbar {
-                    display: none;
-                  }
-                `}
-              </style>
-
-              {filteredOptions.length > 0 ? (
-                filteredOptions.map((option, index) => (
-                  <li
-                    key={index}
-                    className={`p-2 cursor-pointer text-center rounded-md transition-all ${highlightedIndex === index
-                      ? "bg-blue-500 text-white"
-                      : theme === "dark"
-                        ? "hover:bg-blue-600 hover:text-white"
-                        : "hover:bg-blue-200 hover:text-black"
-                      }`}
-                    onClick={() => handleSelect(option)}
-                    onMouseEnter={() => setHighlightedIndex(index)}
-                    role="option"
-                    aria-selected={highlightedIndex === index}
-                  >
-                    {option}
-                  </li>
-                ))
-              ) : (
-                <li className="p-2 text-center text-gray-500" role="option">
-                  No options found
-                </li>
-              )}
-            </ul>
-          </div>
+              >
+                {option}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
     </div>

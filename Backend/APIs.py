@@ -13,7 +13,7 @@ FILE_PATH = "Percentage_Data.json"
 
 class App:
 
-    def get_live_data(symbol, exp):
+    def get_live_data(symbol, exp_sid):
         try:
             if symbol not in Urls.symbol_list:
                 return jsonify({"error": "Invalid or missing 'sid' parameter"}), 400
@@ -21,19 +21,19 @@ class App:
             symbol_id = Urls.symbol_list[symbol]
             seg_id = Urls.seg_list[symbol]
 
-            if exp is None:
-                return jsonify({"error": "'exp' must be provided"}), 400
+            if exp_sid is None:
+                return jsonify({"error": "'exp_sid' must be provided"}), 400
 
             try:
-                exp = int(exp)
+                exp_sid = int(exp_sid)
             except (ValueError, TypeError):
-                return jsonify({"error": "'exp' must be a valid integer"}), 400
+                return jsonify({"error": "'exp_sid' must be a valid integer"}), 400
 
-            option_data, spot_data, fut_data = Urls.fetch_data(symbol_id, exp, seg_id)
+            option_data, spot_data, fut_data = Urls.fetch_data(symbol_id, exp_sid, seg_id)
 
             return {
                 "symbol": symbol_id,
-                "expiry": exp,
+                "expiry": exp_sid,
                 "options": option_data,
                 "spot": spot_data,
                 "fut": fut_data,

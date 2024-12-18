@@ -5,8 +5,10 @@ import themeReducer from './themeSlice';
 import dataReducer from './dataSlice';
 import optionChainReducer from './optionData';
 import tcaReducer from './tcaSlice';
+import authReducer from './authSlice';
 
-
+// Load token from localStorage
+const token = localStorage.getItem('token');
 
 export const store = configureStore({
   reducer: {
@@ -15,7 +17,17 @@ export const store = configureStore({
     data: dataReducer,
     optionChain: optionChainReducer,
     tca: tcaReducer,
+    auth: authReducer,
   },
+  preloadedState: {
+    auth: {
+      token: token,
+      isAuthenticated: !!token,
+      loading: false,
+      error: null,
+      user: null
+    }
+  }
 });
 
 export default store;

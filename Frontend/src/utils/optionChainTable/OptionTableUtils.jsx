@@ -147,8 +147,11 @@ export function renderStrikeRow(strikeData, strike, isHighlighting, optionChain,
 
 
 export function findStrikes(options, atmPrice) {
+    // console.log(options)
     const nearestStrike = atmPrice;
-    const otmStrikes = Object.keys(options).filter((s) => s > atmPrice);
+    const otmStrikes = Object.keys(options).filter((s) => s >= atmPrice);
     const itmStrikes = Object.keys(options).filter((s) => s < atmPrice);
+    // console.log(otmStrikes)
+    // console.log(itmStrikes)
     return { nearestStrike, otmStrikes, itmStrikes };
 }

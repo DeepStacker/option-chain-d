@@ -43,6 +43,20 @@ class BSM:
             + alpha * ((put_iv - call_iv))
         )
 
+        rev = (
+            strike_price
+            + (
+                (curr_put_price - put_theoretical_price)
+                + (curr_call_price - call_theoretical_price)
+            )
+            + ((put_iv + call_iv))
+        )
+
+        reversal_spot_price = strike_price + (
+            (curr_put_price - put_theoretical_price)
+            + (curr_call_price - call_theoretical_price)
+        )
+
         rr = (
             strike_price
             + (
@@ -68,7 +82,7 @@ class BSM:
             - alpha * ((call_iv - put_iv))
         )
 
-        return round(sr, 2), round(rs, 2), round(rr, 2), round(ss, 2)
+        return round(reversal_spot_price, 2), round(rs, 2), round(rr, 2), round(ss, 2)
 
     @staticmethod
     def new_adjusted_reversal_price(
@@ -86,12 +100,9 @@ class BSM:
         pe_theta,
         ce_theta,
     ):
-        """
-        Calculate the reversal point for a given strike price using call and put data.
-        """
 
         strike_price = K
-        delta_s = 0 * S_chng
+        delta_s = 1
         delta_t = T_days
         delta_iv = iv_chng
 
@@ -117,7 +128,6 @@ class BSM:
 
         # Calculate the reversal point
         reversal_point = strike_price + greek_contribution
-        # print("executed", reversal_point)
         return round(reversal_point, 2)
 
     @staticmethod
