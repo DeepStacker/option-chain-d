@@ -91,19 +91,23 @@ const createSocketConnection = () => {
 // Async action to fetch live data using HTTP
 export const fetchLiveData = createAsyncThunk(
   'data/fetchLiveData',
-  async (params, { dispatch, rejectWithValue }) => {
+  async (params, { dispatch, getState, rejectWithValue }) => {
     try {
       const token = getAuthToken();
       if (!token) {
         throw new Error('No auth token available');
       }
 
+      // Get current state to ensure we use latest values
+      const state = getState();
+      const currentParams = {
+        sid: params.sid || state.data.sid,
+        exp_sid: params.exp_sid || state.data.exp_sid
+      };
+
       // First, get the initial data via HTTP
       const response = await axios.get(`${API_BASE_URL}/live-data/`, {
-        params: {
-          sid: params.sid,  // Use sid consistently
-          exp_sid: params.exp_sid  // Rename exp to exp_sid
-        },
+        params: currentParams,
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -128,11 +132,11 @@ export const fetchLiveData = createAsyncThunk(
           });
         }
 
-        // Start streaming with sid and exp_sid
-        socketInstance.emit('start_stream', {
-          sid: params.sid,
-          exp_sid: params.exp_sid
-        });
+        // Stop any existing stream before starting a new one
+        socketInstance.emit('stop_stream');
+
+        // Start streaming with latest parameters
+        socketInstance.emit('start_stream', currentParams);
 
         // Listen for live data updates
         socketInstance.on('live_data', (data) => {
@@ -141,7 +145,7 @@ export const fetchLiveData = createAsyncThunk(
 
         // Listen for stream start confirmation
         socketInstance.on('stream_started', (data) => {
-          // console.log('Stream started:', data);
+          dispatch(setStreamingState(true));
         });
       }
 
@@ -171,6 +175,7 @@ export const fetchExpiryDate = createAsyncThunk(
           Authorization: `Bearer ${token}`
         }
       });
+
       return response.data;
     } catch (error) {
       return rejectWithValue(handleApiError(error));
@@ -208,6 +213,31 @@ export const startLiveStream = createAsyncThunk(
   }
 );
 
+// Async action to set symbol and fetch data
+export const setSidAndFetchData = createAsyncThunk(
+  'data/setSidAndFetchData',
+  async (newSid, { dispatch, getState }) => {
+    try {
+      // First, update the symbol
+      dispatch(setSid(newSid));
+      
+      // Then fetch expiry dates for the new symbol
+      const response = await dispatch(fetchExpiryDate({ sid: newSid }));
+      
+      // If we got expiry dates successfully, set the first one
+      if (response.payload && response.payload.length > 0) {
+        const firstExpiry = response.payload[0];
+        dispatch(setExp_sid(firstExpiry));
+        
+        // Finally, fetch live data with new symbol and first expiry
+        dispatch(fetchLiveData({ sid: newSid, exp_sid: firstExpiry }));
+      }
+    } catch (error) {
+      console.error('Error updating symbol and fetching data:', error);
+    }
+  }
+);
+
 // Redux Slice for Data Management
 export const dataSlice = createSlice({
   name: 'data',
@@ -224,16 +254,31 @@ export const dataSlice = createSlice({
   reducers: {
     setExp_sid: (state, action) => {
       state.exp_sid = action.payload;
+      // When expiry changes, update the WebSocket connection with new parameters
+      if (socket?.connected && state.isOc) {
+        socket.emit('stop_stream');
+        socket.emit('start_stream', {
+          sid: state.sid,
+          exp_sid: action.payload
+        });
+      }
     },
     setSid: (state, action) => {
       state.sid = action.payload;
+      // When symbol changes, update the WebSocket connection with new parameters
+      if (socket?.connected && state.isOc) {
+        socket.emit('stop_stream');
+        socket.emit('start_stream', {
+          sid: action.payload,
+          exp_sid: state.exp_sid
+        });
+      }
     },
     setIsOc: (state, action) => {
       state.isOc = action.payload;
     },
     updateLiveData: (state, action) => {
       state.data = action.payload; // Update live data from WebSocket
-      // console.log(Object.keys(action.payload.options.data.oc)); // Correct capitalization of Object.keys
     },
 
     setStreamingState: (state, action) => {
@@ -262,8 +307,9 @@ export const dataSlice = createSlice({
         state.error = null;
       })
       .addCase(fetchExpiryDate.fulfilled, (state, action) => {
-        // Extract expiry dates from the fut.data.explist array
-        const expiryDates = action.payload?.fut?.data?.explist || [];
+        // Ensure we have an array of expiry dates
+        const expiryDates = Array.isArray(action.payload) ? action.payload : 
+                          (action.payload?.fut?.data?.explist || []);
         state.expDate = expiryDates;
         state.exp_sid = expiryDates[0] ?? state.exp_sid; // Default to first expiry date
         state.loading = false;

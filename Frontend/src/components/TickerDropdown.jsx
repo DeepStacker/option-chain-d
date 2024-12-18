@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { setSid } from "../context/dataSlice";
+import { setSidAndFetchData } from "../context/dataSlice";
 
 const TickerDropdown = () => {
   const dispatch = useDispatch();
@@ -21,11 +21,10 @@ const TickerDropdown = () => {
     [tickerOptions, searchTerm]
   );
 
-  const handleSelect = (option) => {
-    dispatch(setSid(option));
+  const handleSymbolSelect = (symbol) => {
+    dispatch(setSidAndFetchData(symbol));
     setIsPopupOpen(false);
-    setSearchTerm(""); // Reset search term
-    setHighlightedIndex(-1); // Reset highlighted index
+    setSearchTerm('');
   };
 
   const handleKeyDown = (e) => {
@@ -43,7 +42,7 @@ const TickerDropdown = () => {
         );
         break;
       case "Enter":
-        if (highlightedIndex >= 0) handleSelect(filteredOptions[highlightedIndex]);
+        if (highlightedIndex >= 0) handleSymbolSelect(filteredOptions[highlightedIndex]);
         break;
       case "Escape":
         setIsPopupOpen(false);
@@ -85,7 +84,7 @@ const TickerDropdown = () => {
 
       {isPopupOpen && (
         <div
-          className={`absolute z-10 w-full mt-2 rounded-md shadow-lg ${
+          className={`absolute z-50 w-full mt-2 rounded-md shadow-lg ${
             theme === "dark" ? "bg-gray-700" : "bg-white"
           }`}
         >
@@ -110,7 +109,7 @@ const TickerDropdown = () => {
             {filteredOptions.map((option, index) => (
               <li
                 key={option}
-                onClick={() => handleSelect(option)}
+                onClick={() => handleSymbolSelect(option)}
                 onMouseEnter={() => setHighlightedIndex(index)}
                 className={`px-4 py-2 text-sm cursor-pointer ${
                   index === highlightedIndex

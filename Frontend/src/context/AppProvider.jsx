@@ -6,6 +6,8 @@ import {
   setExp_sid,  // Changed from setExp to setExp_sid
   startLiveStream,
   stopLiveStream,
+  setSidAndFetchData,
+  fetchLiveData,
 } from "./dataSlice";
 import axios from 'axios';
 
@@ -25,6 +27,7 @@ const selectSymbol = (state) => state.data.symbol;
 const selectExpDate = (state) => state.data.expDate;
 const selectIsOc = (state) => state.data.isOc;
 const selectIsStreaming = (state) => state.data.isStreaming;
+const selectExp_sid = (state) => state.data.exp_sid;
 
 const selectAppState = createSelector(
   [
@@ -40,6 +43,7 @@ const selectAppState = createSelector(
     selectExpDate,
     selectIsOc,
     selectIsStreaming,
+    selectExp_sid,
   ],
   (
     user,
@@ -53,7 +57,8 @@ const selectAppState = createSelector(
     symbol,
     expDate,
     isOc,
-    isStreaming
+    isStreaming,
+    exp_sid
   ) => ({
     user,
     token,
@@ -67,6 +72,7 @@ const selectAppState = createSelector(
     expDate,
     isOc,
     isStreaming,
+    exp_sid,
   })
 );
 
@@ -87,6 +93,7 @@ export const AppProvider = ({ children }) => {
     expDate,
     isOc,
     isStreaming,
+    exp_sid,
   } = useSelector(selectAppState);
 
   // Set up axios auth header when token changes
@@ -97,6 +104,13 @@ export const AppProvider = ({ children }) => {
       delete axios.defaults.headers.common['Authorization'];
     }
   }, [token]);
+
+  // Initialize data when symbol changes
+  useEffect(() => {
+    if (isAuthenticated && isOc && symbol) {
+      dispatch(setSidAndFetchData(symbol));
+    }
+  }, [dispatch, symbol, isAuthenticated, isOc]);
 
   // Fetch expiry dates when the symbol changes and user is authenticated
   const fetchExpiryDates = useCallback(() => {
@@ -109,6 +123,13 @@ export const AppProvider = ({ children }) => {
     fetchExpiryDates();
   }, [fetchExpiryDates]);
 
+  // Fetch live data when expiry changes
+  useEffect(() => {
+    if (isAuthenticated && isOc && symbol && exp_sid) {
+      dispatch(fetchLiveData({ sid: symbol, exp_sid }));
+    }
+  }, [dispatch, symbol, exp_sid, isAuthenticated, isOc]);
+
   // Update expiry when expiry list changes
   useEffect(() => {
     if (data?.fut?.data?.explist?.length && isOc) {  
@@ -117,7 +138,7 @@ export const AppProvider = ({ children }) => {
         dispatch(setExp_sid(firstExpiry));  
       }
     }
-  }, [dispatch, data, isOc]);  
+  }, [dispatch, symbol, isOc]);  
 
   // Manage WebSocket streaming state
   useEffect(() => {
@@ -157,6 +178,7 @@ export const AppProvider = ({ children }) => {
     expDate,
     isOc,
     isStreaming,
+    exp_sid,
   };
 
   return (

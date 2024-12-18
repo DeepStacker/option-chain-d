@@ -39,7 +39,7 @@ function OptionChain() {
     };
 
     loadData();
-  }, [dispatch, sid, exp_sid, isAuthenticated]);
+  }, [dispatch, sid, isAuthenticated]);
 
   return (
     <div
