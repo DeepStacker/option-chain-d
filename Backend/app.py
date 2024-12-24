@@ -100,7 +100,7 @@ limiter = Limiter(
 
 # Register blueprints
 app.register_blueprint(auth_bp, url_prefix="/api/auth")
-app.register_blueprint(option_chain_bp, url_prefix="/api")
+# app.register_blueprint(option_chain_bp, url_prefix="/api")
 
 # Create database tables
 with app.app_context():
