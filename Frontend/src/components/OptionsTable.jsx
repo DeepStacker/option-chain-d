@@ -124,18 +124,28 @@ function OptionsTable() {
     return () => dispatch(setIsOc(false));
   }, [dispatch]);
 
+  // Helper function to get the auth token
+  const getAuthToken = () => {
+    return localStorage.getItem('token');
+  };
+
   // Fetch data from the API
   const fetchPercentageData = useCallback(async (params) => {
+    const token = getAuthToken();
     setLoading(true);
     setFetchError(null);
     try {
       const requestData = {
         ...params,
-        option_type: params.option_type || 'CE'
+        option_type: params.option_type || 'CE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
       };
       console.log('Fetching percentage data:', requestData);
       const response = await axiosInstance.post('/api/percentage-data/', requestData);
-      
+
       if (response.data) {
         dispatch(setPopupData(response.data));
         setIsPopupVisible(true);
@@ -145,8 +155,8 @@ function OptionsTable() {
     } catch (error) {
       console.error("Error fetching data:", error);
       setFetchError(
-        error.response?.data?.message || 
-        error.message || 
+        error.response?.data?.message ||
+        error.message ||
         "Failed to fetch data. Please try again later."
       );
     } finally {
@@ -164,7 +174,7 @@ function OptionsTable() {
       };
       console.log('Fetching IV data:', requestData);
       const response = await axiosInstance.post('/api/iv-data/', requestData);
-      
+
       if (response.data) {
         dispatch(setPopupData(response.data));
         setIsIVPopupVisible(true);
@@ -174,8 +184,8 @@ function OptionsTable() {
     } catch (error) {
       console.error("Error fetching data:", error);
       setFetchError(
-        error.response?.data?.message || 
-        error.message || 
+        error.response?.data?.message ||
+        error.message ||
         "Failed to fetch data. Please try again later."
       );
     } finally {
@@ -193,7 +203,7 @@ function OptionsTable() {
       };
       console.log('Fetching delta data:', requestData);
       const response = await axiosInstance.post('/api/delta-data/', requestData);
-      
+
       if (response.data) {
         dispatch(setPopupData(response.data));
         setIsDeltaPopupVisible(true);
@@ -203,8 +213,8 @@ function OptionsTable() {
     } catch (error) {
       console.error("Error fetching data:", error);
       setFetchError(
-        error.response?.data?.message || 
-        error.message || 
+        error.response?.data?.message ||
+        error.message ||
         "Failed to fetch data. Please try again later."
       );
     } finally {
@@ -222,7 +232,7 @@ function OptionsTable() {
       };
       console.log('Fetching future price data:', requestData);
       const response = await axiosInstance.post('/api/fut-data/', requestData);
-      
+
       if (response.data) {
         dispatch(setPopupData(response.data));
         setIsFuturePricePopupVisible(true);
@@ -232,8 +242,8 @@ function OptionsTable() {
     } catch (error) {
       console.error("Error fetching data:", error);
       setFetchError(
-        error.response?.data?.message || 
-        error.message || 
+        error.response?.data?.message ||
+        error.message ||
         "Failed to fetch data. Please try again later."
       );
     } finally {
@@ -291,7 +301,7 @@ function OptionsTable() {
       sid,
       exp_sid: exp,
       strike,
-      option_type: isCe 
+      option_type: isCe
     });
   };
 
@@ -300,7 +310,7 @@ function OptionsTable() {
       sid,
       exp_sid: exp,
       strike,
-      option_type: isCe 
+      option_type: isCe
     });
   };
 
