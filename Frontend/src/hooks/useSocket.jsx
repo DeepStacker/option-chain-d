@@ -10,8 +10,13 @@ const useSocket = (onDataReceived) => {
     // Check if socket already exists, if not, create it
     if (!socketRef.current) {
       socketRef.current = io(SOCKET_URL, {
+        transports: ['websocket'],
+        upgrade: false,
         withCredentials: true,
-        transports: ['websocket', 'polling']
+        extraHeaders: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Credentials': true
+        }
       });
 
       // Set up event listeners

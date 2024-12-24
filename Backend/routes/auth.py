@@ -175,7 +175,7 @@ def verify_email(token):
 
 @auth_bp.route("/login", methods=["POST", "OPTIONS"])
 @limiter.limit("5 per minute")
-@cross_origin(origins=["http://localhost:5173", "https://stockify-oc.vercel.app"], supports_credentials=True)
+@cross_origin(origins=["http://localhost:5173", "https://stockify-oc.vercel.app", "https://16.16.204.22:10001"], supports_credentials=True)
 def login():
     try:
         if request.method == "OPTIONS":
@@ -209,20 +209,18 @@ def login():
         user.last_login = datetime.utcnow()
         db.session.commit()
 
-        # Generate tokens
-        access_token = token_manager.generate_access_token(user)
-        refresh_token = token_manager.generate_refresh_token(user)
+        # Generate tokens using the generate_tokens method
+        tokens = token_manager.generate_tokens(user)
         
         response = jsonify({
             "message": "Login successful",
             "user": user.to_dict(),
-            "access_token": access_token,
-            "refresh_token": refresh_token
+            **tokens
         })
         
         # Set CORS headers explicitly for the response
         origin = request.headers.get('Origin')
-        if origin in ["http://localhost:5173", "https://stockify-oc.vercel.app"]:
+        if origin in ["http://localhost:5173", "https://stockify-oc.vercel.app", "https://16.16.204.22:10001"]:
             response.headers['Access-Control-Allow-Origin'] = origin
             response.headers['Access-Control-Allow-Credentials'] = 'true'
             response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
