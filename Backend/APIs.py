@@ -76,8 +76,9 @@ class App:
                         try:
                             # If exp is timestamp, convert to date string
                             if isinstance(exp, (int, float)):
-                                date_obj = datetime.fromtimestamp(exp)
-                                formatted_expiry.append(date_obj.strftime('%Y-%m-%d'))
+                                # date_obj = datetime.fromtimestamp(exp)
+                                # formatted_expiry.append(date_obj.strftime('%Y-%m-%d'))
+                                pass
                             else:
                                 formatted_expiry.append(str(exp))
                         except Exception as e:
