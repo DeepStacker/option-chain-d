@@ -127,14 +127,16 @@ export const loginUser = createAsyncThunk(
   'auth/login',
   async (credentials, { rejectWithValue }) => {
     try {
+      console.log('Attempting login with:', credentials);
       const response = await axiosInstance.post(`/login`, credentials);
+      console.log('Login response:', response.data);
 
-      const { user, access_token, refresh_token, token_type } = response.data;
+      const { user, access_token, refresh_token } = response.data;
 
-      // Save everything to localStorage
-      localStorage.setItem('user', JSON.stringify(user));
+      // Store tokens and user data
       localStorage.setItem('token', access_token);
       localStorage.setItem('refreshToken', refresh_token);
+      localStorage.setItem('user', JSON.stringify(user));
       localStorage.setItem('preferences', JSON.stringify(user.preferences || {}));
 
       // Set axios default header
@@ -142,6 +144,7 @@ export const loginUser = createAsyncThunk(
 
       return response.data;
     } catch (error) {
+      console.error('Login error:', error.response?.data || error.message);
       return rejectWithValue(handleApiError(error));
     }
   }

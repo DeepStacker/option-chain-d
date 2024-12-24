@@ -49,19 +49,19 @@ os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 app.config["UPLOADED_FILES_DEST"] = app.config["UPLOAD_FOLDER"]
 app.config["UPLOADED_FILES_URL"] = "/uploads/"
 
-# Initialize CORS with a more permissive configuration
-CORS(app, resources={
-    r"/*": {
-        "origins": ["http://localhost:5173", "https://stockify-oc.vercel.app"],
-        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        "allow_headers": ["Content-Type", "Authorization", "X-Requested-With", "Accept", "Origin"],
-        "expose_headers": ["Content-Range", "X-Content-Range"],
-        "supports_credentials": True,
-        "send_wildcard": False
-    }
-})
+# Configure CORS
+CORS(app, 
+     resources={
+         r"/*": {
+             "origins": ["http://localhost:5173", "https://stockify-oc.vercel.app"],
+             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+             "allow_headers": ["Content-Type", "Authorization", "X-Requested-With", "Accept", "Origin"],
+             "supports_credentials": True,
+             "expose_headers": ["Content-Range", "X-Content-Range"],
+             "max_age": 86400
+         }
+     })
 
-# Add CORS headers to all responses
 @app.after_request
 def after_request(response):
     origin = request.headers.get('Origin')

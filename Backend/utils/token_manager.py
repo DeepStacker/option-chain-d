@@ -39,6 +39,7 @@ class TokenManager:
         payload = {
             'user_id': user.id,
             'username': user.username,
+            'email': user.email,
             'role': user.role.value,
             'exp': datetime.utcnow() + self.access_token_expiry,
             'iat': datetime.utcnow(),
@@ -105,16 +106,18 @@ class TokenManager:
     
     def verify_token(self, token):
         """Verify token and return payload"""
-        if self.is_token_blacklisted(token):
-            raise jwt.InvalidTokenError('Token has been revoked')
-        
         try:
             payload = jwt.decode(token, self.secret_key, algorithms=['HS256'])
+            
+            # Check if token is blacklisted
+            if self.is_token_blacklisted(token):
+                raise jwt.InvalidTokenError('Token is blacklisted')
+            
             return payload
         except jwt.ExpiredSignatureError:
-            raise ValueError('Token has expired')
+            raise jwt.InvalidTokenError('Token has expired')
         except jwt.InvalidTokenError as e:
-            raise ValueError(str(e))
+            raise jwt.InvalidTokenError(f'Invalid token: {str(e)}')
 
 # Create singleton instance
 token_manager = TokenManager()

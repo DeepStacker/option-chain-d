@@ -185,6 +185,7 @@ def login():
         current_app.logger.info(f"Login attempt for email: {data.get('email', 'not provided')}")
 
         if not data or not data.get("email") or not data.get("password"):
+            current_app.logger.warning("Login failed: Missing email or password")
             return jsonify({"message": "Missing email or password"}), 400
 
         user = User.query.filter_by(email=data["email"]).first()
@@ -209,12 +210,14 @@ def login():
         db.session.commit()
 
         # Generate tokens
-        tokens = token_manager.generate_tokens(user)
+        access_token = token_manager.generate_access_token(user)
+        refresh_token = token_manager.generate_refresh_token(user)
         
         response = jsonify({
             "message": "Login successful",
             "user": user.to_dict(),
-            **tokens
+            "access_token": access_token,
+            "refresh_token": refresh_token
         })
         
         # Set CORS headers explicitly for the response
@@ -222,6 +225,9 @@ def login():
         if origin in ["http://localhost:5173", "https://stockify-oc.vercel.app"]:
             response.headers['Access-Control-Allow-Origin'] = origin
             response.headers['Access-Control-Allow-Credentials'] = 'true'
+            response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+            response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With, Accept, Origin'
+            response.headers['Access-Control-Max-Age'] = '86400'
         
         current_app.logger.info(f"Login successful for user {user.email}")
         return response, 200
