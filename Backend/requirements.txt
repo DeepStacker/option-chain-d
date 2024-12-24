@@ -69,3 +69,4 @@ bcrypt
 PyJWT
 redis
 eventlet
+firebase-admin==6.3.0
