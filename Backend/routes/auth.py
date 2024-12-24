@@ -5,7 +5,7 @@ import jwt
 from functools import wraps
 import os
 from werkzeug.utils import secure_filename
-from pillow import Image
+from PIL import Image
 import uuid
 from utils.email_service import EmailService
 import secrets
