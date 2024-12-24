@@ -1,5 +1,5 @@
 // API URLs
-export const API_BASE_URL = 'https://option-chain-d-new-app.onrender.com/api';
+export const API_BASE_URL = 'https://option-chain-d.onrender.com/api';
 export const AUTH_API_URL = `${API_BASE_URL}/auth`;
 export const USER_API_URL = `${API_BASE_URL}/user`;
 export const OPTION_CHAIN_API_URL = API_BASE_URL;

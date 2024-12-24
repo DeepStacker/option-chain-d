@@ -5,8 +5,8 @@ import { io } from 'socket.io-client';
 let socket = null; // Global variable for WebSocket connection
 
 // API configuration
-const API_BASE_URL = 'https://option-chain-d-new-app.onrender.com/api';
-const SOCKET_URL = 'https://option-chain-d.onrender.com';
+const API_BASE_URL = 'https://option-chain-d.onrender.com/api';
+const SOCKET_URL = 'https://option-chain-d-new-app.onrender.com';
 
 // Configure axios defaults
 axios.defaults.withCredentials = true;
