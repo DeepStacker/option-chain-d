@@ -25,7 +25,7 @@ import { setStrike, setPopupData } from "../context/optionData";
 import './tableStyle.css';
 
 // API endpoints
-const API_BASE_URL = "http://127.0.0.1:5000/api";
+const API_BASE_URL = "https://option-chain-d.onrender.com/api";
 const API_ENDPOINTS = {
   percentage: `${API_BASE_URL}/percentage-data/`,
   iv: `${API_BASE_URL}/iv-data/`,

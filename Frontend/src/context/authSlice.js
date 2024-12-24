@@ -1,7 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
 
-const API_BASE_URL = 'http://127.0.0.1:10001/api/auth';
+const API_BASE_URL = 'https://option-chain-d-new-app.onrender.com/api/auth';
 
 // Configure axios defaults
 axios.defaults.withCredentials = false;
@@ -37,7 +37,7 @@ const refreshTokenAndRetry = async (error) => {
     // Update tokens
     const { access_token } = response.data;
     localStorage.setItem('token', access_token);
-    
+
     // Update axios default header
     axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
 
@@ -114,18 +114,18 @@ export const loginUser = createAsyncThunk(
   async (credentials, { rejectWithValue }) => {
     try {
       const response = await axios.post(`${API_BASE_URL}/login`, credentials);
-      
+
       const { user, access_token, refresh_token, token_type } = response.data;
-      
+
       // Save everything to localStorage
       localStorage.setItem('user', JSON.stringify(user));
       localStorage.setItem('token', access_token);
       localStorage.setItem('refreshToken', refresh_token);
       localStorage.setItem('preferences', JSON.stringify(user.preferences || {}));
-      
+
       // Set axios default header
       axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
-      
+
       return response.data;
     } catch (error) {
       return rejectWithValue(handleApiError(error));
@@ -138,16 +138,16 @@ export const logoutUser = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       await axios.post(`${API_BASE_URL}/logout`);
-      
+
       // Clear localStorage
       localStorage.removeItem('user');
       localStorage.removeItem('token');
       localStorage.removeItem('refreshToken');
       localStorage.removeItem('preferences');
-      
+
       // Clear axios default header
       delete axios.defaults.headers.common['Authorization'];
-      
+
       return null;
     } catch (error) {
       return rejectWithValue(handleApiError(error));
@@ -178,7 +178,7 @@ export const uploadProfileImage = createAsyncThunk(
     try {
       const formData = new FormData();
       formData.append('image', imageFile);
-      
+
       const response = await axios.post(`${API_BASE_URL}/profile/image`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',

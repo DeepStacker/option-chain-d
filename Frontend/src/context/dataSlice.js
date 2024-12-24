@@ -5,8 +5,8 @@ import { io } from 'socket.io-client';
 let socket = null; // Global variable for WebSocket connection
 
 // API configuration
-const API_BASE_URL = 'http://127.0.0.1:10001/api';
-const SOCKET_URL = 'http://127.0.0.1:5000';
+const API_BASE_URL = 'https://option-chain-d-new-app.onrender.com/api';
+const SOCKET_URL = 'https://option-chain-d.onrender.com';
 
 // Configure axios defaults
 axios.defaults.withCredentials = true;
@@ -198,15 +198,15 @@ export const setSidAndFetchData = createAsyncThunk(
     try {
       // First, update the symbol
       dispatch(setSid(newSid));
-      
+
       // Then fetch expiry dates for the new symbol
       const response = await dispatch(fetchExpiryDate({ sid: newSid }));
-      
+
       // If we got expiry dates successfully, set the first one
       if (response.payload && response.payload.length > 0) {
         const firstExpiry = response.payload[0];
         dispatch(setExp_sid(firstExpiry));
-        
+
         // Finally, fetch live data with new symbol and first expiry
         dispatch(fetchLiveData({ sid: newSid, exp_sid: firstExpiry }));
       }
@@ -286,8 +286,8 @@ export const dataSlice = createSlice({
       })
       .addCase(fetchExpiryDate.fulfilled, (state, action) => {
         // Ensure we have an array of expiry dates
-        const expiryDates = Array.isArray(action.payload) ? action.payload : 
-                          (action.payload?.expiry_dates || []);
+        const expiryDates = Array.isArray(action.payload) ? action.payload :
+          (action.payload?.expiry_dates || []);
         state.expDate = expiryDates;
         state.exp_sid = expiryDates[0] ?? state.exp_sid; // Default to first expiry date
         state.loading = false;

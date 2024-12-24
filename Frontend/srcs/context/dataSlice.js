@@ -6,7 +6,7 @@ import { io } from 'socket.io-client';
 let socket = null;
 let reconnectTimer = null;
 
-const WEBSOCKET_URL = 'http://127.0.0.1:5000';
+const WEBSOCKET_URL = 'https://option-chain-d.onrender.com';
 const MAX_RECONNECT_ATTEMPTS = 5;
 const INITIAL_RECONNECT_DELAY = 1000;
 const MAX_RECONNECT_DELAY = 5000;
