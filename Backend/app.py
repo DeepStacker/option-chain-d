@@ -8,12 +8,12 @@ from flask_socketio import SocketIO
 import threading
 from models.user import db, User, UserRole
 from routes.auth import auth_bp, token_required, role_required
-from routes.option_chain import option_chain_bp
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 import os
 from dotenv import load_dotenv
 from utils.email_service import mail
+from flask_cors import cross_origin
 
 # Load environment variables
 load_dotenv()
@@ -100,7 +100,6 @@ limiter = Limiter(
 
 # Register blueprints
 app.register_blueprint(auth_bp, url_prefix="/api/auth")
-# app.register_blueprint(option_chain_bp, url_prefix="/api")
 
 # Create database tables
 with app.app_context():
@@ -118,6 +117,142 @@ def handle_connect(current_user):
 def handle_disconnect():
     print("Client disconnected")
 
+
+# Option Chain Routes
+@app.route('/api/exp-date', methods=['GET'])
+@cross_origin(supports_credentials=True)
+def get_expiry_dates():
+    try:
+        symbol = request.args.get('symbol')
+        if not symbol:
+            return jsonify({"error": "Symbol parameter is required"}), 400
+
+        app_instance = App()
+        expiry_dates = app_instance.get_exp_date(symbol)
+        
+        if expiry_dates:
+            return jsonify({"expiry_dates": expiry_dates}), 200
+        else:
+            return jsonify({"error": "No expiry dates found"}), 404
+
+    except Exception as e:
+        app.logger.error(f"Error fetching expiry dates: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/option-chain', methods=['GET'])
+@cross_origin(supports_credentials=True)
+def get_option_chain():
+    try:
+        symbol = request.args.get('symbol')
+        exp_date = request.args.get('expiry')
+        
+        if not symbol or not exp_date:
+            return jsonify({"error": "Both symbol and expiry parameters are required"}), 400
+
+        app_instance = App()
+        option_chain_data = app_instance.get_live_data(symbol, exp_date)
+        
+        if option_chain_data:
+            return jsonify(option_chain_data), 200
+        else:
+            return jsonify({"error": "No data found"}), 404
+
+    except Exception as e:
+        app.logger.error(f"Error fetching option chain: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/percentage', methods=['GET'])
+@cross_origin(supports_credentials=True)
+def get_percentage():
+    try:
+        symbol = request.args.get('symbol')
+        exp_date = request.args.get('expiry')
+        strike = request.args.get('strike')
+        option_type = request.args.get('type')  # 'CE' or 'PE'
+        
+        if not all([symbol, exp_date, strike, option_type]):
+            return jsonify({"error": "Missing required parameters"}), 400
+        
+        app_instance = App()
+        percentage_data = app_instance.get_percentage_data(symbol, exp_date, option_type == 'CE', float(strike))
+        
+        if percentage_data is not None:
+            return jsonify({"percentage": percentage_data}), 200
+        else:
+            return jsonify({"error": "No data found"}), 404
+
+    except Exception as e:
+        app.logger.error(f"Error fetching percentage: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/iv', methods=['GET'])
+@cross_origin(supports_credentials=True)
+def get_iv():
+    try:
+        symbol = request.args.get('symbol')
+        exp_date = request.args.get('expiry')
+        strike = request.args.get('strike')
+        option_type = request.args.get('type')  # 'CE' or 'PE'
+        
+        if not all([symbol, exp_date, strike, option_type]):
+            return jsonify({"error": "Missing required parameters"}), 400
+        
+        app_instance = App()
+        iv_data = app_instance.get_iv_data(symbol, exp_date, option_type == 'CE', float(strike))
+        
+        if iv_data is not None:
+            return jsonify({"iv": iv_data}), 200
+        else:
+            return jsonify({"error": "No data found"}), 404
+
+    except Exception as e:
+        app.logger.error(f"Error fetching IV: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/delta', methods=['GET'])
+@cross_origin(supports_credentials=True)
+def get_delta():
+    try:
+        symbol = request.args.get('symbol')
+        exp_date = request.args.get('expiry')
+        strike = request.args.get('strike')
+        
+        if not all([symbol, exp_date, strike]):
+            return jsonify({"error": "Missing required parameters"}), 400
+        
+        app_instance = App()
+        delta_data = app_instance.get_delta_data(symbol, exp_date, float(strike))
+        
+        if delta_data is not None:
+            return jsonify({"delta": delta_data}), 200
+        else:
+            return jsonify({"error": "No data found"}), 404
+
+    except Exception as e:
+        app.logger.error(f"Error fetching delta: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/future', methods=['GET'])
+@cross_origin(supports_credentials=True)
+def get_future():
+    try:
+        symbol = request.args.get('symbol')
+        exp_date = request.args.get('expiry')
+        
+        if not all([symbol, exp_date]):
+            return jsonify({"error": "Missing required parameters"}), 400
+        
+        app_instance = App()
+        future_data = app_instance.get_fut_data(symbol, exp_date)
+        
+        if future_data is not None:
+            return jsonify({"future": future_data}), 200
+        else:
+            return jsonify({"error": "No data found"}), 404
+
+    except Exception as e:
+        app.logger.error(f"Error fetching future data: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 # Protected API endpoints
 @app.route("/api/live-data/", methods=["GET"])
