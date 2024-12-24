@@ -60,13 +60,35 @@ class App:
                 fut_data = Urls.fetch_expiry(symbol_id, seg_id)
                 if not fut_data:
                     return jsonify({"error": "No data received from API"}), 500
-                    
+                
+                # Check for error in response
                 if isinstance(fut_data, dict):
+                    if 'error' in fut_data:
+                        return jsonify({"error": fut_data['error']}), 500
+                    
                     expiry_list = fut_data.get('data', {}).get('explist', [])
+                    if not expiry_list:
+                        return jsonify({"error": "No expiry dates found"}), 404
+                    
+                    # Convert expiry dates to proper format if needed
+                    formatted_expiry = []
+                    for exp in expiry_list:
+                        try:
+                            # If exp is timestamp, convert to date string
+                            if isinstance(exp, (int, float)):
+                                date_obj = datetime.fromtimestamp(exp)
+                                formatted_expiry.append(date_obj.strftime('%Y-%m-%d'))
+                            else:
+                                formatted_expiry.append(str(exp))
+                        except Exception as e:
+                            print(f"Error formatting expiry date {exp}: {str(e)}")
+                            formatted_expiry.append(str(exp))
+                    
                     return jsonify({
-                        "symbol": symbol_id,
-                        "expiry_dates": expiry_list,
-                        "count": len(expiry_list)
+                        "symbol": symbol,
+                        "symbol_id": symbol_id,
+                        "expiry_dates": formatted_expiry,
+                        "count": len(formatted_expiry)
                     }), 200
                 else:
                     print(f"Unexpected response type: {type(fut_data)}")
@@ -75,6 +97,9 @@ class App:
             except requests.exceptions.RequestException as e:
                 print(f"API request failed: {str(e)}")
                 return jsonify({"error": "Failed to connect to the external API"}), 503
+            except Exception as e:
+                print(f"Error processing expiry dates: {str(e)}")
+                return jsonify({"error": str(e)}), 500
 
         except Exception as e:
             print(f"Error in get_exp_date: {str(e)}")

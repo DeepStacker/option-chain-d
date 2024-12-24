@@ -172,24 +172,45 @@ class Urls:
             )
             print(f"Response status code: {fut_response.status_code}")
             
-            fut_response.raise_for_status()
-            fut_data = fut_response.json()
-            print(f"Raw response data: {json.dumps(fut_data)}")
+            if fut_response.status_code != 200:
+                error_msg = f"API returned status code {fut_response.status_code}"
+                try:
+                    error_data = fut_response.json()
+                    if isinstance(error_data, dict) and 'message' in error_data:
+                        error_msg = error_data['message']
+                except:
+                    pass
+                return {"error": error_msg}
             
-            filtered_data = Utils.filter_fut_data(fut_data)
-            print(f"Filtered expiry dates: {json.dumps(filtered_data.get('data', {}).get('explist', []))}")
-            
-            return filtered_data
-            
+            try:
+                fut_data = fut_response.json()
+                print(f"Raw response data: {json.dumps(fut_data)}")
+                
+                if not isinstance(fut_data, dict):
+                    return {"error": "Invalid response format from API"}
+                
+                if 'data' not in fut_data or not isinstance(fut_data['data'], dict):
+                    return {"error": "Missing or invalid data in API response"}
+                
+                filtered_data = Utils.filter_fut_data(fut_data)
+                expiry_list = filtered_data.get('data', {}).get('explist', [])
+                print(f"Filtered expiry dates: {json.dumps(expiry_list)}")
+                
+                if not expiry_list:
+                    return {"error": "No expiry dates found in response"}
+                
+                return filtered_data
+                
+            except json.JSONDecodeError as e:
+                print(f"Failed to decode response JSON: {str(e)}")
+                return {"error": "Invalid JSON response from API"}
+                
         except requests.exceptions.RequestException as e:
             print(f"Request failed: {str(e)}")
-            raise
-        except json.JSONDecodeError as e:
-            print(f"Failed to decode response JSON: {str(e)}")
-            raise
+            return {"error": f"API request failed: {str(e)}"}
         except Exception as e:
             print(f"Unexpected error in fetch_expiry: {str(e)}")
-            raise
+            return {"error": f"Unexpected error: {str(e)}"}
 
     @staticmethod
     def fetch_fut_data(symbol, seg):

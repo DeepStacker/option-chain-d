@@ -123,16 +123,20 @@ def handle_disconnect():
 @cross_origin(supports_credentials=True)
 def get_expiry_dates():
     try:
-        symbol = request.args.get('symbol')
+        # Get symbol from either 'symbol' or 'sid' parameter
+        symbol = request.args.get('symbol') or request.args.get('sid')
         if not symbol:
-            return jsonify({"error": "Symbol parameter is required"}), 400
+            return jsonify({"error": "Symbol parameter is required (use 'symbol' or 'sid')"}), 400
 
+        app.logger.info(f"Fetching expiry dates for symbol: {symbol}")
         app_instance = App()
         expiry_dates = app_instance.get_exp_date(symbol)
         
         if expiry_dates:
+            app.logger.info(f"Found {len(expiry_dates)} expiry dates for {symbol}")
             return jsonify({"expiry_dates": expiry_dates}), 200
         else:
+            app.logger.warning(f"No expiry dates found for {symbol}")
             return jsonify({"error": "No expiry dates found"}), 404
 
     except Exception as e:
@@ -143,18 +147,21 @@ def get_expiry_dates():
 @cross_origin(supports_credentials=True)
 def get_option_chain():
     try:
-        symbol = request.args.get('symbol')
-        exp_date = request.args.get('expiry')
+        # Get parameters with fallbacks
+        symbol = request.args.get('symbol') or request.args.get('sid')
+        exp_date = request.args.get('expiry') or request.args.get('exp')
         
         if not symbol or not exp_date:
             return jsonify({"error": "Both symbol and expiry parameters are required"}), 400
 
+        app.logger.info(f"Fetching option chain for {symbol} expiry {exp_date}")
         app_instance = App()
         option_chain_data = app_instance.get_live_data(symbol, exp_date)
         
         if option_chain_data:
             return jsonify(option_chain_data), 200
         else:
+            app.logger.warning(f"No data found for {symbol} expiry {exp_date}")
             return jsonify({"error": "No data found"}), 404
 
     except Exception as e:
@@ -165,20 +172,23 @@ def get_option_chain():
 @cross_origin(supports_credentials=True)
 def get_percentage():
     try:
-        symbol = request.args.get('symbol')
-        exp_date = request.args.get('expiry')
+        # Get parameters with fallbacks
+        symbol = request.args.get('symbol') or request.args.get('sid')
+        exp_date = request.args.get('expiry') or request.args.get('exp')
         strike = request.args.get('strike')
         option_type = request.args.get('type')  # 'CE' or 'PE'
         
         if not all([symbol, exp_date, strike, option_type]):
             return jsonify({"error": "Missing required parameters"}), 400
         
+        app.logger.info(f"Fetching percentage for {symbol} {exp_date} {strike} {option_type}")
         app_instance = App()
         percentage_data = app_instance.get_percentage_data(symbol, exp_date, option_type == 'CE', float(strike))
         
         if percentage_data is not None:
             return jsonify({"percentage": percentage_data}), 200
         else:
+            app.logger.warning(f"No percentage data found for {symbol} {exp_date} {strike} {option_type}")
             return jsonify({"error": "No data found"}), 404
 
     except Exception as e:
@@ -189,8 +199,8 @@ def get_percentage():
 @cross_origin(supports_credentials=True)
 def get_iv():
     try:
-        symbol = request.args.get('symbol')
-        exp_date = request.args.get('expiry')
+        symbol = request.args.get('symbol') or request.args.get('sid')
+        exp_date = request.args.get('expiry') or request.args.get('exp')
         strike = request.args.get('strike')
         option_type = request.args.get('type')  # 'CE' or 'PE'
         
@@ -213,8 +223,8 @@ def get_iv():
 @cross_origin(supports_credentials=True)
 def get_delta():
     try:
-        symbol = request.args.get('symbol')
-        exp_date = request.args.get('expiry')
+        symbol = request.args.get('symbol') or request.args.get('sid')
+        exp_date = request.args.get('expiry') or request.args.get('exp')
         strike = request.args.get('strike')
         
         if not all([symbol, exp_date, strike]):
@@ -236,8 +246,8 @@ def get_delta():
 @cross_origin(supports_credentials=True)
 def get_future():
     try:
-        symbol = request.args.get('symbol')
-        exp_date = request.args.get('expiry')
+        symbol = request.args.get('symbol') or request.args.get('sid')
+        exp_date = request.args.get('expiry') or request.args.get('exp')
         
         if not all([symbol, exp_date]):
             return jsonify({"error": "Missing required parameters"}), 400
@@ -259,8 +269,8 @@ def get_future():
 @token_required
 @limiter.limit("100 per minute")
 def live_data(current_user):
-    symbol = request.args.get("sid")
-    exp = request.args.get("exp_sid")
+    symbol = request.args.get("sid") or request.args.get("symbol")
+    exp = request.args.get("exp_sid") or request.args.get("expiry")
     return App.get_live_data(symbol, exp)
 
 
@@ -268,8 +278,8 @@ def live_data(current_user):
 @token_required
 @limiter.limit("100 per minute")
 def exp_date(current_user):
-    sid = request.args.get("sid")
-    exp_sid = request.args.get("exp_sid")
+    sid = request.args.get("sid") or request.args.get("symbol")
+    exp_sid = request.args.get("exp_sid") or request.args.get("expiry")
     return App.get_exp_date(sid)
 
 
@@ -279,8 +289,8 @@ def exp_date(current_user):
 def percentage_data(current_user):
     """Endpoint to get percentage data based on strike price."""
     data = request.json
-    symbol = data.get("sid")
-    exp = data.get("exp_sid")
+    symbol = data.get("sid") or data.get("symbol")
+    exp = data.get("exp_sid") or data.get("expiry")
     isCe = data.get("option_type")
     strike = data.get("strike")
 
@@ -294,8 +304,8 @@ def percentage_data(current_user):
 def iv_data(current_user):
     """Endpoint to get iv data based on strike price."""
     data = request.json
-    symbol = data.get("sid")
-    exp = data.get("exp_sid")
+    symbol = data.get("sid") or data.get("symbol")
+    exp = data.get("exp_sid") or data.get("expiry")
     isCe = data.get("option_type")
     strike = data.get("strike")
 
@@ -309,8 +319,8 @@ def iv_data(current_user):
 def delta_data(current_user):
     """Endpoint to get delta data based on strike price."""
     data = request.json
-    symbol = data.get("sid")
-    exp = data.get("exp_sid")
+    symbol = data.get("sid") or data.get("symbol")
+    exp = data.get("exp_sid") or data.get("expiry")
     strike = data.get("strike")
 
     response, status_code = App.get_delta_data(symbol, exp, strike)
@@ -323,8 +333,8 @@ def delta_data(current_user):
 def fut_data(current_user):
     """Endpoint to get fut data based on strike price."""
     data = request.json
-    symbol = data.get("sid")
-    exp = data.get("exp_sid")
+    symbol = data.get("sid") or data.get("symbol")
+    exp = data.get("exp_sid") or data.get("expiry")
     # strike = data.get('strike')
 
     response, status_code = App.get_fut_data(symbol, exp)
