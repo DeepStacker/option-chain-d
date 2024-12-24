@@ -53,17 +53,24 @@ CORS(app, resources={
     r"/*": {
         "origins": ["http://localhost:5173", "https://stockify-oc.vercel.app"],
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        "allow_headers": ["Content-Type", "Authorization"],
-        "supports_credentials": True
+        "allow_headers": ["Content-Type", "Authorization", "X-Requested-With", "Accept", "Origin"],
+        "expose_headers": ["Content-Range", "X-Content-Range"],
+        "supports_credentials": True,
+        "send_wildcard": False,
+        "max_age": 86400
     }
 })
 
 # Add CORS headers to all responses
 @app.after_request
 def after_request(response):
-    response.headers.add('Access-Control-Allow-Credentials', 'true')
-    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+    request_origin = request.headers.get('Origin')
+    if request_origin in ["http://localhost:5173", "https://stockify-oc.vercel.app"]:
+        response.headers.add('Access-Control-Allow-Origin', request_origin)
+        response.headers.add('Access-Control-Allow-Credentials', 'true')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin')
+        response.headers.add('Access-Control-Allow-Methods', 'GET, PUT, POST, DELETE, OPTIONS')
+        response.headers.add('Access-Control-Max-Age', '86400')
     return response
 
 

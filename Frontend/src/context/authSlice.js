@@ -4,7 +4,9 @@ import axios from 'axios';
 const API_BASE_URL = 'https://option-chain-d.onrender.com/api/auth';
 
 // Configure axios defaults
-axios.defaults.withCredentials = false;
+axios.defaults.withCredentials = true;
+axios.defaults.headers.common['Accept'] = 'application/json';
+axios.defaults.headers.common['Content-Type'] = 'application/json';
 
 // Helper function to handle API errors
 const handleApiError = (error) => {
