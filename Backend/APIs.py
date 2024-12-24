@@ -78,7 +78,8 @@ class App:
                             if isinstance(exp, (int, float)):
                                 # date_obj = datetime.fromtimestamp(exp)
                                 # formatted_expiry.append(date_obj.strftime('%Y-%m-%d'))
-                                pass
+                                formatted_expiry.append(str(exp))
+                                # pass
                             else:
                                 formatted_expiry.append(str(exp))
                         except Exception as e:
