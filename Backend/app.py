@@ -130,18 +130,23 @@ def get_expiry_dates():
 
         app.logger.info(f"Fetching expiry dates for symbol: {symbol}")
         app_instance = App()
-        expiry_dates = app_instance.get_exp_date(symbol)
+        response = app_instance.get_exp_date(symbol)
         
-        if expiry_dates:
-            app.logger.info(f"Found {len(expiry_dates)} expiry dates for {symbol}")
-            return jsonify({"expiry_dates": expiry_dates}), 200
+        # If response is a tuple, it means it's an error response
+        if isinstance(response, tuple):
+            return response
+            
+        # If we got a valid response
+        if response and isinstance(response, dict):
+            app.logger.info(f"Found expiry dates for {symbol}")
+            return jsonify(response), 200
         else:
             app.logger.warning(f"No expiry dates found for {symbol}")
             return jsonify({"error": "No expiry dates found"}), 404
 
     except Exception as e:
         app.logger.error(f"Error fetching expiry dates: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": f"Server error: {str(e)}"}), 500
 
 @app.route('/api/option-chain', methods=['GET'])
 @cross_origin(supports_credentials=True)

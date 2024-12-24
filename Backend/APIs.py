@@ -62,10 +62,10 @@ class App:
                     return jsonify({"error": "No data received from API"}), 500
                 
                 # Check for error in response
+                if isinstance(fut_data, dict) and 'error' in fut_data:
+                    return jsonify({"error": fut_data['error']}), 500
+                
                 if isinstance(fut_data, dict):
-                    if 'error' in fut_data:
-                        return jsonify({"error": fut_data['error']}), 500
-                    
                     expiry_list = fut_data.get('data', {}).get('explist', [])
                     if not expiry_list:
                         return jsonify({"error": "No expiry dates found"}), 404
@@ -84,12 +84,12 @@ class App:
                             print(f"Error formatting expiry date {exp}: {str(e)}")
                             formatted_expiry.append(str(exp))
                     
-                    return jsonify({
+                    return {
                         "symbol": symbol,
                         "symbol_id": symbol_id,
                         "expiry_dates": formatted_expiry,
                         "count": len(formatted_expiry)
-                    }), 200
+                    }
                 else:
                     print(f"Unexpected response type: {type(fut_data)}")
                     return jsonify({"error": "Invalid response format from API"}), 500
