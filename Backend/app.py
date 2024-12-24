@@ -59,7 +59,7 @@ CORS(app,
 
 @app.after_request
 def after_request(response):
-    response.headers.add('Access-Control-Allow-Origin', 'https://stockify-oc.vercel.app','http://localhost:5173')
+    response.headers.add('Access-Control-Allow-Origin', 'https://stockify-oc.vercel.app')
     response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
     response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
     response.headers.add('Access-Control-Allow-Credentials', 'true')
@@ -72,7 +72,7 @@ mail.init_app(app)
 
 # Initialize SocketIO with CORS settings
 socketio = SocketIO(app, 
-    cors_allowed_origins=["https://stockify-oc.vercel.app"],
+    cors_allowed_origins=["https://stockify-oc.vercel.app","http://localhost:5173"],
     async_mode='threading',
     ping_timeout=10,
     ping_interval=5,
