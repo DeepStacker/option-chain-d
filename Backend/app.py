@@ -49,30 +49,21 @@ app.config["UPLOADED_FILES_DEST"] = app.config["UPLOAD_FOLDER"]
 app.config["UPLOADED_FILES_URL"] = "/uploads/"
 
 # Initialize CORS with a more permissive configuration
-CORS(
-    app,
-    resources={
-        r"/*": {
-            "origins": ["https://stockify-oc.vercel.app", "http://localhost:5173"],
-            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-            "allow_headers": ["Content-Type", "Authorization"],
-            "expose_headers": ["Content-Range", "X-Content-Range"],
-            "supports_credentials": True,
-            "max_age": 3600,
-        }
-    },
-)
+CORS(app, resources={
+    r"/*": {
+        "origins": ["http://localhost:5173", "https://stockify-oc.vercel.app"],
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization"],
+        "supports_credentials": True
+    }
+})
 
-
+# Add CORS headers to all responses
 @app.after_request
 def after_request(response):
-    origin = request.headers.get("Origin")
-    if origin in ["https://stockify-oc.vercel.app", "http://localhost:5173"]:
-        response.headers.add("Access-Control-Allow-Origin", origin)
-    response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
-    response.headers.add("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS")
-    response.headers.add("Access-Control-Allow-Credentials", "true")
-    response.headers.add("Access-Control-Max-Age", "3600")
+    response.headers.add('Access-Control-Allow-Credentials', 'true')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
     return response
 
 

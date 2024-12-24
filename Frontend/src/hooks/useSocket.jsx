@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
+import { SOCKET_URL } from '../api/config';
 
 const useSocket = (onDataReceived) => {
   // Use a ref to hold the socket instance
@@ -8,7 +9,10 @@ const useSocket = (onDataReceived) => {
   useEffect(() => {
     // Check if socket already exists, if not, create it
     if (!socketRef.current) {
-      socketRef.current = io('http://127.0.0.1:8000');
+      socketRef.current = io(SOCKET_URL, {
+        withCredentials: true,
+        transports: ['websocket', 'polling']
+      });
 
       // Set up event listeners
       socketRef.current.on('live_data', onDataReceived);
