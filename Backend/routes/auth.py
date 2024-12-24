@@ -175,7 +175,7 @@ def verify_email(token):
 
 @auth_bp.route("/login", methods=["POST", "OPTIONS"])
 @limiter.limit("5 per minute")
-@cross_origin(supports_credentials=True)
+@cross_origin(origins=["http://localhost:5173", "https://stockify-oc.vercel.app"], supports_credentials=True)
 def login():
     try:
         if request.method == "OPTIONS":
@@ -211,14 +211,20 @@ def login():
         # Generate tokens
         tokens = token_manager.generate_tokens(user)
         
-        response_data = {
+        response = jsonify({
             "message": "Login successful",
             "user": user.to_dict(),
             **tokens
-        }
+        })
+        
+        # Set CORS headers explicitly for the response
+        origin = request.headers.get('Origin')
+        if origin in ["http://localhost:5173", "https://stockify-oc.vercel.app"]:
+            response.headers['Access-Control-Allow-Origin'] = origin
+            response.headers['Access-Control-Allow-Credentials'] = 'true'
         
         current_app.logger.info(f"Login successful for user {user.email}")
-        return jsonify(response_data), 200
+        return response, 200
 
     except Exception as e:
         current_app.logger.error(f"Login error: {str(e)}")

@@ -7,6 +7,18 @@ const API_BASE_URL = 'https://option-chain-d.onrender.com/api/auth';
 axios.defaults.withCredentials = true;
 axios.defaults.headers.common['Accept'] = 'application/json';
 axios.defaults.headers.common['Content-Type'] = 'application/json';
+axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
+
+// Create axios instance with custom config
+const axiosInstance = axios.create({
+  baseURL: API_BASE_URL,
+  withCredentials: true,
+  headers: {
+    'Accept': 'application/json',
+    'Content-Type': 'application/json',
+    'X-Requested-With': 'XMLHttpRequest'
+  }
+});
 
 // Helper function to handle API errors
 const handleApiError = (error) => {
@@ -32,7 +44,7 @@ const refreshTokenAndRetry = async (error) => {
     }
 
     // Get new access token
-    const response = await axios.post(`${API_BASE_URL}/refresh-token`, {
+    const response = await axiosInstance.post(`/refresh-token`, {
       refresh_token: refreshToken
     });
 
@@ -41,12 +53,12 @@ const refreshTokenAndRetry = async (error) => {
     localStorage.setItem('token', access_token);
 
     // Update axios default header
-    axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
+    axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
 
     // Retry the original request
     const config = error.config;
     config.headers['Authorization'] = `Bearer ${access_token}`;
-    return axios(config);
+    return axiosInstance(config);
   } catch (error) {
     // If refresh fails, logout user
     store.dispatch(logout());
@@ -65,7 +77,7 @@ const loadInitialState = () => {
 
     // Set axios default header if token exists
     if (savedToken) {
-      axios.defaults.headers.common['Authorization'] = `Bearer ${savedToken}`;
+      axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${savedToken}`;
     }
 
     return {
@@ -98,7 +110,7 @@ export const registerUser = createAsyncThunk(
   'auth/register',
   async (userData, { rejectWithValue }) => {
     try {
-      const response = await axios.post(`${API_BASE_URL}/register`, userData, {
+      const response = await axiosInstance.post(`/register`, userData, {
         headers: {
           'Content-Type': 'application/json'
         },
@@ -115,7 +127,7 @@ export const loginUser = createAsyncThunk(
   'auth/login',
   async (credentials, { rejectWithValue }) => {
     try {
-      const response = await axios.post(`${API_BASE_URL}/login`, credentials);
+      const response = await axiosInstance.post(`/login`, credentials);
 
       const { user, access_token, refresh_token, token_type } = response.data;
 
@@ -126,7 +138,7 @@ export const loginUser = createAsyncThunk(
       localStorage.setItem('preferences', JSON.stringify(user.preferences || {}));
 
       // Set axios default header
-      axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
+      axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
 
       return response.data;
     } catch (error) {
@@ -139,7 +151,7 @@ export const logoutUser = createAsyncThunk(
   'auth/logout',
   async (_, { rejectWithValue }) => {
     try {
-      await axios.post(`${API_BASE_URL}/logout`);
+      await axiosInstance.post(`/logout`);
 
       // Clear localStorage
       localStorage.removeItem('user');
@@ -148,7 +160,7 @@ export const logoutUser = createAsyncThunk(
       localStorage.removeItem('preferences');
 
       // Clear axios default header
-      delete axios.defaults.headers.common['Authorization'];
+      delete axiosInstance.defaults.headers.common['Authorization'];
 
       return null;
     } catch (error) {
@@ -161,7 +173,7 @@ export const updateProfile = createAsyncThunk(
   'auth/updateProfile',
   async (profileData, { getState, rejectWithValue }) => {
     try {
-      const response = await axios.put(`${API_BASE_URL}/profile`, profileData, {
+      const response = await axiosInstance.put(`/profile`, profileData, {
         headers: {
           'Content-Type': 'application/json'
         },
@@ -181,7 +193,7 @@ export const uploadProfileImage = createAsyncThunk(
       const formData = new FormData();
       formData.append('image', imageFile);
 
-      const response = await axios.post(`${API_BASE_URL}/profile/image`, formData, {
+      const response = await axiosInstance.post(`/profile/image`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -302,3 +314,5 @@ const authSlice = createSlice({
 
 export const { logout, clearError, updateUserPreferences, setTheme } = authSlice.actions;
 export default authSlice.reducer;
+
+export const api = axiosInstance;

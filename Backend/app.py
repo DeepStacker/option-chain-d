@@ -57,23 +57,21 @@ CORS(app, resources={
         "allow_headers": ["Content-Type", "Authorization", "X-Requested-With", "Accept", "Origin"],
         "expose_headers": ["Content-Range", "X-Content-Range"],
         "supports_credentials": True,
-        "send_wildcard": False,
-        "max_age": 86400
+        "send_wildcard": False
     }
 })
 
 # Add CORS headers to all responses
 @app.after_request
 def after_request(response):
-    request_origin = request.headers.get('Origin')
-    if request_origin in ["http://localhost:5173", "https://stockify-oc.vercel.app"]:
-        response.headers.add('Access-Control-Allow-Origin', request_origin)
-        response.headers.add('Access-Control-Allow-Credentials', 'true')
-        response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin')
-        response.headers.add('Access-Control-Allow-Methods', 'GET, PUT, POST, DELETE, OPTIONS')
-        response.headers.add('Access-Control-Max-Age', '86400')
+    origin = request.headers.get('Origin')
+    if origin in ["http://localhost:5173", "https://stockify-oc.vercel.app"]:
+        response.headers['Access-Control-Allow-Origin'] = origin
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With, Accept, Origin'
+        response.headers['Access-Control-Max-Age'] = '86400'
     return response
-
 
 # Initialize extensions
 db.init_app(app)
@@ -82,13 +80,13 @@ mail.init_app(app)
 # Initialize SocketIO with CORS settings
 socketio = SocketIO(
     app,
-    cors_allowed_origins=["https://stockify-oc.vercel.app", "http://localhost:5173"],
+    cors_allowed_origins=["http://localhost:5173", "https://stockify-oc.vercel.app"],
     async_mode="threading",
     ping_timeout=10,
     ping_interval=5,
     always_connect=True,
     logger=True,
-    engineio_logger=True,
+    engineio_logger=True
 )
 
 # Initialize rate limiter
