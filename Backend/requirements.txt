@@ -51,6 +51,7 @@ rich
 schedule
 setuptools
 simple-websocket
+pillow
 six
 termcolor
 typing_extensions
