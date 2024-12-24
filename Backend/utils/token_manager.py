@@ -91,27 +91,44 @@ class TokenManager:
             # Calculate TTL for Redis
             ttl = exp - datetime.utcnow().timestamp()
             if ttl > 0:
-                # Store in Redis with expiration
-                redis_client.setex(
-                    f"blacklist_token:{token}",
-                    int(ttl),
-                    token_type
-                )
+                try:
+                    # Store in Redis with expiration
+                    redis_client.setex(
+                        f"blacklist_token:{token}",
+                        int(ttl),
+                        token_type
+                    )
+                except redis.exceptions.ConnectionError:
+                    print("Warning: Redis connection failed, token not blacklisted")
+                except Exception as e:
+                    print(f"Warning: Redis error during token blacklisting: {str(e)}")
         except jwt.InvalidTokenError:
             pass  # Invalid tokens don't need to be blacklisted
     
     def is_token_blacklisted(self, token):
         """Check if token is blacklisted"""
-        return redis_client.exists(f"blacklist_token:{token}")
-    
+        try:
+            return redis_client.exists(f"blacklist_token:{token}")
+        except redis.exceptions.ConnectionError:
+            # If Redis is not available, assume token is not blacklisted
+            print("Warning: Redis connection failed, token blacklist check skipped")
+            return False
+        except Exception as e:
+            print(f"Warning: Redis error during blacklist check: {str(e)}")
+            return False
+
     def verify_token(self, token):
         """Verify token and return payload"""
         try:
             payload = jwt.decode(token, self.secret_key, algorithms=['HS256'])
             
-            # Check if token is blacklisted
-            if self.is_token_blacklisted(token):
-                raise jwt.InvalidTokenError('Token is blacklisted')
+            try:
+                # Check if token is blacklisted
+                if self.is_token_blacklisted(token):
+                    raise jwt.InvalidTokenError('Token is blacklisted')
+            except Exception as e:
+                # Log the error but continue if Redis check fails
+                print(f"Warning: Token blacklist check failed: {str(e)}")
             
             return payload
         except jwt.ExpiredSignatureError:

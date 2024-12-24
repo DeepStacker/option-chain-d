@@ -280,12 +280,31 @@ def live_data(current_user):
 
 
 @app.route("/api/exp-date/", methods=["GET"])
-@token_required
-@limiter.limit("100 per minute")
-def exp_date(current_user):
-    sid = request.args.get("sid") or request.args.get("symbol")
-    exp_sid = request.args.get("exp_sid") or request.args.get("expiry")
-    return App.get_exp_date(sid)
+@cross_origin(supports_credentials=True)
+def exp_date():
+    try:
+        sid = request.args.get("sid") or request.args.get("symbol")
+        if not sid:
+            return jsonify({"error": "Symbol parameter is required (use 'sid' or 'symbol')"}), 400
+            
+        app.logger.info(f"Fetching expiry dates for symbol: {sid}")
+        response = App.get_exp_date(sid)
+        
+        # If response is a tuple, it means it's an error response
+        if isinstance(response, tuple):
+            return response
+            
+        # If we got a valid response
+        if response and isinstance(response, dict):
+            app.logger.info(f"Found expiry dates for {sid}")
+            return jsonify(response), 200
+        else:
+            app.logger.warning(f"No expiry dates found for {sid}")
+            return jsonify({"error": "No expiry dates found"}), 404
+
+    except Exception as e:
+        app.logger.error(f"Error fetching expiry dates: {str(e)}")
+        return jsonify({"error": f"Server error: {str(e)}"}), 500
 
 
 @app.route("/api/percentage-data/", methods=["POST"])
