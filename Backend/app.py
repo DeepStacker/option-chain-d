@@ -48,7 +48,7 @@ app.config['UPLOADED_FILES_URL'] = '/uploads/'
 CORS(app, 
     resources={
         r"/*": {
-            "origins": ["https://stockify-oc.vercel.app"],
+            "origins": ["https://stockify-oc.vercel.app", "http://localhost:5173"],
             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
             "allow_headers": ["Content-Type", "Authorization"],
             "expose_headers": ["Content-Range", "X-Content-Range"],
@@ -59,7 +59,7 @@ CORS(app,
 
 @app.after_request
 def after_request(response):
-    response.headers.add('Access-Control-Allow-Origin', 'https://stockify-oc.vercel.app')
+    response.headers.add('Access-Control-Allow-Origin', 'https://stockify-oc.vercel.app','http://localhost:5173')
     response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
     response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
     response.headers.add('Access-Control-Allow-Credentials', 'true')
