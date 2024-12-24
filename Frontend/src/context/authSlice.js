@@ -1,7 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
 
-const API_BASE_URL = 'https://16.16.204.22:10001/api/auth';
+const API_BASE_URL = 'http://16.16.204.22:10001/api/auth';
 
 // Configure axios defaults
 axios.defaults.withCredentials = true;

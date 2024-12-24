@@ -5,8 +5,8 @@ import { io } from 'socket.io-client';
 let socket = null; // Global variable for WebSocket connection
 
 // API configuration
-const API_BASE_URL = 'https://16.16.204.22:10001/api';
-const SOCKET_URL = 'https://16.16.204.22:5000';
+const API_BASE_URL = 'http://16.16.204.22:10001/api';
+const SOCKET_URL = 'http://16.16.204.22:5000';
 
 // Configure axios defaults
 axios.defaults.withCredentials = true;

@@ -175,7 +175,7 @@ def verify_email(token):
 
 @auth_bp.route("/login", methods=["POST", "OPTIONS"])
 @limiter.limit("5 per minute")
-@cross_origin(origins=["http://localhost:5173", "https://stockify-oc.vercel.app", "https://16.16.204.22:10001"], supports_credentials=True)
+@cross_origin(origins=["http://localhost:5173", "https://stockify-oc.vercel.app", "http://16.16.204.22:10001"], supports_credentials=True)
 def login():
     try:
         if request.method == "OPTIONS":
@@ -220,7 +220,7 @@ def login():
         
         # Set CORS headers explicitly for the response
         origin = request.headers.get('Origin')
-        if origin in ["http://localhost:5173", "https://stockify-oc.vercel.app", "https://16.16.204.22:10001"]:
+        if origin in ["http://localhost:5173", "https://stockify-oc.vercel.app", "http://16.16.204.22:10001"]:
             response.headers['Access-Control-Allow-Origin'] = origin
             response.headers['Access-Control-Allow-Credentials'] = 'true'
             response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
