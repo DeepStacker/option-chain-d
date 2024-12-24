@@ -12,6 +12,7 @@ import secrets
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from utils.token_manager import token_manager
+from flask_cors import cross_origin
 
 # Create blueprint
 auth_bp = Blueprint("auth", __name__)
@@ -172,11 +173,16 @@ def verify_email(token):
     return jsonify({"message": "Email verified successfully"})
 
 
-@auth_bp.route("/login", methods=["POST"])
+@auth_bp.route("/login", methods=["POST", "OPTIONS"])
 @limiter.limit("5 per minute")
+@cross_origin(supports_credentials=True)
 def login():
     try:
+        if request.method == "OPTIONS":
+            return jsonify({"message": "OK"}), 200
+
         data = request.get_json()
+        current_app.logger.info(f"Login attempt for email: {data.get('email', 'not provided')}")
 
         if not data or not data.get("email") or not data.get("password"):
             return jsonify({"message": "Missing email or password"}), 400
@@ -184,15 +190,18 @@ def login():
         user = User.query.filter_by(email=data["email"]).first()
 
         if not user:
-            return jsonify({"message": "User not found"}), 401
+            current_app.logger.warning(f"Login failed: User not found for email {data.get('email')}")
+            return jsonify({"message": "Invalid email or password"}), 401
 
         if user.is_account_locked():
+            current_app.logger.warning(f"Login failed: Account locked for user {user.email}")
             return jsonify({"message": "Account is locked. Try again later"}), 403
 
         if not user.check_password(data["password"]):
             user.increment_failed_login()
             db.session.commit()
-            return jsonify({"message": "Invalid password"}), 401
+            current_app.logger.warning(f"Login failed: Invalid password for user {user.email}")
+            return jsonify({"message": "Invalid email or password"}), 401
 
         # Reset failed login attempts on successful login
         user.reset_failed_login()
@@ -201,14 +210,19 @@ def login():
 
         # Generate tokens
         tokens = token_manager.generate_tokens(user)
-
-        return (
-            jsonify({"message": "Login successful", "user": user.to_dict(), **tokens}),
-            200,
-        )
+        
+        response_data = {
+            "message": "Login successful",
+            "user": user.to_dict(),
+            **tokens
+        }
+        
+        current_app.logger.info(f"Login successful for user {user.email}")
+        return jsonify(response_data), 200
 
     except Exception as e:
-        return jsonify({"message": str(e)}), 500
+        current_app.logger.error(f"Login error: {str(e)}")
+        return jsonify({"message": "An error occurred during login", "error": str(e)}), 500
 
 
 @auth_bp.route("/refresh-token", methods=["POST"])

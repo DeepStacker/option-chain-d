@@ -17,7 +17,7 @@ const handleApiError = (error) => {
     }
     return error.response.data?.message || 'Server error occurred';
   } else if (error.request) {
-    return 'No response from server';
+    return 'No response from server. Please check your internet connection.';
   } else {
     return error.message || 'An error occurred';
   }

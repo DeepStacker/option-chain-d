@@ -8,6 +8,7 @@ from flask_socketio import SocketIO
 import threading
 from models.user import db, User, UserRole
 from routes.auth import auth_bp, token_required, role_required
+from routes.option_chain import option_chain_bp
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 import os
@@ -99,8 +100,9 @@ limiter = Limiter(
     default_limits=["200 per day"],
 )
 
-# Register auth blueprint
+# Register blueprints
 app.register_blueprint(auth_bp, url_prefix="/api/auth")
+app.register_blueprint(option_chain_bp, url_prefix="/api")
 
 # Create database tables
 with app.app_context():
@@ -246,4 +248,4 @@ if __name__ == "__main__":
             db.session.commit()
             print("Created default admin user")
 
-    socketio.run(app, host="127.0.0.1", port=10001, debug=True)
+    socketio.run(app, host="0.0.0.0", port=10001, debug=True)
