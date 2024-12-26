@@ -154,7 +154,7 @@ const authSlice = createSlice({
   initialState: loadInitialState(),
   reducers: {
     setUser: (state, action) => {
-      console.log('Setting user in Redux:', action.payload); // Debug log
+      // console.log('Setting user in Redux:', action.payload); // Debug log
       state.user = action.payload;
       state.isAuthenticated = true;
       state.loading = false;
@@ -168,7 +168,7 @@ const authSlice = createSlice({
         if (!token && action.payload?.token) {
           localStorage.setItem('authToken', action.payload.token);
         }
-        console.log('User stored in localStorage'); // Debug log
+        // console.log('User stored in localStorage'); // Debug log
       } catch (error) {
         console.error('Error storing user in localStorage:', error);
       }
@@ -205,7 +205,7 @@ export const initializeAuth = () => (dispatch) => {
   try {
     const user = localStorage.getItem('user');
     if (user) {
-      console.log('Initializing auth state with stored user'); // Debug log
+      // console.log('Initializing auth state with stored user'); // Debug log
       dispatch(setUser(JSON.parse(user)));
     }
   } catch (error) {
