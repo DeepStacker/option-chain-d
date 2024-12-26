@@ -5,30 +5,27 @@ import path from 'path';
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
-  server: {
-    port: 3000
-  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
-    },
+    }
   },
   optimizeDeps: {
-    include: ['firebase/app', 'firebase/auth'],
+    include: [
+      'firebase/app',
+      'firebase/auth'
+    ]
   },
   build: {
+    sourcemap: true,
     rollupOptions: {
-      external: ['firebase/app', 'firebase/auth'],
       output: {
-        globals: {
-          'firebase/app': 'firebase',
-          'firebase/auth': 'firebaseAuth'
+        manualChunks: (id) => {
+          if (id.includes('node_modules/firebase')) {
+            return 'firebase';
+          }
         }
       }
-    },
-    commonjsOptions: {
-      include: [/node_modules/],
-      transformMixedEsModules: true
     }
   },
   define: {
