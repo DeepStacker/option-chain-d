@@ -22,6 +22,7 @@
     "clsx": "^2.1.0",
     "crypto-js": "^4.2.0",
     "fernet": "^0.3.1",
+    "firebase": "^11.1.0",
     "framer-motion": "^10.17.9",
     "prop-types": "^15.8.1",
     "react": "^18.2.0",

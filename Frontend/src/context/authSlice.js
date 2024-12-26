@@ -1,8 +1,13 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
+import { initializeApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { API_BASE_URL } from '../api/config';
-import { auth as firebaseAuth } from '../firebase/config';
+import { firebaseConfig } from '../firebase/config';
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
 
 const AUTH_API_URL = `${API_BASE_URL}/auth`;
 
@@ -38,7 +43,6 @@ export const loginUser = createAsyncThunk(
   async ({ email, password }, { rejectWithValue, dispatch }) => {
     try {
       // Use the helper function for email/password sign-in
-      const auth = getAuth();
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
       
@@ -68,7 +72,6 @@ export const registerUser = createAsyncThunk(
   async ({ email, password, username }, { rejectWithValue, dispatch }) => {
     try {
       // Create user in Firebase Authentication
-      const auth = getAuth();
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 

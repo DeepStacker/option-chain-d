@@ -7,7 +7,7 @@ import {
 } from 'firebase/auth';
 
 // Your web app's Firebase configuration
-const firebaseConfig = {
+export const firebaseConfig = {
   apiKey: "AIzaSyAoeZHm-azcBvHdEFEfnKYibK6bYHyXqLU",
   authDomain: "stockify-6e2b1.firebaseapp.com",
   projectId: "stockify-6e2b1",
