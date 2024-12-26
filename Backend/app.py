@@ -450,4 +450,4 @@ if __name__ == "__main__":
             print(f"Error creating admin user: {e}")
             db.session.rollback()
 
-    socketio.run(app, host="0.0.0.0", port=10001, debug=True)
+    socketio.run(app, host='0.0.0.0', port=10001, debug=True, ssl_context=('mycert.crt', 'mykey.key'))

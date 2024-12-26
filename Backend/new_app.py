@@ -330,4 +330,5 @@ def home():
     return {"message": "Authentication API is running"}
 
 if __name__ == "__main__":
-    socketio.run(app, host="0.0.0.0", port=5000, debug=True, allow_unsafe_werkzeug=True)
+    socketio.run(app, host='0.0.0.0', port=5000, debug=True, ssl_context=('mycert.crt', 'mykey.key'))
+    # socketio.run(app, host="0.0.0.0", port=5000, debug=True, allow_unsafe_werkzeug=True)
