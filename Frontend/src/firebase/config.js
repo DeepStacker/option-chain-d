@@ -1,11 +1,11 @@
 // Import the functions you need from the SDKs you need
-import { initializeApp } from 'firebase/app';
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
 import { 
   getAuth, 
   GoogleAuthProvider,
   signInWithPopup,
   onAuthStateChanged
-} from 'firebase/auth';
+} from "https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js";
 
 // Your web app's Firebase configuration
 export const firebaseConfig = {
