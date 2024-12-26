@@ -1,5 +1,6 @@
 from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
+from flask_migrate import Migrate
 from APIs import App
 import logging
 from datetime import datetime, timedelta
@@ -7,7 +8,8 @@ import time
 from flask_socketio import SocketIO
 import threading
 from models.user import db, User, UserRole
-from routes.auth import auth_bp, token_required, role_required
+from routes.auth import auth_bp
+from utils.auth_middleware import firebase_token_required as token_required, admin_required as role_required
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 import os
@@ -19,6 +21,54 @@ from flask_cors import cross_origin
 load_dotenv()
 
 app = Flask(__name__)
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, 
+                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+# Configure CORS with more robust settings
+CORS(app, resources={
+    r"/api/*": {
+        "origins": [
+            "http://localhost:3000",  
+            "http://127.0.0.1:3000",  
+            "https://stockify-oc.vercel.app"  
+        ],
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": [
+            "Content-Type", 
+            "Authorization", 
+            "Access-Control-Allow-Credentials"
+        ],
+        "supports_credentials": True
+    }
+})
+
+# Configure headers for enhanced security
+@app.after_request
+def add_security_headers(response):
+    """Add security headers to all responses"""
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    response.headers['Cross-Origin-Opener-Policy'] = 'same-origin'
+    response.headers['Cross-Origin-Resource-Policy'] = 'cross-origin'
+    
+    return response
+
+# Configure CORS
+@app.after_request
+def after_request(response):
+    origin = request.headers.get('Origin')
+    if origin in ["http://localhost:5173", "https://stockify-oc.vercel.app", "http://16.16.204.22:10001"]:
+        response.headers['Access-Control-Allow-Origin'] = origin
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With, Accept, Origin'
+        response.headers['Access-Control-Max-Age'] = '86400'
+    return response
 
 # Configure Flask app
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "your-secret-key")
@@ -49,32 +99,9 @@ os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 app.config["UPLOADED_FILES_DEST"] = app.config["UPLOAD_FOLDER"]
 app.config["UPLOADED_FILES_URL"] = "/uploads/"
 
-# Configure CORS
-CORS(app, 
-     resources={
-         r"/*": {
-             "origins": ["http://localhost:5173", "https://stockify-oc.vercel.app", "http://16.16.204.22:10001"],
-             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-             "allow_headers": ["Content-Type", "Authorization", "X-Requested-With", "Accept", "Origin"],
-             "supports_credentials": True,
-             "expose_headers": ["Content-Range", "X-Content-Range"],
-             "max_age": 86400
-         }
-     })
-
-@app.after_request
-def after_request(response):
-    origin = request.headers.get('Origin')
-    if origin in ["http://localhost:5173", "https://stockify-oc.vercel.app", "http://16.16.204.22:10001"]:
-        response.headers['Access-Control-Allow-Origin'] = origin
-        response.headers['Access-Control-Allow-Credentials'] = 'true'
-        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
-        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With, Accept, Origin'
-        response.headers['Access-Control-Max-Age'] = '86400'
-    return response
-
 # Initialize extensions
 db.init_app(app)
+migrate = Migrate(app, db)
 mail.init_app(app)
 
 # Initialize SocketIO with CORS settings
@@ -399,20 +426,25 @@ def internal_error_handler(e):
 
 if __name__ == "__main__":
     with app.app_context():
+        # Create tables if they don't exist
         db.create_all()
-
-        # Create default admin user if it doesn't exist
-        admin_user = User.query.filter_by(email="admin@admin.com").first()
-        if not admin_user:
-            admin_user = User(
-                username="admin",
-                email="admin@admin.com",
-                role=UserRole.ADMIN,
-                email_verified=True,
-            )
-            admin_user.set_password("admin@123")
-            db.session.add(admin_user)
-            db.session.commit()
-            print("Created default admin user")
+        
+        # Check and create admin user, handling potential migration issues
+        try:
+            admin_user = User.query.filter_by(email="admin@admin.com").first()
+            if not admin_user:
+                admin_user = User(
+                    firebase_uid="admin_firebase_uid",
+                    username="admin",
+                    email="admin@admin.com",
+                    role=UserRole.ADMIN,
+                    is_email_verified=True,
+                    login_provider='email'  # Explicitly set login provider
+                )
+                db.session.add(admin_user)
+                db.session.commit()
+        except Exception as e:
+            print(f"Error creating admin user: {e}")
+            db.session.rollback()
 
     socketio.run(app, host="0.0.0.0", port=10001, debug=True)

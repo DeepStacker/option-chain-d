@@ -62,11 +62,14 @@ Werkzeug
 wheel
 wrapt
 wsproto
-Flask-SQLAlchemy
+Flask-SQLAlchemy==3.1.1
+Flask-Migrate==4.0.7
 Flask-JWT-Extended
 Flask-Mail
 bcrypt
 PyJWT
 redis
 eventlet
+alembic==1.14.0
+SQLAlchemy==2.0.36
 firebase-admin==6.3.0

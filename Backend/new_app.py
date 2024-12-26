@@ -1,7 +1,8 @@
 from flask import Flask, jsonify, request, send_from_directory
 from flask_socketio import SocketIO
 from flask_cors import CORS
-from routes.auth import auth_bp, token_required
+from routes.auth import auth_bp
+from utils.auth_middleware import firebase_token_required as token_required
 from models.user import db
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address

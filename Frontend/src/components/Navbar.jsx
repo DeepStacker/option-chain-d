@@ -1,254 +1,243 @@
-import React, { useState } from "react";
-import { useSelector, useDispatch } from "react-redux";
-import { motion, AnimatePresence } from "framer-motion";
-import { Menu } from "@headlessui/react";
-import { useNavigate } from "react-router-dom";
-import {
-  BellIcon,
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
+import { clearUser } from '../context/authSlice';
+import { toggleTheme } from '../context/themeSlice';
+import { auth } from '../firebase/config';
+import { signOut } from 'firebase/auth';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  Bars3Icon, 
+  XMarkIcon, 
+  SunIcon, 
   MoonIcon,
-  SunIcon,
   UserCircleIcon,
-  Cog6ToothIcon,
-  ArrowRightOnRectangleIcon,
-} from "@heroicons/react/24/outline";
-import { toggleTheme } from "../context/themeSlice";
-import { logout } from "../context/authSlice";
-import { FaGithub } from "react-icons/fa";
+  ArrowRightOnRectangleIcon
+} from '@heroicons/react/24/outline';
+import { toast } from 'react-toastify';
 
 const Navbar = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const theme = useSelector((state) => state.theme.theme);
-  const [notifications, setNotifications] = useState([
-    { id: 1, message: "Welcome to Stockify  Trading Platform!" },
-    { id: 2, message: "New feature: Position Sizing Calculator" },
-  ]);
+  const { isAuthenticated, user } = useSelector((state) => state.auth);
+  const { theme } = useSelector((state) => state.theme);
+  const [isOpen, setIsOpen] = useState(false);
 
-  const handleLogout = () => {
-    dispatch(logout());
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      dispatch(clearUser());
+      localStorage.removeItem('token');
+      navigate('/');
+      toast.success('Logged out successfully');
+    } catch (error) {
+      console.error('Logout error:', error);
+      toast.error('Failed to logout');
+    }
   };
 
-  const handleSettings = () => {
-    navigate('/profile');
+  const handleThemeToggle = () => {
+    dispatch(toggleTheme());
   };
-
-  const NavButton = ({ icon: Icon, onClick, className = "", children }) => (
-    <motion.button
-      whileHover={{ scale: 1.05, y: -2 }}
-      whileTap={{ scale: 0.95 }}
-      className={`relative flex items-center gap-2 px-4 py-2 rounded-lg 
-        ${
-          theme === "dark"
-            ? "bg-gray-800/80 hover:bg-gray-700/90 text-gray-200"
-            : "bg-white/90 hover:bg-gray-50/95 text-gray-700"
-        } 
-        transform transition-all duration-200 ${className}
-        shadow-lg hover:shadow-xl
-        before:absolute before:inset-0 before:rounded-lg 
-        before:bg-gradient-to-r before:from-blue-500/20 before:to-purple-500/20 
-        before:opacity-0 hover:before:opacity-100 before:transition-opacity
-        backdrop-blur-sm`}
-      onClick={onClick}
-    >
-      <Icon className="h-5 w-5" />
-      {children}
-    </motion.button>
-  );
-
-  const MenuTransition = ({ children }) => (
-    <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -10 }}
-        transition={{ duration: 0.2 }}
-      >
-        {children}
-      </motion.div>
-    </AnimatePresence>
-  );
 
   return (
-    <nav
-      className={`fixed top-0 right-0 left-20 z-30 border-b ${
-        theme === "dark"
-          ? "bg-gray-900/85 border-gray-700/50"
-          : "bg-white/85 border-gray-200/50"
-      } backdrop-blur-md shadow-lg`}
-    >
+    <nav className={`fixed w-full top-0 z-50 transition-colors duration-200 ${
+      theme === 'dark' 
+        ? 'bg-gray-800 text-white' 
+        : 'bg-white text-gray-800'
+    } shadow-lg`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          {/* Left side - Brand */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="flex items-center"
-          >
-            <motion.h1
-              className={`text-2xl font-bold bg-clip-text text-transparent 
-                bg-gradient-to-r from-blue-500 to-purple-600`}
-              whileHover={{ scale: 1.05 }}
-              transition={{ type: "spring", stiffness: 300 }}
-            >
-              Stockify 
-            </motion.h1>
-          </motion.div>
-
-          {/* Right side - Actions */}
-          <div className="flex items-center gap-4">
-            {/* GitHub Link */}
-            <NavButton
-              icon={FaGithub}
-              onClick={() =>
-                window.open(
-                  "https://github.com/yourusername/dhan-api",
-                  "_blank"
-                )
-              }
-            />
-
-            {/* Theme Toggle */}
-            <NavButton
-              icon={theme === "dark" ? SunIcon : MoonIcon}
-              onClick={() => dispatch(toggleTheme())}
-            />
-
-            {/* Notifications */}
-            <Menu as="div" className="relative">
-              {({ open }) => (
-                <>
-                  <Menu.Button
-                    as={motion.button}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    className={`relative p-2 rounded-lg ${
-                      theme === "dark"
-                        ? "hover:bg-gray-800/90"
-                        : "hover:bg-gray-100/90"
-                    } shadow-lg hover:shadow-xl backdrop-blur-sm`}
-                  >
-                    <BellIcon className="h-6 w-6" />
-                    {notifications.length > 0 && (
-                      <motion.span
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        className="absolute -top-1 -right-1 h-5 w-5 text-xs 
-                          bg-red-500 text-white rounded-full flex items-center justify-center
-                          shadow-lg"
-                      >
-                        {notifications.length}
-                      </motion.span>
-                    )}
-                  </Menu.Button>
-
-                  <MenuTransition>
-                    {open && (
-                      <Menu.Items
-                        static
-                        className={`absolute right-0 mt-2 w-72 rounded-xl 
-                          ${
-                            theme === "dark"
-                              ? "bg-gray-800/95 border border-gray-700/50"
-                              : "bg-white/95 border border-gray-200/50"
-                          } divide-y ${
-                          theme === "dark"
-                            ? "divide-gray-700/50"
-                            : "divide-gray-200/50"
-                        } shadow-xl backdrop-blur-sm overflow-hidden`}
-                      >
-                        {notifications.map((notification) => (
-                          <Menu.Item key={notification.id}>
-                            {({ active }) => (
-                              <motion.div
-                                whileHover={{ x: 4 }}
-                                className={`px-4 py-3 ${
-                                  active &&
-                                  (theme === "dark"
-                                    ? "bg-gray-700/50"
-                                    : "bg-gray-50/50")
-                                }`}
-                              >
-                                <p className="text-sm">
-                                  {notification.message}
-                                </p>
-                              </motion.div>
-                            )}
-                          </Menu.Item>
-                        ))}
-                      </Menu.Items>
-                    )}
-                  </MenuTransition>
-                </>
-              )}
-            </Menu>
-
-            {/* User Profile Menu */}
-            <Menu as="div" className="relative">
-              <Menu.Button as={motion.button}
+        <div className="flex justify-between h-16">
+          {/* Logo and Brand */}
+          <div className="flex items-center">
+            <Link to="/" className="flex items-center space-x-2">
+              <motion.span 
+                className={`text-2xl font-bold ${
+                  theme === 'dark' 
+                    ? 'text-blue-400' 
+                    : 'text-blue-600'
+                }`}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg 
-                  ${theme === "dark"
-                    ? "bg-gray-800 hover:bg-gray-700 text-gray-200"
-                    : "bg-white hover:bg-gray-50 text-gray-700"
-                  } 
-                  transform transition-all duration-200`}
               >
-                <UserCircleIcon className="h-6 w-6" />
-              </Menu.Button>
+                Stockify
+              </motion.span>
+            </Link>
+          </div>
 
-              <MenuTransition>
-                <Menu.Items
-                  className={`absolute right-0 mt-2 w-48 origin-top-right rounded-lg 
-                    ${theme === "dark"
-                      ? "bg-gray-800 ring-1 ring-gray-700"
-                      : "bg-white ring-1 ring-black ring-opacity-5"
-                    } shadow-lg focus:outline-none`}
+          {/* Desktop Navigation */}
+          <div className="hidden md:flex md:items-center md:space-x-4">
+            {isAuthenticated ? (
+              <>
+                <Link
+                  to="/dashboard"
+                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${
+                    theme === 'dark'
+                      ? 'hover:bg-gray-700 hover:text-white'
+                      : 'hover:bg-gray-100 hover:text-gray-900'
+                  }`}
                 >
-                  <div className="py-1">
-                    <Menu.Item>
-                      {({ active }) => (
-                        <button
-                          onClick={handleSettings}
-                          className={`${active
-                            ? theme === "dark"
-                              ? "bg-gray-700 text-gray-200"
-                              : "bg-gray-100 text-gray-900"
-                            : theme === "dark"
-                              ? "text-gray-200"
-                              : "text-gray-700"
-                          } flex items-center w-full px-4 py-2 text-sm`}
-                        >
-                          <Cog6ToothIcon className="h-5 w-5 mr-2" />
-                          Settings
-                        </button>
-                      )}
-                    </Menu.Item>
-                    <Menu.Item>
-                      {({ active }) => (
-                        <button
-                          onClick={handleLogout}
-                          className={`${active
-                            ? theme === "dark"
-                              ? "bg-gray-700 text-gray-200"
-                              : "bg-gray-100 text-gray-900"
-                            : theme === "dark"
-                              ? "text-gray-200"
-                              : "text-gray-700"
-                          } flex items-center w-full px-4 py-2 text-sm`}
-                        >
-                          <ArrowRightOnRectangleIcon className="h-5 w-5 mr-2" />
-                          Logout
-                        </button>
-                      )}
-                    </Menu.Item>
-                  </div>
-                </Menu.Items>
-              </MenuTransition>
-            </Menu>
+                  Dashboard
+                </Link>
+                <Link
+                  to="/profile"
+                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${
+                    theme === 'dark'
+                      ? 'hover:bg-gray-700 hover:text-white'
+                      : 'hover:bg-gray-100 hover:text-gray-900'
+                  }`}
+                >
+                  <UserCircleIcon className="h-5 w-5" />
+                </Link>
+                <button
+                  onClick={handleLogout}
+                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${
+                    theme === 'dark'
+                      ? 'hover:bg-gray-700 hover:text-white'
+                      : 'hover:bg-gray-100 hover:text-gray-900'
+                  }`}
+                >
+                  <ArrowRightOnRectangleIcon className="h-5 w-5" />
+                </button>
+              </>
+            ) : (
+              <>
+                <Link
+                  to="/login"
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${
+                    theme === 'dark'
+                      ? 'bg-blue-500 hover:bg-blue-600 text-white'
+                      : 'bg-blue-600 hover:bg-blue-700 text-white'
+                  }`}
+                >
+                  Login
+                </Link>
+                <Link
+                  to="/register"
+                  className={`px-4 py-2 rounded-md text-sm font-medium border transition-colors duration-200 ${
+                    theme === 'dark'
+                      ? 'border-gray-600 hover:bg-gray-700'
+                      : 'border-gray-300 hover:bg-gray-100'
+                  }`}
+                >
+                  Register
+                </Link>
+              </>
+            )}
+
+            {/* Theme Toggle Button */}
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={handleThemeToggle}
+              className={`p-2 rounded-full transition-colors duration-200 ${
+                theme === 'dark'
+                  ? 'bg-gray-700 hover:bg-gray-600'
+                  : 'bg-gray-100 hover:bg-gray-200'
+              }`}
+            >
+              {theme === 'dark' ? (
+                <SunIcon className="h-5 w-5 text-yellow-400" />
+              ) : (
+                <MoonIcon className="h-5 w-5 text-gray-600" />
+              )}
+            </motion.button>
+          </div>
+
+          {/* Mobile Menu Button */}
+          <div className="flex items-center md:hidden">
+            <motion.button
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setIsOpen(!isOpen)}
+              className={`p-2 rounded-md ${
+                theme === 'dark'
+                  ? 'hover:bg-gray-700'
+                  : 'hover:bg-gray-100'
+              }`}
+            >
+              {isOpen ? (
+                <XMarkIcon className="h-6 w-6" />
+              ) : (
+                <Bars3Icon className="h-6 w-6" />
+              )}
+            </motion.button>
           </div>
         </div>
       </div>
+
+      {/* Mobile Menu */}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className={`md:hidden transition-colors duration-200 ${
+              theme === 'dark' ? 'bg-gray-800' : 'bg-white'
+            }`}
+          >
+            <div className="px-2 pt-2 pb-3 space-y-1">
+              {isAuthenticated ? (
+                <>
+                  <Link
+                    to="/dashboard"
+                    className={`block px-3 py-2 rounded-md text-base font-medium ${
+                      theme === 'dark'
+                        ? 'hover:bg-gray-700 hover:text-white'
+                        : 'hover:bg-gray-100 hover:text-gray-900'
+                    }`}
+                  >
+                    Dashboard
+                  </Link>
+                  <Link
+                    to="/profile"
+                    className={`block px-3 py-2 rounded-md text-base font-medium ${
+                      theme === 'dark'
+                        ? 'hover:bg-gray-700 hover:text-white'
+                        : 'hover:bg-gray-100 hover:text-gray-900'
+                    }`}
+                  >
+                    Profile
+                  </Link>
+                  <button
+                    onClick={handleLogout}
+                    className={`w-full text-left px-3 py-2 rounded-md text-base font-medium ${
+                      theme === 'dark'
+                        ? 'hover:bg-gray-700 hover:text-white'
+                        : 'hover:bg-gray-100 hover:text-gray-900'
+                    }`}
+                  >
+                    Logout
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Link
+                    to="/login"
+                    className={`block px-3 py-2 rounded-md text-base font-medium ${
+                      theme === 'dark'
+                        ? 'bg-blue-500 hover:bg-blue-600 text-white'
+                        : 'bg-blue-600 hover:bg-blue-700 text-white'
+                    }`}
+                  >
+                    Login
+                  </Link>
+                  <Link
+                    to="/register"
+                    className={`block px-3 py-2 rounded-md text-base font-medium border ${
+                      theme === 'dark'
+                        ? 'border-gray-600 hover:bg-gray-700'
+                        : 'border-gray-300 hover:bg-gray-100'
+                    }`}
+                  >
+                    Register
+                  </Link>
+                </>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </nav>
   );
 };

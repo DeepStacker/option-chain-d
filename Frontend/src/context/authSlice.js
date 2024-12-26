@@ -1,321 +1,218 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
+import { API_BASE_URL } from '../api/config';
+import { auth as firebaseAuth } from '../firebase/config';
 
-const API_BASE_URL = 'http://16.16.204.22:10001/api/auth';
+const AUTH_API_URL = `${API_BASE_URL}/auth`;
 
 // Configure axios defaults
 axios.defaults.withCredentials = true;
 axios.defaults.headers.common['Accept'] = 'application/json';
 axios.defaults.headers.common['Content-Type'] = 'application/json';
-axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
 
 // Create axios instance with custom config
 const axiosInstance = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: AUTH_API_URL,
   withCredentials: true,
+  timeout: 10000, // 10 seconds timeout
   headers: {
     'Accept': 'application/json',
     'Content-Type': 'application/json',
-    'X-Requested-With': 'XMLHttpRequest'
   }
 });
 
 // Helper function to handle API errors
 const handleApiError = (error) => {
   if (error.response) {
-    // Handle 401 errors by refreshing token
-    if (error.response.status === 401) {
-      return refreshTokenAndRetry(error);
-    }
-    return error.response.data?.message || 'Server error occurred';
+    return error.response.data?.error || 'Server error occurred';
   } else if (error.request) {
     return 'No response from server. Please check your internet connection.';
-  } else {
-    return error.message || 'An error occurred';
   }
+  return error.message || 'An error occurred';
 };
 
-// Function to refresh token and retry failed request
-const refreshTokenAndRetry = async (error) => {
-  try {
-    const refreshToken = localStorage.getItem('refreshToken');
-    if (!refreshToken) {
-      throw new Error('No refresh token available');
+// Async thunk for user login
+export const loginUser = createAsyncThunk(
+  'auth/loginUser',
+  async ({ email, password }, { rejectWithValue, dispatch }) => {
+    try {
+      // Use the helper function for email/password sign-in
+      const auth = getAuth();
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+      
+      // Get ID token
+      const idToken = await user.getIdToken(true);
+      
+      // Send token to backend for verification
+      const response = await axiosInstance.post('/login', { idToken });
+      
+      // Store user data and token in local storage
+      localStorage.setItem('user', JSON.stringify(response.data));
+      localStorage.setItem('token', idToken);
+      
+      dispatch(setUser(response.data));
+      return response.data;
+    } catch (error) {
+      console.error('Login Error:', error);
+      dispatch(setError(error.message || 'Login failed'));
+      return rejectWithValue({ message: error.message || 'Login failed' });
     }
-
-    // Get new access token
-    const response = await axiosInstance.post(`/refresh-token`, {
-      refresh_token: refreshToken
-    });
-
-    // Update tokens
-    const { access_token } = response.data;
-    localStorage.setItem('token', access_token);
-
-    // Update axios default header
-    axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
-
-    // Retry the original request
-    const config = error.config;
-    config.headers['Authorization'] = `Bearer ${access_token}`;
-    return axiosInstance(config);
-  } catch (error) {
-    // If refresh fails, logout user
-    store.dispatch(logout());
-    throw new Error('Session expired. Please login again.');
   }
-};
+);
+
+// Async thunk for user registration
+export const registerUser = createAsyncThunk(
+  'auth/registerUser',
+  async ({ email, password, username }, { rejectWithValue, dispatch }) => {
+    try {
+      // Create user in Firebase Authentication
+      const auth = getAuth();
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      // Get ID token
+      const idToken = await user.getIdToken(true);
+
+      // Send registration request to backend
+      const response = await axiosInstance.post('/register', {
+        email,
+        username,
+        idToken
+      });
+
+      // Store user data and token in local storage
+      localStorage.setItem('user', JSON.stringify(response.data));
+      localStorage.setItem('token', idToken);
+
+      dispatch(setUser(response.data));
+      return response.data;
+    } catch (error) {
+      console.error('Registration Error:', error);
+      
+      // Map Firebase specific errors
+      const firebaseErrorMap = {
+        'auth/email-already-in-use': 'Email is already registered',
+        'auth/invalid-email': 'Invalid email address',
+        'auth/weak-password': 'Password is too weak'
+      };
+
+      const mappedErrorMessage = firebaseErrorMap[error.code] || error.message || 'Registration failed';
+      dispatch(setError(mappedErrorMessage));
+      return rejectWithValue({ message: mappedErrorMessage });
+    }
+  }
+);
+
+// Async thunk for Google login
+export const loginWithGoogle = createAsyncThunk(
+  'auth/loginWithGoogle',
+  async (user, { rejectWithValue, dispatch }) => {
+    try {
+      // Get the ID token
+      const idToken = await user.getIdToken();
+      
+      // Send the token to your backend
+      const response = await axiosInstance.post('/auth/google', { idToken });
+      
+      // Store the token
+      localStorage.setItem('token', response.data.token);
+      
+      dispatch(setUser(response.data.user));
+      return response.data;
+    } catch (error) {
+      console.error('Google Login Error:', error);
+      dispatch(setError(error.message || 'Login failed'));
+      return rejectWithValue(error.response?.data || { message: error.message });
+    }
+  }
+);
 
 // Load initial state from localStorage
 const loadInitialState = () => {
   try {
-    const savedUser = localStorage.getItem('user');
-    const savedToken = localStorage.getItem('token');
-    const savedRefreshToken = localStorage.getItem('refreshToken');
-    const savedTheme = localStorage.getItem('theme');
-    const savedPreferences = localStorage.getItem('preferences');
-
-    // Set axios default header if token exists
-    if (savedToken) {
-      axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${savedToken}`;
-    }
-
+    const user = localStorage.getItem('user');
     return {
-      user: savedUser ? JSON.parse(savedUser) : null,
-      token: savedToken || null,
-      refreshToken: savedRefreshToken || null,
-      theme: savedTheme || 'light',
-      preferences: savedPreferences ? JSON.parse(savedPreferences) : {},
-      isAuthenticated: !!savedUser && !!savedToken,
-      error: null,
-      loading: false
+      user: user ? JSON.parse(user) : null,
+      isAuthenticated: !!user,
+      loading: false,
+      error: null
     };
   } catch (error) {
     console.error('Error loading auth state:', error);
     return {
       user: null,
-      token: null,
-      refreshToken: null,
-      theme: 'light',
-      preferences: {},
       isAuthenticated: false,
-      error: null,
-      loading: false
+      loading: false,
+      error: null
     };
   }
 };
 
-// Async actions
-export const registerUser = createAsyncThunk(
-  'auth/register',
-  async (userData, { rejectWithValue }) => {
-    try {
-      const response = await axiosInstance.post(`/register`, userData, {
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        withCredentials: true
-      });
-      return response.data;
-    } catch (error) {
-      return rejectWithValue(handleApiError(error));
-    }
-  }
-);
-
-export const loginUser = createAsyncThunk(
-  'auth/login',
-  async (credentials, { rejectWithValue }) => {
-    try {
-      console.log('Attempting login with:', credentials);
-      const response = await axiosInstance.post(`/login`, credentials);
-      console.log('Login response:', response.data);
-
-      const { user, access_token, refresh_token } = response.data;
-
-      // Store tokens and user data
-      localStorage.setItem('token', access_token);
-      localStorage.setItem('refreshToken', refresh_token);
-      localStorage.setItem('user', JSON.stringify(user));
-      localStorage.setItem('preferences', JSON.stringify(user.preferences || {}));
-
-      // Set axios default header
-      axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
-
-      return response.data;
-    } catch (error) {
-      console.error('Login error:', error.response?.data || error.message);
-      return rejectWithValue(handleApiError(error));
-    }
-  }
-);
-
-export const logoutUser = createAsyncThunk(
-  'auth/logout',
-  async (_, { rejectWithValue }) => {
-    try {
-      await axiosInstance.post(`/logout`);
-
-      // Clear localStorage
-      localStorage.removeItem('user');
-      localStorage.removeItem('token');
-      localStorage.removeItem('refreshToken');
-      localStorage.removeItem('preferences');
-
-      // Clear axios default header
-      delete axiosInstance.defaults.headers.common['Authorization'];
-
-      return null;
-    } catch (error) {
-      return rejectWithValue(handleApiError(error));
-    }
-  }
-);
-
-export const updateProfile = createAsyncThunk(
-  'auth/updateProfile',
-  async (profileData, { getState, rejectWithValue }) => {
-    try {
-      const response = await axiosInstance.put(`/profile`, profileData, {
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        withCredentials: true
-      });
-      return response.data;
-    } catch (error) {
-      return rejectWithValue(handleApiError(error));
-    }
-  }
-);
-
-export const uploadProfileImage = createAsyncThunk(
-  'auth/uploadProfileImage',
-  async (imageFile, { rejectWithValue }) => {
-    try {
-      const formData = new FormData();
-      formData.append('image', imageFile);
-
-      const response = await axiosInstance.post(`/profile/image`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-        withCredentials: true
-      });
-      return response.data;
-    } catch (error) {
-      return rejectWithValue(handleApiError(error));
-    }
-  }
-);
-
+// Auth slice
 const authSlice = createSlice({
   name: 'auth',
   initialState: loadInitialState(),
   reducers: {
-    updateUserPreferences: (state, action) => {
-      state.preferences = { ...state.preferences, ...action.payload };
-      localStorage.setItem('preferences', JSON.stringify(state.preferences));
-    },
-    setTheme: (state, action) => {
-      state.theme = action.payload;
-      localStorage.setItem('theme', action.payload);
-    },
-    logout(state) {
-      state.user = null;
-      state.token = null;
-      state.refreshToken = null;
-      state.isAuthenticated = false;
-      state.preferences = {};
-      // Clear localStorage
-      localStorage.removeItem('user');
-      localStorage.removeItem('token');
-      localStorage.removeItem('refreshToken');
-      localStorage.removeItem('preferences');
-    },
-    clearError(state) {
+    setUser: (state, action) => {
+      console.log('Setting user in Redux:', action.payload); // Debug log
+      state.user = action.payload;
+      state.isAuthenticated = true;
+      state.loading = false;
       state.error = null;
+      
+      // Store in localStorage
+      try {
+        localStorage.setItem('user', JSON.stringify(action.payload));
+        // Ensure we have the token in localStorage
+        const token = localStorage.getItem('authToken');
+        if (!token && action.payload?.token) {
+          localStorage.setItem('authToken', action.payload.token);
+        }
+        console.log('User stored in localStorage'); // Debug log
+      } catch (error) {
+        console.error('Error storing user in localStorage:', error);
+      }
+    },
+    clearUser: (state) => {
+      console.log('Clearing user from Redux'); // Debug log
+      state.user = null;
+      state.isAuthenticated = false;
+      state.loading = false;
+      state.error = null;
+      // Clear localStorage
+      try {
+        localStorage.removeItem('user');
+        localStorage.removeItem('authToken');
+        console.log('User removed from localStorage'); // Debug log
+      } catch (error) {
+        console.error('Error removing user from localStorage:', error);
+      }
+    },
+    setError: (state, action) => {
+      state.error = action.payload;
+      state.loading = false;
+    },
+    setLoading: (state, action) => {
+      state.loading = action.payload;
     }
-  },
-  extraReducers: (builder) => {
-    builder
-      // Register cases
-      .addCase(registerUser.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(registerUser.fulfilled, (state, action) => {
-        state.loading = false;
-        state.user = action.payload.user;
-        state.token = action.payload.token;
-        state.refreshToken = action.payload.refresh_token;
-        state.isAuthenticated = true;
-        localStorage.setItem('user', JSON.stringify(action.payload.user));
-        localStorage.setItem('token', action.payload.token);
-        localStorage.setItem('refreshToken', action.payload.refresh_token);
-      })
-      .addCase(registerUser.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload;
-      })
-      // Login cases
-      .addCase(loginUser.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(loginUser.fulfilled, (state, action) => {
-        state.loading = false;
-        state.user = action.payload.user;
-        state.token = action.payload.access_token;
-        state.refreshToken = action.payload.refresh_token;
-        state.isAuthenticated = true;
-        state.preferences = action.payload.user.preferences || {};
-      })
-      .addCase(loginUser.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload;
-      })
-      // Logout cases
-      .addCase(logoutUser.fulfilled, (state) => {
-        state.user = null;
-        state.token = null;
-        state.refreshToken = null;
-        state.isAuthenticated = false;
-        state.preferences = {};
-      })
-      // Update profile cases
-      .addCase(updateProfile.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(updateProfile.fulfilled, (state, action) => {
-        state.loading = false;
-        state.user = action.payload.user;
-      })
-      .addCase(updateProfile.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload;
-      })
-      // Upload profile image cases
-      .addCase(uploadProfileImage.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(uploadProfileImage.fulfilled, (state, action) => {
-        state.loading = false;
-        state.user = {
-          ...state.user,
-          profile_image: action.payload.profile_image
-        };
-      })
-      .addCase(uploadProfileImage.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload;
-      });
   }
 });
 
-export const { logout, clearError, updateUserPreferences, setTheme } = authSlice.actions;
-export default authSlice.reducer;
+export const { setUser, clearUser, setError, setLoading } = authSlice.actions;
 
-export const api = axiosInstance;
+// Initialize auth state from localStorage
+export const initializeAuth = () => (dispatch) => {
+  try {
+    const user = localStorage.getItem('user');
+    if (user) {
+      console.log('Initializing auth state with stored user'); // Debug log
+      dispatch(setUser(JSON.parse(user)));
+    }
+  } catch (error) {
+    console.error('Error initializing auth state:', error);
+  }
+};
+
+export default authSlice.reducer;

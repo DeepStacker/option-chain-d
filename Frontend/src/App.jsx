@@ -1,63 +1,76 @@
-import React, { Suspense } from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
+import { initializeAuth } from './context/authSlice';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+
+// Components
 import Login from './components/auth/Login';
 import Register from './components/auth/Register';
-import Profile from './components/auth/Profile';
-import OptionChain from './pages/OptionChain';
 import Dashboard from './pages/Dashboard';
+import Profile from './components/auth/Profile';
+import PrivateRoute from './components/auth/PrivateRoute';
 import ErrorBoundary from './ErrorBoundary';
-import Blog from './pages/Blog';
-import About from './pages/About';
-import ProfitLossCalculator from './pages/Tca';
-import ContactUs from './pages/Contact';
-import Spinner from './components/Spinner';
 import Home from './pages/Home';
+import About from './pages/About';
+import Blog from './pages/Blog';
+import ContactUs from './pages/Contact';
+import Tca from './pages/Tca';
 import PositionSizing from './pages/PositionSizing';
+import OptionChain from './pages/OptionChain';
 import NotFound from './pages/NotFound';
 import MainLayout from './layouts/MainLayout';
 
-// Protected Route component
-const ProtectedRoute = ({ children }) => {
-  const { isAuthenticated } = useSelector((state) => state.auth);
-  return isAuthenticated ? children : <Navigate to="/" />;
-};
-
 function App() {
-  const theme = useSelector((state) => state.theme.theme);
+  const dispatch = useDispatch();
   const { isAuthenticated } = useSelector((state) => state.auth);
+  const theme = useSelector((state) => state.theme.theme);
+
+  useEffect(() => {
+    dispatch(initializeAuth());
+  }, [dispatch]);
 
   return (
-    <Router>
-      <div className={`min-h-screen ${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-100'}`}>
-        <ErrorBoundary>
-          <Suspense fallback={<div>Loading...</div>}>
-            <Routes>
+    <ErrorBoundary>
+      <Router>
+        <div className={theme === 'dark' ? 'dark' : 'light'}>
+          <ToastContainer position="top-right" />
+          <Routes>
+            {/* Auth Routes - No Layout */}
+            <Route 
+              path="/login" 
+              element={!isAuthenticated ? <Login /> : <Navigate to="/dashboard" replace />} 
+            />
+            <Route 
+              path="/register" 
+              element={!isAuthenticated ? <Register /> : <Navigate to="/dashboard" replace />} 
+            />
+
+            {/* Main Layout Routes */}
+            <Route element={<MainLayout />}>
               {/* Public Routes */}
-              <Route path="/" element={
-                isAuthenticated ? <Navigate to="/dashboard" /> : <Login />
-              } />
-              <Route path="/register" element={<Register />} />
+              <Route path="/" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Home />} />
+              <Route path="/about" element={<About />} />
+              <Route path="/blog" element={<Blog />} />
               <Route path="/contact" element={<ContactUs />} />
-              
+
               {/* Protected Routes */}
-              <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
+              <Route element={<PrivateRoute />}>
                 <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/option-chain" element={<OptionChain />} />
-                <Route path="/risk-analysis" element={<ProfitLossCalculator />} />
-                <Route path="/position-sizing" element={<PositionSizing />} />
-                <Route path="/blog" element={<Blog />} />
                 <Route path="/profile" element={<Profile />} />
-                <Route path="/about" element={<About />} />
+                <Route path="/option-chain" element={<OptionChain />} />
+                <Route path="/position-sizing" element={<PositionSizing />} />
+                <Route path="/tca" element={<Tca />} />
               </Route>
-              
-              {/* 404 Route */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </Suspense>
-        </ErrorBoundary>
-      </div>
-    </Router>
+            </Route>
+
+            {/* 404 Route */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </div>
+      </Router>
+    </ErrorBoundary>
   );
 }
 
