@@ -31,12 +31,12 @@ logger = logging.getLogger(__name__)
 CORS(app, resources={
     r"/api/*": {
         "origins": [
+            "https://main.dtruazmd8dsaa.amplifyapp.com",  
+            "https://stockify-oc.vercel.app",
             "http://localhost:3000",  
             "http://localhost:5173",  
             "http://127.0.0.1:3000",  
             "http://127.0.0.1:5173",  
-            "https://stockify-oc.vercel.app",
-            "https://main.dtruazmd8dsaa.amplifyapp.com"  
         ],
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         "allow_headers": [
@@ -110,7 +110,7 @@ mail.init_app(app)
 # Initialize SocketIO with CORS settings
 socketio = SocketIO(
     app,
-    cors_allowed_origins=["http://localhost:5173", "https://stockify-oc.vercel.app", "http://16.16.204.22:10001"],
+    cors_allowed_origins=["https://main.dtruazmd8dsaa.amplifyapp.com","http://localhost:5173", "https://stockify-oc.vercel.app", "http://16.16.204.22:10001"],
     async_mode="threading",
     ping_timeout=10,
     ping_interval=5,
