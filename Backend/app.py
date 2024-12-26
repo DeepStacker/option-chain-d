@@ -32,8 +32,11 @@ CORS(app, resources={
     r"/api/*": {
         "origins": [
             "http://localhost:3000",  
+            "http://localhost:5173",  
             "http://127.0.0.1:3000",  
-            "https://stockify-oc.vercel.app"  
+            "http://127.0.0.1:5173",  
+            "https://stockify-oc.vercel.app",
+            "https://main.dtruazmd8dsaa.amplifyapp.com"  
         ],
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         "allow_headers": [
@@ -62,7 +65,7 @@ def add_security_headers(response):
 @app.after_request
 def after_request(response):
     origin = request.headers.get('Origin')
-    if origin in ["http://localhost:5173", "https://stockify-oc.vercel.app", "http://16.16.204.22:10001"]:
+    if origin in ["http://localhost:5173","https://main.dtruazmd8dsaa.amplifyapp.com", "https://stockify-oc.vercel.app", "http://16.16.204.22:10001","http://13.126.55.152:5000","http://13.126.55.152:10001"]:
         response.headers['Access-Control-Allow-Origin'] = origin
         response.headers['Access-Control-Allow-Credentials'] = 'true'
         response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
@@ -85,7 +88,7 @@ app.config["MAIL_USERNAME"] = os.environ.get("MAIL_USERNAME")
 app.config["MAIL_PASSWORD"] = os.environ.get("MAIL_PASSWORD")
 app.config["MAIL_DEFAULT_SENDER"] = os.environ.get("MAIL_USERNAME")
 app.config["FRONTEND_URL"] = os.environ.get(
-    "FRONTEND_URL", "https://stockify-oc.vercel.app"
+    "FRONTEND_URL", ["https://stockify-oc.vercel.app", "https://main.dtruazmd8dsaa.amplifyapp.com"]
 )
 
 # Upload folder configuration
