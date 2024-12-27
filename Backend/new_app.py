@@ -111,7 +111,7 @@ def broadcast_live_data(client_id, sid, exp_sid):
             # Here you would typically fetch live data
             live_data = App.get_live_data(sid, exp_sid)
             socketio.emit("live_data", live_data, room=client_id)
-            time.sleep(0)  # No delay for real-time data
+            time.sleep(10)  # No delay for real-time data
             
         except Exception as e:
             logger.error(f"Error in live data broadcast - Client ID: {client_id}: {str(e)}")
