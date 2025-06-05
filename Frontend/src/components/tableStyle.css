@@ -1,0 +1,33 @@
+/* Hide the scrollbar */
+.scrollbar-hide::-webkit-scrollbar {
+    display: none; /* Safari and Chrome */
+  }
+  
+  /* For Firefox */
+  .scrollbar-hide {
+    scrollbar-width: none; /* Hide scrollbar */
+  }
+  
+  /* For Custom Scrollbar Styles */
+  .scrollbar-hide {
+    overflow-y: scroll; /* Enable vertical scrolling */
+  }
+  
+  /* Custom Scrollbar for Webkit browsers */
+  .scrollbar-hide::-webkit-scrollbar {
+    width: 8px; /* Width of the scrollbar */
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar-thumb {
+    background: #bd2727; /* Color of the scrollbar */
+    border-radius: 50px; /* Rounded corners */
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar-thumb:hover {
+    background: #c72b2b; /* Color when hovering over the scrollbar */
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar-track {
+    background: transparent; /* Background of the scrollbar track */
+  }
+  
