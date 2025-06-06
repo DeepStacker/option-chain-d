@@ -318,6 +318,36 @@ const Navbar = () => {
               {!isAuthenticated && (
                 <div className="hidden sm:flex items-center space-x-2">
                   <Link
+                    to="/blog"
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200 ${
+                      theme === "dark"
+                        ? "text-gray-300 hover:bg-gray-800"
+                        : "text-gray-700 hover:bg-gray-100"
+                    }`}
+                  >
+                    Blog
+                  </Link>
+                  <Link
+                    to="/about"
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200 ${
+                      theme === "dark"
+                        ? "text-gray-300 hover:bg-gray-800"
+                        : "text-gray-700 hover:bg-gray-100"
+                    }`}
+                  >
+                    About
+                  </Link>
+                  <Link
+                    to="/contact"
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200 ${
+                      theme === "dark"
+                        ? "text-gray-300 hover:bg-gray-800"
+                        : "text-gray-700 hover:bg-gray-100"
+                    }`}
+                  >
+                    Cantact
+                  </Link>
+                  <Link
                     to="/login"
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200 ${
                       theme === "dark"

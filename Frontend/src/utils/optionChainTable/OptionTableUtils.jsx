@@ -1,22 +1,33 @@
 // src/utils/optionChainTable/OptionTableUtils.js
 import React, { memo, useMemo, useCallback } from "react";
 import PropTypes from "prop-types";
+import { FixedSizeList as List } from "react-window";
 import { formatNumber, toFixed } from "../utils";
 
-// Memoized utility functions for better performance
-const getBackgroundClass = memo((oc, strike, type) => {
-  if (!oc?.sltp || !strike) return "";
-  return type === "ce"
-    ? oc.sltp > strike
-      ? "bg-itm-highlight"
-      : ""
-    : oc.sltp < strike
-    ? "bg-itm-highlight"
-    : "";
-});
+// Optimized utility functions without console logs for production performance
+const getBackgroundClass = (strike, type, sltp, isItmHighlighting) => {
+  if (!sltp || !strike || !isItmHighlighting) return "";
+
+  const strikePrice = parseFloat(strike);
+  const spotPrice = parseFloat(sltp);
+
+  if (isNaN(strikePrice) || isNaN(spotPrice)) return "";
+
+  // For Call Options (CE): ITM when strike < spot price
+  if (type === "ce") {
+    return strikePrice < spotPrice ? "bg-itm-highlight" : "";
+  }
+
+  // For Put Options (PE): ITM when strike > spot price
+  if (type === "pe") {
+    return strikePrice > spotPrice ? "bg-itm-highlight" : "";
+  }
+
+  return "";
+};
 
 const getHighlightClass = (abs, value, isHighlighting, isCe) => {
-  if (isNaN(value) || !isHighlighting || value === undefined || value === null)
+  if (isNaN(abs) || !isHighlighting || value === undefined || value === null)
     return "";
 
   const baseClass = isCe
@@ -35,7 +46,7 @@ const getHighlightClass = (abs, value, isHighlighting, isCe) => {
 
 const getHighlightTextClass = (abs) => {
   if (abs === undefined || abs === null || isNaN(abs)) return "";
-  return abs <= 0 ? "text-red-500" : "text-green-700";
+  return abs <= 0 ? "text-red-500" : "text-green-400";
 };
 
 const getPCRClass = (pcr) => {
@@ -43,13 +54,12 @@ const getPCRClass = (pcr) => {
   return pcr > 1.2 ? "text-green-700" : pcr < 0.8 ? "text-red-500" : "";
 };
 
-// Optimized clipboard copy function with error handling
+// Optimized clipboard copy function
 const copyToClipboard = async (text, showAlert = false) => {
   try {
     if (navigator.clipboard && window.isSecureContext) {
       await navigator.clipboard.writeText(text.toString());
     } else {
-      // Fallback for older browsers or non-secure contexts
       const textArea = document.createElement("textarea");
       textArea.value = text;
       textArea.style.position = "fixed";
@@ -63,7 +73,6 @@ const copyToClipboard = async (text, showAlert = false) => {
     }
 
     if (showAlert) {
-      // You can replace this with a toast notification for better UX
       console.log(`Copied: ${text}`);
     }
   } catch (err) {
@@ -71,7 +80,64 @@ const copyToClipboard = async (text, showAlert = false) => {
   }
 };
 
-// Memoized DataCell component with enhanced performance
+// Helper function to check if a class has background
+const hasBackgroundClass = (className) => {
+  return (
+    className &&
+    (className.includes("bg-red-500") ||
+      className.includes("bg-green-500") ||
+      className.includes("bg-yellow-300") ||
+      className.includes("bg-yellow-100"))
+  );
+};
+
+// Memoized class calculation component
+const OptimizedClasses = memo(
+  ({
+    strike,
+    type,
+    sltp,
+    isItmHighlighting,
+    cellValue,
+    maxValue,
+    isHighlighting,
+    isCe,
+  }) => {
+    return useMemo(() => {
+      const backgroundClass = getBackgroundClass(
+        strike,
+        type,
+        sltp,
+        isItmHighlighting
+      );
+      const highlightClass = getHighlightClass(
+        cellValue,
+        maxValue,
+        isHighlighting,
+        isCe
+      );
+
+      return {
+        backgroundClass,
+        highlightClass,
+        finalClass: `${
+          hasBackgroundClass(highlightClass) ? "" : backgroundClass
+        } ${highlightClass}`.trim(),
+      };
+    }, [
+      strike,
+      type,
+      sltp,
+      isItmHighlighting,
+      cellValue,
+      maxValue,
+      isHighlighting,
+      isCe,
+    ]);
+  }
+);
+
+// Optimized DataCell component with performance improvements
 const DataCell = memo(
   ({
     data,
@@ -80,8 +146,12 @@ const DataCell = memo(
     strike,
     handlePercentageClick,
     isHighlighting,
+    isItmHighlighting,
     oc,
+    sltp,
   }) => {
+    if (!data) return <td className="p-0 text-center">-</td>;
+
     const cellValue = data?.[valueKey];
     const maxValue = data?.[`${valueKey}_max_value`];
     const percentageValue = data?.[`${valueKey}_percentage`];
@@ -92,25 +162,64 @@ const DataCell = memo(
       }
     }, [handlePercentageClick, isCe, strike, oc]);
 
-    const highlightClass = useMemo(
-      () => getHighlightClass(cellValue, maxValue, isHighlighting, isCe),
-      [cellValue, maxValue, isHighlighting, isCe]
+    // Memoize class calculations with proper dependencies
+    const { finalClass } = useMemo(() => {
+      const backgroundClass = getBackgroundClass(
+        strike,
+        isCe ? "ce" : "pe",
+        sltp,
+        isItmHighlighting
+      );
+      const highlightClass = getHighlightClass(
+        cellValue,
+        maxValue,
+        isHighlighting,
+        isCe
+      );
+
+      return {
+        backgroundClass,
+        highlightClass,
+        finalClass: `${
+          hasBackgroundClass(highlightClass) ? "" : backgroundClass
+        } ${highlightClass}`.trim(),
+      };
+    }, [
+      strike,
+      isCe,
+      sltp,
+      isItmHighlighting,
+      cellValue,
+      maxValue,
+      isHighlighting,
+    ]);
+
+    // Memoize formatted values to prevent recalculation
+    const formattedPercentage = useMemo(
+      () => formatNumber(percentageValue),
+      [percentageValue]
+    );
+    const formattedValue = useMemo(() => formatNumber(cellValue), [cellValue]);
+
+    const handleKeyDown = useCallback(
+      (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          handleClick();
+        }
+      },
+      [handleClick]
     );
 
     return (
       <td
         onClick={handleClick}
-        className={`${highlightClass} cursor-pointer hover:opacity-80 transition-opacity duration-150 p-0 text-center`}
+        className={`${finalClass} cursor-pointer hover:opacity-80 transition-opacity duration-150 p-0 text-center`}
         role="button"
         tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            handleClick();
-          }
-        }}
+        onKeyDown={handleKeyDown}
       >
-        <div className="font-medium">{formatNumber(percentageValue)}%</div>
-        <small className="text-xs opacity-75">{formatNumber(cellValue)}</small>
+        <div className="font-medium">{formattedPercentage}%</div>
+        <small className="text-xs opacity-75">{formattedValue}</small>
       </td>
     );
   }
@@ -123,14 +232,27 @@ DataCell.propTypes = {
   strike: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
   handlePercentageClick: PropTypes.func,
   isHighlighting: PropTypes.bool,
+  isItmHighlighting: PropTypes.bool,
   oc: PropTypes.object,
+  sltp: PropTypes.number,
 };
 
 DataCell.displayName = "DataCell";
 
-// Memoized DeltaDataCell component
+// Optimized DeltaDataCell component
 const DeltaDataCell = memo(
-  ({ data, valueKey, strike, isCe, handleDeltaClick, isHighlighting }) => {
+  ({
+    data,
+    valueKey,
+    strike,
+    isCe,
+    handleDeltaClick,
+    isHighlighting,
+    isItmHighlighting,
+    sltp,
+  }) => {
+    if (!data) return <td className="p-0 text-center">-</td>;
+
     const cellValue = data?.[valueKey];
     const maxValue = data?.[`${valueKey}_max_value`];
     const percentageValue = data?.[`${valueKey}_percentage`];
@@ -141,25 +263,62 @@ const DeltaDataCell = memo(
       }
     }, [handleDeltaClick, strike]);
 
-    const highlightClass = useMemo(
-      () => getHighlightClass(cellValue, maxValue, isHighlighting, isCe),
-      [cellValue, maxValue, isHighlighting, isCe]
+    const { finalClass } = useMemo(() => {
+      const backgroundClass = getBackgroundClass(
+        strike,
+        isCe ? "ce" : "pe",
+        sltp,
+        isItmHighlighting
+      );
+      const highlightClass = getHighlightClass(
+        cellValue,
+        maxValue,
+        isHighlighting,
+        isCe
+      );
+
+      return {
+        backgroundClass,
+        highlightClass,
+        finalClass: `${
+          hasBackgroundClass(highlightClass) ? "" : backgroundClass
+        } ${highlightClass}`.trim(),
+      };
+    }, [
+      strike,
+      isCe,
+      sltp,
+      isItmHighlighting,
+      cellValue,
+      maxValue,
+      isHighlighting,
+    ]);
+
+    const formattedPercentage = useMemo(
+      () => formatNumber(percentageValue),
+      [percentageValue]
+    );
+    const formattedValue = useMemo(() => formatNumber(cellValue), [cellValue]);
+
+    const handleKeyDown = useCallback(
+      (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          handleClick();
+        }
+      },
+      [handleClick]
     );
 
     return (
       <td
         onClick={handleClick}
-        className={`${highlightClass} cursor-pointer hover:opacity-80 transition-opacity duration-150 p-0 text-center`}
+        className={`${finalClass} cursor-pointer hover:opacity-80 transition-opacity duration-150 p-0 text-center`}
         role="button"
         tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            handleClick();
-          }
-        }}
+        onKeyDown={handleKeyDown}
       >
-        <div className="font-medium">{formatNumber(percentageValue)}%</div>
-        <small className="text-xs opacity-75">{formatNumber(cellValue)}</small>
+        <div className="font-medium">{formattedPercentage}%</div>
+        <small className="text-xs opacity-75">{formattedValue}</small>
       </td>
     );
   }
@@ -172,13 +331,27 @@ DeltaDataCell.propTypes = {
   isCe: PropTypes.bool.isRequired,
   handleDeltaClick: PropTypes.func,
   isHighlighting: PropTypes.bool,
+  isItmHighlighting: PropTypes.bool,
+  sltp: PropTypes.number,
 };
 
 DeltaDataCell.displayName = "DeltaDataCell";
 
-// Memoized IVDataCell component
+// Optimized IVDataCell component
 const IVDataCell = memo(
-  ({ data, valueKey, strike, isCe, handleIVClick, isHighlighting, oc }) => {
+  ({
+    data,
+    valueKey,
+    strike,
+    isCe,
+    handleIVClick,
+    isHighlighting,
+    isItmHighlighting,
+    oc,
+    sltp,
+  }) => {
+    if (!data) return <td className="p-0 text-center">-</td>;
+
     const cellValue = data?.[valueKey];
     const deltaValue = data?.optgeeks?.delta;
 
@@ -188,25 +361,57 @@ const IVDataCell = memo(
       }
     }, [handleIVClick, isCe, strike, oc]);
 
-    const highlightClass = useMemo(
-      () => getHighlightClass(cellValue, cellValue, isHighlighting, isCe),
-      [cellValue, isHighlighting, isCe]
+    const { finalClass } = useMemo(() => {
+      const backgroundClass = getBackgroundClass(
+        strike,
+        isCe ? "ce" : "pe",
+        sltp,
+        isItmHighlighting
+      );
+      const highlightClass = getHighlightClass(
+        cellValue,
+        cellValue,
+        isHighlighting,
+        isCe
+      );
+
+      return {
+        backgroundClass,
+        highlightClass,
+        finalClass: `${
+          hasBackgroundClass(highlightClass) ? "" : backgroundClass
+        } ${highlightClass}`.trim(),
+      };
+    }, [strike, isCe, sltp, isItmHighlighting, cellValue, isHighlighting]);
+
+    const formattedCellValue = useMemo(
+      () => formatNumber(cellValue),
+      [cellValue]
+    );
+    const formattedDeltaValue = useMemo(
+      () => formatNumber(deltaValue),
+      [deltaValue]
+    );
+
+    const handleKeyDown = useCallback(
+      (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          handleClick();
+        }
+      },
+      [handleClick]
     );
 
     return (
       <td
         onClick={handleClick}
-        className={`${highlightClass} cursor-pointer hover:opacity-80 transition-opacity duration-150 p-0 text-center`}
+        className={`${finalClass} cursor-pointer hover:opacity-80 transition-opacity duration-150 p-0 text-center`}
         role="button"
         tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            handleClick();
-          }
-        }}
+        onKeyDown={handleKeyDown}
       >
-        <div className="font-medium">{formatNumber(cellValue)}</div>
-        <small className="text-xs opacity-75">{formatNumber(deltaValue)}</small>
+        <div className="font-medium">{formattedCellValue}</div>
+        <small className="text-xs opacity-75">{formattedDeltaValue}</small>
       </td>
     );
   }
@@ -219,46 +424,63 @@ IVDataCell.propTypes = {
   isCe: PropTypes.bool.isRequired,
   handleIVClick: PropTypes.func,
   isHighlighting: PropTypes.bool,
+  isItmHighlighting: PropTypes.bool,
   oc: PropTypes.object,
+  sltp: PropTypes.number,
 };
 
 IVDataCell.displayName = "IVDataCell";
 
-// Memoized LTP Cell component
-const LTPCell = memo(({ data, reversal, strike, theme, type }) => {
-  const ltp = data?.ltp;
-  const pChng = data?.p_chng;
-  const tvKey = type === "ce" ? "ce_tv" : "pe_tv";
-  const tvValue = reversal?.[strike]?.reversal?.[tvKey];
+// Optimized LTP Cell component
+const LTPCell = memo(
+  ({ data, reversal, strike, theme, type, sltp, isItmHighlighting }) => {
+    if (!data) return <td className="p-0 text-center">-</td>;
 
-  const tvDifference = useMemo(() => {
-    if (typeof tvValue === "number" && typeof ltp === "number") {
-      return (ltp - tvValue).toFixed(0);
-    }
-    return 0;
-  }, [ltp, tvValue]);
+    const ltp = data?.ltp;
+    const pChng = data?.p_chng;
+    const tvKey = type === "ce" ? "ce_tv" : "pe_tv";
+    const tvValue = reversal?.[strike]?.[tvKey];
 
-  const pChngClass = useMemo(() => getHighlightTextClass(pChng), [pChng]);
-  const tvDiffClass = useMemo(
-    () => getHighlightTextClass(tvDifference),
-    [tvDifference]
-  );
-  const themeTextClass = theme === "dark" ? "text-white" : "text-black";
+    const tvDifference = useMemo(() => {
+      if (typeof tvValue === "number" && typeof ltp === "number") {
+        return (ltp - tvValue).toFixed(0);
+      }
+      return 0;
+    }, [ltp, tvValue]);
 
-  return (
-    <td className="p-0 text-center">
-      <div className="font-medium">{formatNumber(ltp)}</div>
-      <small
-        className={`${pChngClass} text-xs flex items-center justify-center gap-0`}
-      >
-        <span>{formatNumber(pChng)}</span>
-        <span className={themeTextClass}>(</span>
-        <span className={tvDiffClass}>{tvDifference}</span>
-        <span className={themeTextClass}>)</span>
-      </small>
-    </td>
-  );
-});
+    const pChngClass = useMemo(() => getHighlightTextClass(pChng), [pChng]);
+    const tvDiffClass = useMemo(
+      () => getHighlightTextClass(tvDifference),
+      [tvDifference]
+    );
+    const themeTextClass = useMemo(
+      () => (theme === "dark" ? "text-white" : "text-black"),
+      [theme]
+    );
+
+    const backgroundClass = useMemo(
+      () => getBackgroundClass(strike, type, sltp, isItmHighlighting),
+      [strike, type, sltp, isItmHighlighting]
+    );
+
+    const formattedLtp = useMemo(() => formatNumber(ltp), [ltp]);
+    const formattedPChng = useMemo(() => formatNumber(pChng), [pChng]);
+
+    return (
+      <td className={`p-0 text-center ${backgroundClass}`}>
+        <div className="font-medium">{formattedLtp}</div>
+        <small
+          className={`${pChngClass} text-xs flex items-center justify-center gap-0`}
+        >
+          <span>{formattedPChng}</span>
+          <span className={themeTextClass}>(</span>
+          <span className={tvDiffClass}>{tvDifference}</span>
+          <span className={themeTextClass}>)</span>
+        </small>
+      </td>
+    );
+  }
+);
 
 LTPCell.propTypes = {
   data: PropTypes.object.isRequired,
@@ -266,47 +488,83 @@ LTPCell.propTypes = {
   strike: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
   theme: PropTypes.string.isRequired,
   type: PropTypes.oneOf(["ce", "pe"]).isRequired,
+  sltp: PropTypes.number,
+  isItmHighlighting: PropTypes.bool,
 };
 
 LTPCell.displayName = "LTPCell";
 
-// Memoized Reversal Cell component
-const ReversalCell = memo(({ value, title, showAlert = false }) => {
-  const handleClick = useCallback(async () => {
-    await copyToClipboard(value || 0, showAlert);
-  }, [value, showAlert]);
+// Optimized Reversal Cell component
+const ReversalCell = memo(
+  ({
+    value,
+    title,
+    showAlert = false,
+    strike,
+    type,
+    sltp,
+    isItmHighlighting,
+  }) => {
+    // No data check needed here as 'value' is passed directly
 
-  return (
-    <td
-      onClick={handleClick}
-      className="cursor-pointer hover:bg-opacity-80 transition-colors duration-150 p-0 text-center font-medium"
-      title={title}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => {
+    const handleClick = useCallback(async () => {
+      await copyToClipboard(value || 0, showAlert);
+    }, [value, showAlert]);
+
+    const backgroundClass = useMemo(
+      () => getBackgroundClass(strike, type, sltp, isItmHighlighting),
+      [strike, type, sltp, isItmHighlighting]
+    );
+
+    const handleKeyDown = useCallback(
+      (e) => {
         if (e.key === "Enter" || e.key === " ") {
           handleClick();
         }
-      }}
-    >
-      {value || 0}
-    </td>
-  );
-});
+      },
+      [handleClick]
+    );
+
+    return (
+      <td
+        onClick={handleClick}
+        className={`${backgroundClass} cursor-pointer hover:bg-opacity-80 transition-colors duration-150 p-0 text-center font-medium`}
+        title={title}
+        role="button"
+        tabIndex={0}
+        onKeyDown={handleKeyDown}
+      >
+        {value || 0}
+      </td>
+    );
+  }
+);
 
 ReversalCell.propTypes = {
   value: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
   title: PropTypes.string,
   showAlert: PropTypes.bool,
+  strike: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+  type: PropTypes.oneOf(["ce", "pe"]),
+  sltp: PropTypes.number,
+  isItmHighlighting: PropTypes.bool,
 };
 
 ReversalCell.displayName = "ReversalCell";
 
-// Memoized Strike Cell component
+// Optimized Strike Cell component
 const StrikeCell = memo(
   ({ strike, oiRatio, oiChngRatio, theme, handleReversalClick, oc }) => {
-    const themeClass = theme === "dark" ? "bg-gray-700" : "bg-gray-300";
-    const strikeCellClass = `font-bold border-spacing-y-1 border border-gray-950 ${themeClass}`;
+    // No data check needed here as strike, oiRatio, oiChngRatio are passed directly
+
+    const themeClass = useMemo(
+      () => (theme === "dark" ? "bg-gray-700" : "bg-gray-300"),
+      [theme]
+    );
+    const strikeCellClass = useMemo(
+      () => `font-bold border-spacing-y-1 border border-gray-950 ${themeClass}`,
+      [themeClass]
+    );
 
     const handleClick = useCallback(() => {
       if (handleReversalClick) {
@@ -320,26 +578,37 @@ const StrikeCell = memo(
       [oiChngRatio]
     );
 
+    const formattedOiRatio = useMemo(() => toFixed(oiRatio), [oiRatio]);
+    const formattedOiChngRatio = useMemo(
+      () => toFixed(oiChngRatio),
+      [oiChngRatio]
+    );
+
+    const handleKeyDown = useCallback(
+      (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          handleClick();
+        }
+      },
+      [handleClick]
+    );
+
     return (
       <td
         className={`${strikeCellClass} cursor-pointer hover:opacity-90 transition-opacity duration-150 p-0 text-center`}
         onClick={handleClick}
         role="button"
         tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            handleClick();
-          }
-        }}
+        onKeyDown={handleKeyDown}
       >
         <div className="font-bold text-lg">{strike}</div>
         <div className="text-xs flex items-center justify-center gap-0">
           <small className={`font-normal ${oiRatioClass}`}>
-            {toFixed(oiRatio)}
+            {formattedOiRatio}
           </small>
           <span>/</span>
           <small className={`font-normal ${oiChngRatioClass}`}>
-            {toFixed(oiChngRatio)}
+            {formattedOiChngRatio}
           </small>
         </div>
       </td>
@@ -358,60 +627,193 @@ StrikeCell.propTypes = {
 
 StrikeCell.displayName = "StrikeCell";
 
-// Main renderStrikeRow function with optimizations
-export function renderStrikeRow(
-  strikeData,
-  strike,
-  isHighlighting,
-  optionChain,
-  handlePercentageClick,
-  handleDeltaClick,
-  handleIVClick,
-  handleReversalClick,
-  theme
-) {
-  // Early return if no data
-  if (!strikeData) {
-    return null;
-  }
+// Virtualized Strike Row Component for performance
+const VirtualizedStrikeRow = memo(({ index, style, data }) => {
+  const {
+    strikes,
+    strikeDataMap,
+    isHighlighting,
+    isItmHighlighting,
+    optionChain,
+    handlePercentageClick,
+    handleDeltaClick,
+    handleIVClick,
+    handleReversalClick,
+    theme,
+    sltp,
+  } = data;
+
+  const strike = strikes[index];
+  const strikeData = strikeDataMap[strike];
+
+  if (!strikeData) return <div style={style} />;
 
   const { ce: ceData = {}, pe: peData = {} } = strikeData;
   const oc = optionChain || {};
   const reversal = oc?.oc || {};
 
-  // Memoized calculations
-  const strikeKeys = useMemo(() => Object.keys(reversal), [reversal]);
-  const strikeDiff = useMemo(() => {
-    if (strikeKeys.length >= 2) {
-      return strikeKeys[1] - strikeKeys[0];
-    }
-    return 0;
-  }, [strikeKeys]);
+  // Memoize expensive calculations to prevent recalculation on every render
+  const calculations = useMemo(() => {
+    const strikeKeys = Object.keys(reversal);
+    const strikeDiff =
+      strikeKeys.length >= 2
+        ? parseFloat(strikeKeys[1]) - parseFloat(strikeKeys[0])
+        : 0;
 
-  // Precompute ratios with safe division
-  const oiRatio = useMemo(() => {
-    if (peData?.OI && ceData?.OI && ceData.OI !== 0) {
-      return peData.OI / ceData.OI;
-    }
-    return 0;
-  }, [peData?.OI, ceData?.OI]);
+    const oiRatio =
+      peData?.OI && ceData?.OI && ceData.OI !== 0 ? peData.OI / ceData.OI : 0;
 
-  const oiChngRatio = useMemo(() => {
-    if (peData?.oichng && ceData?.oichng && ceData.oichng !== 0) {
-      return peData.oichng / ceData.oichng;
-    }
-    return 0;
-  }, [peData?.oichng, ceData?.oichng]);
+    const oiChngRatio =
+      peData?.oichng && ceData?.oichng && ceData.oichng !== 0
+        ? peData.oichng / ceData.oichng
+        : 0;
 
-  // Memoized reversal values
-  const ceReversalValue = useMemo(() => {
-    const baseValue = strikeData?.reversal || 0;
-    return baseValue + strikeDiff;
-  }, [strikeData?.reversal, strikeDiff]);
+    const ceReversalValue = (strikeData?.reversal || 0) + strikeDiff;
+    const peReversalValue = strikeData?.reversal || 0;
 
-  const peReversalValue = useMemo(() => {
-    return strikeData?.reversal || 0;
-  }, [strikeData?.reversal]);
+    return { oiRatio, oiChngRatio, ceReversalValue, peReversalValue };
+  }, [strikeData, reversal, ceData, peData]);
+
+  const { oiRatio, oiChngRatio, ceReversalValue, peReversalValue } =
+    calculations;
+
+  return (
+    <div style={style} className="flex">
+      <table className="w-full table-fixed">
+        <tbody>
+          <tr>
+            {renderStrikeRow(
+              strikeData,
+              strike,
+              isHighlighting,
+              isItmHighlighting,
+              optionChain,
+              handlePercentageClick,
+              handleDeltaClick,
+              handleIVClick,
+              handleReversalClick,
+              theme,
+              sltp,
+              oiRatio, // Pass calculated values
+              oiChngRatio, // Pass calculated values
+              ceReversalValue, // Pass calculated values
+              peReversalValue // Pass calculated values
+            )}
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  );
+});
+
+VirtualizedStrikeRow.displayName = "VirtualizedStrikeRow";
+
+// Main Virtualized Option Chain Table Component
+export const VirtualizedOptionChainTable = memo(
+  ({
+    strikes = [],
+    strikeDataMap = {},
+    isHighlighting = false,
+    isItmHighlighting = false,
+    optionChain = {},
+    handlePercentageClick,
+    handleDeltaClick,
+    handleIVClick,
+    handleReversalClick,
+    theme = "light",
+    sltp,
+    height = 600,
+    rowHeight = 60,
+  }) => {
+    // Memoize the data object to prevent unnecessary re-renders
+    const itemData = useMemo(
+      () => ({
+        strikes,
+        strikeDataMap,
+        isHighlighting,
+        isItmHighlighting,
+        optionChain,
+        handlePercentageClick,
+        handleDeltaClick,
+        handleIVClick,
+        handleReversalClick,
+        theme,
+        sltp,
+      }),
+      [
+        strikes,
+        strikeDataMap,
+        isHighlighting,
+        isItmHighlighting,
+        optionChain,
+        handlePercentageClick,
+        handleDeltaClick,
+        handleIVClick,
+        handleReversalClick,
+        theme,
+        sltp,
+      ]
+    );
+
+    return (
+      <div className="option-chain-virtualized">
+        <List
+          height={height}
+          itemCount={strikes.length}
+          itemSize={rowHeight}
+          itemData={itemData}
+          overscanCount={5}
+          className="option-chain-list"
+        >
+          {VirtualizedStrikeRow}
+        </List>
+      </div>
+    );
+  }
+);
+
+VirtualizedOptionChainTable.propTypes = {
+  strikes: PropTypes.array,
+  strikeDataMap: PropTypes.object,
+  isHighlighting: PropTypes.bool,
+  isItmHighlighting: PropTypes.bool,
+  optionChain: PropTypes.object,
+  handlePercentageClick: PropTypes.func,
+  handleDeltaClick: PropTypes.func,
+  handleIVClick: PropTypes.func,
+  handleReversalClick: PropTypes.func,
+  theme: PropTypes.string,
+  sltp: PropTypes.number,
+  height: PropTypes.number,
+  rowHeight: PropTypes.number,
+};
+
+VirtualizedOptionChainTable.displayName = "VirtualizedOptionChainTable";
+
+// Optimized renderStrikeRow function with memoized calculations
+export function renderStrikeRow(
+  strikeData,
+  strike,
+  isHighlighting,
+  isItmHighlighting,
+  optionChain,
+  handlePercentageClick,
+  handleDeltaClick,
+  handleIVClick,
+  handleReversalClick,
+  theme,
+  sltp,
+  oiRatio, // Added oiRatio parameter
+  oiChngRatio, // Added oiChngRatio parameter
+  ceReversalValue, // Added ceReversalValue parameter
+  peReversalValue // Added peReversalValue parameter
+) {
+  if (!strikeData) return null;
+
+  const ceData = strikeData?.ce || {};
+  const peData = strikeData?.pe || {};
+  const oc = optionChain || {};
+  const reversal = oc?.oc || {};
 
   return (
     <React.Fragment key={`strike-${strike}`}>
@@ -423,7 +825,9 @@ export function renderStrikeRow(
         isCe={true}
         handleIVClick={handleIVClick}
         isHighlighting={isHighlighting}
+        isItmHighlighting={isItmHighlighting}
         oc={oc}
+        sltp={sltp}
       />
 
       <DeltaDataCell
@@ -433,6 +837,8 @@ export function renderStrikeRow(
         isCe={true}
         handleDeltaClick={handleDeltaClick}
         isHighlighting={isHighlighting}
+        isItmHighlighting={isItmHighlighting}
+        sltp={sltp}
       />
 
       <DataCell
@@ -442,7 +848,9 @@ export function renderStrikeRow(
         strike={strike}
         handlePercentageClick={handlePercentageClick}
         isHighlighting={isHighlighting}
+        isItmHighlighting={isItmHighlighting}
         oc={oc}
+        sltp={sltp}
       />
 
       <DataCell
@@ -452,25 +860,30 @@ export function renderStrikeRow(
         strike={strike}
         handlePercentageClick={handlePercentageClick}
         isHighlighting={isHighlighting}
+        isItmHighlighting={isItmHighlighting}
         oc={oc}
+        sltp={sltp}
       />
 
-      {/* CE LTP Cell */}
       <LTPCell
         data={ceData}
         reversal={reversal}
         strike={strike}
         theme={theme}
         type="ce"
+        sltp={sltp}
+        isItmHighlighting={isItmHighlighting}
       />
 
-      {/* CE Reversal Cell */}
       <ReversalCell
         value={ceReversalValue}
         title="Click to copy CE reversal value"
+        strike={strike}
+        type="ce"
+        sltp={sltp}
+        isItmHighlighting={isItmHighlighting}
       />
 
-      {/* Strike Price Cell */}
       <StrikeCell
         strike={strike}
         oiRatio={oiRatio}
@@ -480,22 +893,25 @@ export function renderStrikeRow(
         oc={oc}
       />
 
-      {/* PE Reversal Cell */}
       <ReversalCell
         value={peReversalValue}
         title="Click to copy PE reversal value"
+        strike={strike}
+        type="pe"
+        sltp={sltp}
+        isItmHighlighting={isItmHighlighting}
       />
 
-      {/* PE LTP Cell */}
       <LTPCell
         data={peData}
         reversal={reversal}
         strike={strike}
         theme={theme}
         type="pe"
+        sltp={sltp}
+        isItmHighlighting={isItmHighlighting}
       />
 
-      {/* PE Data Cells */}
       <DataCell
         data={peData}
         valueKey="vol"
@@ -503,7 +919,9 @@ export function renderStrikeRow(
         strike={strike}
         handlePercentageClick={handlePercentageClick}
         isHighlighting={isHighlighting}
+        isItmHighlighting={isItmHighlighting}
         oc={oc}
+        sltp={sltp}
       />
 
       <DataCell
@@ -513,7 +931,9 @@ export function renderStrikeRow(
         strike={strike}
         handlePercentageClick={handlePercentageClick}
         isHighlighting={isHighlighting}
+        isItmHighlighting={isItmHighlighting}
         oc={oc}
+        sltp={sltp}
       />
 
       <DeltaDataCell
@@ -523,6 +943,8 @@ export function renderStrikeRow(
         isCe={false}
         handleDeltaClick={handleDeltaClick}
         isHighlighting={isHighlighting}
+        isItmHighlighting={isItmHighlighting}
+        sltp={sltp}
       />
 
       <IVDataCell
@@ -532,7 +954,9 @@ export function renderStrikeRow(
         isCe={false}
         handleIVClick={handleIVClick}
         isHighlighting={isHighlighting}
+        isItmHighlighting={isItmHighlighting}
         oc={oc}
+        sltp={sltp}
       />
     </React.Fragment>
   );
@@ -558,7 +982,7 @@ export function findStrikes(options, atmPrice) {
     };
   }
 
-  // Convert strikes to numbers for proper comparison and sort them
+  // Use binary search approach for better performance with large datasets
   const numericStrikes = strikes
     .map((s) => parseFloat(s))
     .filter((s) => !isNaN(s))
@@ -566,7 +990,6 @@ export function findStrikes(options, atmPrice) {
 
   const nearestStrike = atmPrice;
 
-  // Use binary search approach for better performance with large datasets
   const otmStrikes = numericStrikes.filter((s) => s >= atmPrice);
   const itmStrikes = numericStrikes.filter((s) => s < atmPrice);
 

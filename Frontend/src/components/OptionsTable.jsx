@@ -1,3 +1,4 @@
+// src/components/OptionsTable.jsx
 import React, {
   useState,
   useEffect,
@@ -13,9 +14,11 @@ import { unstable_batchedUpdates } from "react-dom";
 import axios from "axios";
 import { ErrorBoundary } from "react-error-boundary";
 import { toast } from "react-toastify";
+import { FixedSizeList as List } from "react-window";
 import {
   findStrikes,
   renderStrikeRow,
+  VirtualizedOptionChainTable,
 } from "../utils/optionChainTable/OptionTableUtils";
 import { useDispatch, useSelector } from "react-redux";
 import { setIsOc, setPopupData } from "../context/dataSlice";
@@ -31,14 +34,14 @@ import TickerChange from "./TickerChange";
 import Line from "./Line";
 import "./tableStyle.css";
 
-// Lazy load popup components
+// Lazy load popup components for better performance
 const Popup = lazy(() => import("./charts/ChartPopup"));
 const DeltaPopup = lazy(() => import("./charts/DeltaChartPopup"));
 const IVPopup = lazy(() => import("./charts/Popup"));
 const FuturePopup = lazy(() => import("./charts/FuturePopup"));
 const ReversalPopup = lazy(() => import("./charts/ReversalPopup"));
 
-// API Service Class with Retry Logic
+// Optimized API Service Class with enhanced caching and retry logic
 class OptionsAPIService {
   constructor() {
     this.abortController = null;
@@ -46,6 +49,7 @@ class OptionsAPIService {
     this.CACHE_DURATION = 5000; // 5 seconds
     this.MAX_RETRIES = 3;
     this.RETRY_DELAY = 1000;
+    this.requestQueue = new Map();
 
     this.axiosInstance = axios.create({
       baseURL: "http://localhost:10001",
@@ -57,23 +61,40 @@ class OptionsAPIService {
       },
     });
 
-    // Request interceptor
+    // Request interceptor with request deduplication
     this.axiosInstance.interceptors.request.use((config) => {
       const token = localStorage.getItem("authToken");
       if (token) {
         config.headers["Authorization"] = `Bearer ${token}`;
       }
+
+      // Add request ID for deduplication
+      config.requestId = this.generateRequestId(config);
       return config;
     });
 
-    // Response interceptor
+    // Response interceptor with enhanced error handling
     this.axiosInstance.interceptors.response.use(
-      (response) => response,
+      (response) => {
+        // Clean up request queue on success
+        if (response.config.requestId) {
+          this.requestQueue.delete(response.config.requestId);
+        }
+        return response;
+      },
       (error) => {
+        // Clean up request queue on error
+        if (error.config?.requestId) {
+          this.requestQueue.delete(error.config.requestId);
+        }
         console.error("API Error:", error);
         return Promise.reject(error);
       }
     );
+  }
+
+  generateRequestId(config) {
+    return `${config.method}_${config.url}_${JSON.stringify(config.data)}`;
   }
 
   getCacheKey(endpoint, params) {
@@ -90,8 +111,11 @@ class OptionsAPIService {
   }
 
   setCachedData(key, data) {
-    if (this.cache.size > 100)
-      this.cache.delete(this.cache.keys().next().value); // LRU limit
+    // Implement LRU cache with size limit
+    if (this.cache.size > 100) {
+      const firstKey = this.cache.keys().next().value;
+      this.cache.delete(firstKey);
+    }
     this.cache.set(key, { data, timestamp: Date.now() });
   }
 
@@ -101,23 +125,39 @@ class OptionsAPIService {
 
     if (cachedData) return cachedData;
 
+    // Request deduplication
+    const requestId = this.generateRequestId({ url: endpoint, data: params });
+    if (this.requestQueue.has(requestId)) {
+      return this.requestQueue.get(requestId);
+    }
+
     if (this.abortController) this.abortController.abort();
     this.abortController = new AbortController();
 
-    try {
-      const response = await this.axiosInstance.post(endpoint, params, {
-        signal: this.abortController.signal,
-      });
-      this.setCachedData(cacheKey, response.data);
-      return response.data;
-    } catch (error) {
-      if (error.name === "AbortError") return;
-      if (retryCount < this.MAX_RETRIES) {
-        await new Promise((resolve) => setTimeout(resolve, this.RETRY_DELAY));
-        return this.fetchData(endpoint, params, retryCount + 1);
+    const requestPromise = (async () => {
+      try {
+        const response = await this.axiosInstance.post(endpoint, params, {
+          signal: this.abortController.signal,
+          requestId,
+        });
+        this.setCachedData(cacheKey, response.data);
+        return response.data;
+      } catch (error) {
+        if (error.name === "AbortError") return;
+        if (retryCount < this.MAX_RETRIES) {
+          await new Promise((resolve) =>
+            setTimeout(resolve, this.RETRY_DELAY * Math.pow(2, retryCount))
+          );
+          return this.fetchData(endpoint, params, retryCount + 1);
+        }
+        throw error;
+      } finally {
+        this.requestQueue.delete(requestId);
       }
-      throw error;
-    }
+    })();
+
+    this.requestQueue.set(requestId, requestPromise);
+    return requestPromise;
   }
 
   async fetchPercentageData(params) {
@@ -151,10 +191,11 @@ class OptionsAPIService {
   cleanup() {
     if (this.abortController) this.abortController.abort();
     this.cache.clear();
+    this.requestQueue.clear();
   }
 }
 
-// Custom Hook for API Operations
+// Enhanced Custom Hook for API Operations
 const useOptionsAPI = () => {
   const apiService = useRef(new OptionsAPIService()).current;
   const dispatch = useDispatch();
@@ -194,8 +235,8 @@ const useOptionsAPI = () => {
   return { apiService, executeAPICall, loading, error };
 };
 
-// Error Boundary Fallback
-const ErrorFallback = ({ error, resetErrorBoundary, theme }) => (
+// Enhanced Error Boundary Fallback
+const ErrorFallback = memo(({ error, resetErrorBoundary, theme }) => (
   <div
     className={`fixed inset-0 flex items-center justify-center ${
       theme === "dark" ? "bg-gray-900" : "bg-gray-100"
@@ -223,9 +264,11 @@ const ErrorFallback = ({ error, resetErrorBoundary, theme }) => (
       </button>
     </div>
   </div>
-);
+));
 
-// Memoized Spot Component
+ErrorFallback.displayName = "ErrorFallback";
+
+// Optimized Spot Component
 const Spot = memo(({ spotPrice, isPriceUp, theme }) => (
   <div className="flex items-center space-x-2">
     <span
@@ -243,7 +286,9 @@ const Spot = memo(({ spotPrice, isPriceUp, theme }) => (
   </div>
 ));
 
-// Memoized Loading Component
+Spot.displayName = "Spot";
+
+// Enhanced Loading Component
 const LoadingSpinner = memo(({ theme }) => (
   <div
     className={`flex flex-col items-center justify-center h-screen ${
@@ -260,89 +305,164 @@ const LoadingSpinner = memo(({ theme }) => (
   </div>
 ));
 
-// Memoized Table Row Component
-const OptionsTableRow = memo(
-  ({ strike, options, isHighlighting, data, eventHandlers, theme }) => (
-    <tr
-      className={`text-center text-sm transition-all duration-200 ${
-        theme === "dark"
-          ? "divide-gray-800 hover:bg-gray-700"
-          : "divide-gray-300 hover:bg-gray-50"
-      } divide-x`}
-      role="row"
-    >
-      {renderStrikeRow(
-        options[strike],
-        strike,
-        isHighlighting,
-        data,
-        eventHandlers.handlePercentageClick,
-        eventHandlers.handleDeltaClick,
-        eventHandlers.handleIVClick,
-        eventHandlers.handleReversalClick,
-        theme
-      )}
-    </tr>
-  )
-);
+LoadingSpinner.displayName = "LoadingSpinner";
 
-// Table Header Component
+// Virtualized Table Row Component for performance
+const VirtualizedTableRow = memo(({ index, style, data }) => {
+  const {
+    strikes,
+    options,
+    isHighlighting,
+    isItmHighlighting,
+    optionData,
+    eventHandlers,
+    theme,
+    sltp,
+  } = data;
+
+  const strike = strikes[index];
+
+  if (!options[strike]) {
+    return <div style={style} />;
+  }
+
+  return (
+    <div style={style} className="flex">
+      <table className="w-full table-fixed">
+        <tbody>
+          <tr
+            className={`text-center text-sm transition-all duration-200 ${
+              theme === "dark"
+                ? "divide-gray-800 hover:bg-gray-700"
+                : "divide-gray-300 hover:bg-gray-50"
+            } divide-x`}
+            role="row"
+          >
+            {renderStrikeRow(
+              options[strike],
+              strike,
+              isHighlighting,
+              isItmHighlighting,
+              optionData,
+              eventHandlers.handlePercentageClick,
+              eventHandlers.handleDeltaClick,
+              eventHandlers.handleIVClick,
+              eventHandlers.handleReversalClick,
+              theme,
+              sltp
+            )}
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  );
+});
+
+VirtualizedTableRow.displayName = "VirtualizedTableRow";
+
+// Enhanced Table Header Component
 const TableHeader = memo(({ ceHeaders, peHeaders, theme }) => (
-  <thead
+  <div
     className={`sticky top-0 z-10 ${
       theme === "dark" ? "bg-gray-800" : "bg-white"
-    } font-semibold text-xs uppercase`}
-    role="rowgroup"
+    } font-semibold text-xs uppercase shadow-sm`}
   >
-    <tr
-      className={`divide-x ${
-        theme === "dark" ? "divide-gray-600" : "divide-gray-200"
-      }`}
-      role="row"
-    >
-      {ceHeaders.map((header, index) => (
-        <th
-          key={`ce-${index}`}
-          className="p-3 bg-red-800 text-white text-center"
-          scope="col"
+    <table className="w-full table-fixed">
+      <thead role="rowgroup">
+        <tr
+          className={`divide-x ${
+            theme === "dark" ? "divide-gray-600" : "divide-gray-200"
+          }`}
+          role="row"
         >
-          <span>{header.label}</span>
-          {header.subtitle && (
-            <>
-              <br />
-              <small className="text-red-100">{header.subtitle}</small>
-            </>
-          )}
-        </th>
-      ))}
-      <th
-        className="p-3 bg-yellow-300 text-yellow-800 font-bold text-center"
-        scope="col"
-      >
-        Strike Price
-        <br />
-        <small className="text-xs text-yellow-600">PCR</small>
-      </th>
-      {peHeaders.map((header, index) => (
-        <th
-          key={`pe-${index}`}
-          className="p-3 bg-green-700 text-white text-center"
-          scope="col"
-        >
-          <span>{header.label}</span>
-          {header.subtitle && (
-            <>
-              <br />
-              <small className="text-green-100">{header.subtitle}</small>
-            </>
-          )}
-        </th>
-      ))}
-    </tr>
-  </thead>
+          {ceHeaders.map((header, index) => (
+            <th
+              key={`ce-${index}`}
+              className="p-3 bg-red-800 text-white text-center"
+              scope="col"
+            >
+              <span>{header.label}</span>
+              {header.subtitle && (
+                <>
+                  <br />
+                  <small className="text-red-100">{header.subtitle}</small>
+                </>
+              )}
+            </th>
+          ))}
+          <th
+            className="p-3 bg-yellow-300 text-yellow-800 font-bold text-center"
+            scope="col"
+          >
+            Strike Price
+            <br />
+            <small className="text-xs text-yellow-600">PCR</small>
+          </th>
+          {peHeaders.map((header, index) => (
+            <th
+              key={`pe-${index}`}
+              className="p-3 bg-green-700 text-white text-center"
+              scope="col"
+            >
+              <span>{header.label}</span>
+              {header.subtitle && (
+                <>
+                  <br />
+                  <small className="text-green-100">{header.subtitle}</small>
+                </>
+              )}
+            </th>
+          ))}
+        </tr>
+      </thead>
+    </table>
+  </div>
 ));
 
-// Main OptionsTable Component
+TableHeader.displayName = "TableHeader";
+
+// ATM Row Component for the middle section
+const ATMRow = memo(({ eventHandlers, theme }) => (
+  <div className="sticky z-20 bg-opacity-95 backdrop-blur-sm">
+    <table className="w-full table-fixed">
+      <tbody>
+        <tr role="row">
+          <td colSpan={1} className="p-2">
+            <Line />
+          </td>
+          <td colSpan={2} className="p-2">
+            <Ticker />
+          </td>
+          <td colSpan={1}>
+            <Line />
+          </td>
+          <td
+            colSpan={5}
+            onClick={() => eventHandlers.handleFuturePriceClick()}
+            className={`p-2 cursor-pointer text-center transition-colors ${
+              theme === "dark" ? "hover:bg-gray-700" : "hover:bg-gray-100"
+            }`}
+          >
+            <LabelSight />
+          </td>
+          <td colSpan={1}>
+            <Line />
+          </td>
+          <td colSpan={2} className="p-2">
+            <TickerChange />
+          </td>
+          <td colSpan={1}>
+            <Line />
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+));
+
+ATMRow.displayName = "ATMRow";
+
+// Main OptionsTable Component with Virtualization
 function OptionsTable() {
   const dispatch = useDispatch();
   const {
@@ -356,7 +476,11 @@ function OptionsTable() {
   const theme = useSelector((state) => state.theme.theme);
   const isReversed = useSelector((state) => state.theme.isReversed);
   const isHighlighting = useSelector((state) => state.theme.isHighlighting);
+  const isItmHighlighting = useSelector(
+    (state) => state.theme.isItmHighlighting
+  );
   const data = useSelector((state) => state.data.data);
+  const sltp = useSelector((state) => state.data.data?.options?.data?.sltp);
   const exp = useSelector((state) => state.data.exp_sid);
   const sid = useSelector((state) => state.data.sid);
   const error = useSelector((state) => state.data.error);
@@ -373,16 +497,19 @@ function OptionsTable() {
     isExpiryPopupVisible: false,
   });
   const [sortOrder, setSortOrder] = useState("asc");
+  const [useVirtualization, setUseVirtualization] = useState(true);
 
   // Memoized calculations
   const options = useMemo(
     () => data?.options?.data?.oc || {},
     [data?.options?.data?.oc]
   );
+
   const atmPrice = useMemo(
     () => (data?.spot?.data?.Ltp ? Math.round(data.spot.data.Ltp) : null),
     [data?.spot?.data?.Ltp]
   );
+
   const spotPrice = useMemo(
     () =>
       data?.spot?.data?.Ltp !== undefined
@@ -391,11 +518,10 @@ function OptionsTable() {
     [data?.spot?.data?.Ltp]
   );
 
-  // Price tracking
+  // Price tracking with throttling
   const lastSpotPriceRef = useRef(spotPrice);
   const [isPriceUp, setIsPriceUp] = useState(false);
 
-  // Throttled price update
   const updatePriceDirection = useCallback(
     throttle((newPrice, lastPrice) => {
       if (newPrice !== null && lastPrice !== null && newPrice !== lastPrice) {
@@ -412,65 +538,56 @@ function OptionsTable() {
     }
   }, [spotPrice, updatePriceDirection]);
 
-  // Memoized strikes
+  // Memoized strikes with performance optimization
   const { nearestStrike, otmStrikes, itmStrikes } = useMemo(() => {
     return findStrikes(options, atmPrice);
   }, [options, atmPrice]);
 
-  // Sorted active strikes
-  const { itmActiveStrikes, otmActiveStrikes } = useMemo(() => {
+  // Optimized strike data processing
+  const processedStrikes = useMemo(() => {
     const itmStrikes_copy = [...itmStrikes].sort((a, b) =>
-      sortOrder === "asc" ? a - b : b - a
+      sortOrder === "asc"
+        ? parseFloat(a) - parseFloat(b)
+        : parseFloat(b) - parseFloat(a)
     );
     const otmStrikes_copy = [...otmStrikes].sort((a, b) =>
-      sortOrder === "asc" ? a - b : b - a
+      sortOrder === "asc"
+        ? parseFloat(a) - parseFloat(b)
+        : parseFloat(b) - parseFloat(a)
     );
 
+    const itmActiveStrikes = isReversed
+      ? otmStrikes_copy
+      : itmStrikes_copy.reverse();
+    const otmActiveStrikes = isReversed
+      ? itmStrikes_copy
+      : otmStrikes_copy.reverse();
+
+    // Combine strikes for virtualization
+    const allStrikes = [...itmActiveStrikes, ...otmActiveStrikes];
+
     return {
-      itmActiveStrikes: isReversed
-        ? itmStrikes_copy.reverse()
-        : itmStrikes_copy,
-      otmActiveStrikes: isReversed
-        ? otmStrikes_copy.reverse()
-        : otmStrikes_copy,
+      itmActiveStrikes,
+      otmActiveStrikes,
+      allStrikes,
+      atmIndex: itmActiveStrikes.length, // Index where ATM row should be inserted
     };
   }, [itmStrikes, otmStrikes, isReversed, sortOrder]);
 
-  // State for active strikes
-  const [strikeData, setStrikeData] = useState({ otm: [], itm: [] });
-
-  const updateStrikeData = useCallback(
-    (newOtm, newItm) => {
-      unstable_batchedUpdates(() => {
-        setStrikeData({
-          otm: isReversed ? newItm : newOtm,
-          itm: isReversed ? newOtm : newItm,
-        });
-      });
-    },
-    [isReversed]
-  );
-
-  useEffect(() => {
-    if (otmActiveStrikes.length > 0 || itmActiveStrikes.length > 0) {
-      updateStrikeData(otmActiveStrikes, itmActiveStrikes);
-    }
-  }, [otmActiveStrikes, itmActiveStrikes, updateStrikeData]);
-
-  // Event handlers
+  // Event handlers with memoization
   const eventHandlers = useMemo(
     () => ({
       handlePercentageClick: (isCe, strike) => {
         executeAPICall(
           (params) => apiService.fetchPercentageData(params),
-          { sid, exp_sid: exp, strike, option_type: isCe },
+          { sid, exp_sid: exp, strike, option_type: isCe ? "CE" : "PE" },
           () => setPopupStates((prev) => ({ ...prev, isPopupVisible: true }))
         );
       },
       handleIVClick: (isCe, strike) => {
         executeAPICall(
           (params) => apiService.fetchIVData(params),
-          { sid, exp_sid: exp, strike, option_type: isCe },
+          { sid, exp_sid: exp, strike, option_type: isCe ? "CE" : "PE" },
           () => setPopupStates((prev) => ({ ...prev, isIVPopupVisible: true }))
         );
       },
@@ -510,7 +627,31 @@ function OptionsTable() {
     [sid, exp, data, dispatch, executeAPICall, apiService]
   );
 
-  // Close popup
+  // Virtualization data
+  const virtualizationData = useMemo(
+    () => ({
+      strikes: processedStrikes.allStrikes,
+      options,
+      isHighlighting,
+      isItmHighlighting,
+      optionData: data?.options?.data,
+      eventHandlers,
+      theme,
+      sltp,
+    }),
+    [
+      processedStrikes.allStrikes,
+      options,
+      isHighlighting,
+      isItmHighlighting,
+      data?.options?.data,
+      eventHandlers,
+      theme,
+      sltp,
+    ]
+  );
+
+  // Close popup handler
   const closePopup = useCallback(() => {
     dispatch(setPopupData(null));
     setPopupStates({
@@ -531,16 +672,20 @@ function OptionsTable() {
     }));
   }, []);
 
-  // Refresh data
+  // Refresh data handler
   const handleRefresh = useCallback(() => {
     apiService.cache.clear();
-    setStrikeData({ otm: [], itm: [] });
     toast.info("Refreshing data...");
   }, [apiService]);
 
   // Toggle sort order
   const toggleSortOrder = useCallback(() => {
     setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+  }, []);
+
+  // Toggle virtualization
+  const toggleVirtualization = useCallback(() => {
+    setUseVirtualization((prev) => !prev);
   }, []);
 
   // Effects
@@ -582,6 +727,10 @@ function OptionsTable() {
     return <LoadingSpinner theme={theme} />;
   }
 
+  // Determine if we should use virtualization based on data size
+  const shouldUseVirtualization =
+    useVirtualization && processedStrikes.allStrikes.length > 50;
+
   return (
     <ErrorBoundary
       FallbackComponent={(props) => <ErrorFallback {...props} theme={theme} />}
@@ -601,6 +750,17 @@ function OptionsTable() {
             <LabelSight />
           </div>
           <div className="flex space-x-2">
+            <button
+              onClick={toggleVirtualization}
+              className={`p-2 rounded-lg text-xs ${
+                theme === "dark"
+                  ? "bg-gray-700 hover:bg-gray-600 text-gray-300"
+                  : "bg-gray-200 hover:bg-gray-300 text-gray-700"
+              }`}
+              aria-label="Toggle virtualization"
+            >
+              {useVirtualization ? "Virtual: ON" : "Virtual: OFF"}
+            </button>
             <button
               onClick={toggleSortOrder}
               className={`p-2 rounded-lg ${
@@ -630,8 +790,8 @@ function OptionsTable() {
 
         {/* Expiry Selection Popup */}
         {!popupStates.isExpiryPopupVisible &&
-          !strikeData.itm.length &&
-          !strikeData.otm.length && (
+          !processedStrikes.itmActiveStrikes.length &&
+          !processedStrikes.otmActiveStrikes.length && (
             <div className="fixed inset-0 flex items-center justify-center bg-black/60 z-50">
               <div
                 className={`p-6 rounded-lg shadow-xl max-w-sm ${
@@ -658,81 +818,197 @@ function OptionsTable() {
           )}
 
         {/* Options Table */}
-        <div className="max-h-[calc(100vh-80px)] overflow-x-auto scrollbar-hide">
-          <table
-            id="options-table"
-            className={`w-full text-sm border-collapse ${
-              theme === "dark"
-                ? "bg-gray-800 text-gray-300"
-                : "bg-white text-gray-700"
-            } shadow-lg rounded-lg`}
-            role="grid"
-            aria-label="Options Chain Table"
-          >
-            <TableHeader
-              ceHeaders={ceHeaders}
-              peHeaders={peHeaders}
-              theme={theme}
-            />
-            <tbody
-              className={`divide-y ${
-                theme === "dark" ? "divide-gray-700" : "divide-gray-200"
-              }`}
-              role="rowgroup"
-            >
-              {strikeData.itm.map((strike) => (
-                <OptionsTableRow
-                  key={`itm-${strike}`}
-                  strike={strike}
-                  options={options}
-                  isHighlighting={isHighlighting}
-                  data={data.options.data}
-                  eventHandlers={eventHandlers}
-                  theme={theme}
-                />
-              ))}
-              <tr role="row">
-                <td colSpan={1} className="p-2">
-                  <Line />
-                </td>
-                <td colSpan={2} className="p-2">
-                  <Ticker />
-                </td>
-                <td colSpan={1}>
-                  <Line />
-                </td>
-                <td
-                  colSpan={5}
-                  onClick={() => eventHandlers.handleFuturePriceClick()}
-                  className={`p-2 cursor-pointer text-center transition-colors ${
-                    theme === "dark" ? "hover:bg-gray-700" : "hover:bg-gray-100"
+        <div className="flex flex-col h-full">
+          <TableHeader
+            ceHeaders={ceHeaders}
+            peHeaders={peHeaders}
+            theme={theme}
+          />
+
+          {shouldUseVirtualization ? (
+            // Virtualized Table for large datasets
+            <div className="flex-1 overflow-hidden">
+              <VirtualizedOptionChainTable
+                strikes={processedStrikes.allStrikes}
+                strikeDataMap={options}
+                sltp={sltp}
+                isHighlighting={isHighlighting}
+                isItmHighlighting={isItmHighlighting}
+                optionChain={data?.options?.data}
+                handlePercentageClick={eventHandlers.handlePercentageClick}
+                handleDeltaClick={eventHandlers.handleDeltaClick}
+                handleIVClick={eventHandlers.handleIVClick}
+                handleReversalClick={eventHandlers.handleReversalClick}
+                theme={theme}
+                height={window.innerHeight - 200}
+                rowHeight={60}
+              />
+            </div>
+          ) : (
+            // Traditional table for smaller datasets
+            <div className="flex-1 overflow-auto">
+              <table
+                id="options-table"
+                className={`w-full text-sm border-collapse ${
+                  theme === "dark"
+                    ? "bg-gray-800 text-gray-300"
+                    : "bg-white text-gray-700"
+                } shadow-lg`}
+                role="grid"
+                aria-label="Options Chain Table"
+              >
+                <tbody
+                  className={`divide-y ${
+                    theme === "dark" ? "divide-gray-700" : "divide-gray-200"
                   }`}
+                  role="rowgroup"
                 >
-                  <LabelSight />
-                </td>
-                <td colSpan={1}>
-                  <Line />
-                </td>
-                <td colSpan={2} className="p-2">
-                  <TickerChange />
-                </td>
-                <td colSpan={1}>
-                  <Line />
-                </td>
-              </tr>
-              {strikeData.otm.map((strike) => (
-                <OptionsTableRow
-                  key={`otm-${strike}`}
-                  strike={strike}
-                  options={options}
-                  isHighlighting={isHighlighting}
-                  data={data.options.data}
-                  eventHandlers={eventHandlers}
-                  theme={theme}
-                />
-              ))}
-            </tbody>
-          </table>
+                  {/* ITM Strikes */}
+                  {processedStrikes.itmActiveStrikes.map((strike) => {
+                    const strikeData = options[strike];
+                    const { ce: ceData = {}, pe: peData = {} } = strikeData || {};
+                    const oc = data?.options?.data || {};
+                    const reversal = oc?.oc || {};
+
+                    const strikeKeys = Object.keys(reversal);
+                    const strikeDiff =
+                      strikeKeys.length >= 2
+                        ? parseFloat(strikeKeys[1]) - parseFloat(strikeKeys[0])
+                        : 0;
+
+                    const oiRatio =
+                      peData?.OI && ceData?.OI && ceData.OI !== 0 ? peData.OI / ceData.OI : 0;
+
+                    const oiChngRatio =
+                      peData?.oichng && ceData?.oichng && ceData.oichng !== 0
+                        ? peData.oichng / ceData.oichng
+                        : 0;
+
+                    const ceReversalValue = (strikeData?.reversal || 0) + strikeDiff;
+                    const peReversalValue = strikeData?.reversal || 0;
+
+                    return (
+                      <tr
+                        key={`itm-${strike}`}
+                        className={`text-center text-sm transition-all duration-200 ${
+                          theme === "dark"
+                            ? "divide-gray-800 hover:bg-gray-700"
+                            : "divide-gray-300 hover:bg-gray-50"
+                        } divide-x`}
+                        role="row"
+                      >
+                        {renderStrikeRow(
+                          strikeData,
+                          strike,
+                          isHighlighting,
+                          isItmHighlighting,
+                          data.options.data,
+                          eventHandlers.handlePercentageClick,
+                          eventHandlers.handleDeltaClick,
+                          eventHandlers.handleIVClick,
+                          eventHandlers.handleReversalClick,
+                          theme,
+                          sltp,
+                          oiRatio, // Pass calculated values
+                          oiChngRatio, // Pass calculated values
+                          ceReversalValue, // Pass calculated values
+                          peReversalValue // Pass calculated values
+                        )}
+                      </tr>
+                    );
+                  })}
+
+                  {/* ATM Row */}
+                  <tr role="row">
+                    <td colSpan={1} className="p-2">
+                      <Line />
+                    </td>
+                    <td colSpan={2} className="p-2">
+                      <Ticker />
+                    </td>
+                    <td colSpan={1}>
+                      <Line />
+                    </td>
+                    <td
+                      colSpan={5}
+                      onClick={() => eventHandlers.handleFuturePriceClick()}
+                      className={`p-2 cursor-pointer text-center transition-colors ${
+                        theme === "dark"
+                          ? "hover:bg-gray-700"
+                          : "hover:bg-gray-100"
+                      }`}
+                    >
+                      <LabelSight />
+                    </td>
+                    <td colSpan={1}>
+                      <Line />
+                    </td>
+                    <td colSpan={2} className="p-2">
+                      <TickerChange />
+                    </td>
+                    <td colSpan={1}>
+                      <Line />
+                    </td>
+                  </tr>
+
+                  {/* OTM Strikes */}
+                  {processedStrikes.otmActiveStrikes.map((strike) => {
+                    const strikeData = options[strike];
+                    const { ce: ceData = {}, pe: peData = {} } = strikeData || {};
+                    const oc = data?.options?.data || {};
+                    const reversal = oc?.oc || {};
+
+                    const strikeKeys = Object.keys(reversal);
+                    const strikeDiff =
+                      strikeKeys.length >= 2
+                        ? parseFloat(strikeKeys[1]) - parseFloat(strikeKeys[0])
+                        : 0;
+
+                    const oiRatio =
+                      peData?.OI && ceData?.OI && ceData.OI !== 0 ? peData.OI / ceData.OI : 0;
+
+                    const oiChngRatio =
+                      peData?.oichng && ceData?.oichng && ceData.oichng !== 0
+                        ? peData.oichng / ceData.oichng
+                        : 0;
+
+                    const ceReversalValue = (strikeData?.reversal || 0) + strikeDiff;
+                    const peReversalValue = strikeData?.reversal || 0;
+
+                    return (
+                      <tr
+                        key={`otm-${strike}`}
+                        className={`text-center text-sm transition-all duration-200 ${
+                          theme === "dark"
+                            ? "divide-gray-800 hover:bg-gray-700"
+                            : "divide-gray-300 hover:bg-gray-50"
+                        } divide-x`}
+                        role="row"
+                      >
+                        {renderStrikeRow(
+                          strikeData,
+                          strike,
+                          isHighlighting,
+                          isItmHighlighting,
+                          data.options.data,
+                          eventHandlers.handlePercentageClick,
+                          eventHandlers.handleDeltaClick,
+                          eventHandlers.handleIVClick,
+                          eventHandlers.handleReversalClick,
+                          theme,
+                          sltp,
+                          oiRatio, // Pass calculated values
+                          oiChngRatio, // Pass calculated values
+                          ceReversalValue, // Pass calculated values
+                          peReversalValue // Pass calculated values
+                        )}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
         {/* Popups */}

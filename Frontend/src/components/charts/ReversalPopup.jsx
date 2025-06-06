@@ -443,7 +443,7 @@ const ReversalPopup = ({ onClose }) => {
                       >
                         {item.label}
                       </span>
-                      <span
+                      {/* <span
                         className={`text-xs px-2 py-1 rounded-full ${
                           theme === "dark"
                             ? "bg-gray-700 text-gray-300"
@@ -451,7 +451,7 @@ const ReversalPopup = ({ onClose }) => {
                         }`}
                       >
                         @{item.strike}
-                      </span>
+                      </span> */}
                     </div>
                     <div className="text-xl font-bold">
                       ₹{item.value.toFixed(2)}

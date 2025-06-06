@@ -222,7 +222,7 @@ class BSMCalculator:
                 "rr": rr,
                 "ss": ss,
                 "sr_diff": sr_diff,
-                "fut_reversal": confidence,
+                "fut_reversal": fut_rev,
                 "call_greeks": call_greeks,
                 "put_greeks": put_greeks,
                 "price_range": {
