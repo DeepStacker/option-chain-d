@@ -183,7 +183,7 @@ class BSMCalculator:
                 S_chng=S_chng,
                 instrument_type=sinst,
                 current_iv=atmiv,
-                spot_price=S,
+                # spot_price=S,
             )
 
             iv_skew = sigma_call - sigma_put
