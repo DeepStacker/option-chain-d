@@ -242,6 +242,7 @@ const TickerDropdown = () => {
           />
           <div className="flex items-center space-x-1 text-sm font-semibold">
             <span>{sid}</span>
+            <span className={`text-x }`}>({data?.olot || 0})</span>
             <span
               className={`text-xs ${
                 theme === "dark" ? "text-gray-400" : "text-gray-500"
