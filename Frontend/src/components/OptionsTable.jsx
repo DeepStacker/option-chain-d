@@ -737,7 +737,7 @@ function OptionsTable() {
       onReset={handleRefresh}
     >
       <div
-        className={`relative h-screen overflow-hidden ${
+        className={`relative h-screen overflow-y-hidden ${
           theme === "dark"
             ? "bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900"
             : "bg-gradient-to-b from-white via-gray-100 to-gray-200"
@@ -827,7 +827,7 @@ function OptionsTable() {
 
           {shouldUseVirtualization ? (
             // Virtualized Table for large datasets
-            <div className="flex-1 overflow-hidden">
+            <div className="flex-1 scrollbar-hide">
               <VirtualizedOptionChainTable
                 strikes={processedStrikes.allStrikes}
                 strikeDataMap={options}
@@ -846,7 +846,7 @@ function OptionsTable() {
             </div>
           ) : (
             // Traditional table for smaller datasets
-            <div className="flex-1 overflow-auto">
+            <div className="flex-1 overflow-y-auto scrollbar-hide">
               <table
                 id="options-table"
                 className={`w-full text-sm border-collapse ${
