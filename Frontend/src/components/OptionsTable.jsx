@@ -496,7 +496,7 @@ function OptionsTable() {
     isIVPopupVisible: false,
     isExpiryPopupVisible: false,
   });
-  const [sortOrder, setSortOrder] = useState("asc");
+  const [sortOrder, setSortOrder] = useState("desc");
   const [useVirtualization, setUseVirtualization] = useState(true);
 
   // Memoized calculations

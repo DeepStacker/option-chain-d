@@ -28,7 +28,7 @@ function TickerChange() {
   return (
     <div className="w-full flex justify-center items-center">
       <div
-        className={`flex flex-col items-center px-4 py-2 rounded-lg border shadow-sm ${priceChangeColor} ${borderColor} ${
+        className={`flex flex-col items-center px-4 py-0 rounded-lg border shadow-sm ${priceChangeColor} ${borderColor} ${
           theme === "dark" ? "bg-opacity-50" : ""
         }`}
         aria-label={`Market status: ${symbol} at ${ltp}`}
