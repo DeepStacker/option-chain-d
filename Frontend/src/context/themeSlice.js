@@ -1,16 +1,17 @@
 // slices/themeSlice.js
-import { createSlice } from '@reduxjs/toolkit';
+import { createSlice } from "@reduxjs/toolkit";
 
 export const themeSlice = createSlice({
-  name: 'theme',
+  name: "theme",
   initialState: {
-    theme: 'dark',
+    theme: "dark",
     isReversed: true,
     isHighlighting: true,
+    isItmHighlighting: true,
   },
   reducers: {
     toggleTheme: (state) => {
-      state.theme = state.theme === 'dark' ? 'light' : 'dark';
+      state.theme = state.theme === "dark" ? "light" : "dark";
     },
     setIsReversed: (state, action) => {
       state.isReversed = state.isReversed === true ? false : true;
@@ -18,8 +19,12 @@ export const themeSlice = createSlice({
     setIsHighlighting: (state, action) => {
       state.isHighlighting = state.isHighlighting === true ? false : true;
     },
+    setIsItmHighlighting: (state, action) => {
+      state.isItmHighlighting = state.isItmHighlighting === true ? false : true;
+    },
   },
 });
 
-export const { toggleTheme, setIsReversed, setIsHighlighting } = themeSlice.actions;
+export const { toggleTheme, setIsReversed, setIsHighlighting, setIsItmHighlighting } =
+  themeSlice.actions;
 export default themeSlice.reducer;
