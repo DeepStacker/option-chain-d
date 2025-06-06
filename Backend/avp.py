@@ -14,6 +14,10 @@ def advanced_reversal_point(
     pe_theta,
     iv_chng,
     T_days,
+    curr_call_price, # ce_ltp
+    curr_put_price, # pe_ltp
+    call_price, # ce_theory
+    put_price,
     S_chng=1,
     instrument_type="IDX",
     current_iv=15.0,
@@ -53,11 +57,14 @@ def advanced_reversal_point(
         max_dynamic_shift = min(20, K * (current_iv / 100) * 0.05)  # up to 2%
 
     scaled_adjustment = normalized_adjustment * max_dynamic_shift
-    reversal_point = round(K + scaled_adjustment, 2)
 
     # 🎯 Confidence score
     mean_greek = (abs(net_delta) + abs(net_gamma) + abs(net_vega) + abs(net_theta)) / 4
     confidence_score = round(tanh(mean_greek / 2) * 100)
+
+    # theoritical price weight
+    pweight = (curr_call_price - call_price) + (curr_put_price - put_price)
+    reversal_point = round(K + scaled_adjustment + pweight, 2)
 
     # 📦 Debug + telemetry
     all_data = {

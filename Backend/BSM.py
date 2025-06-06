@@ -176,10 +176,10 @@ class BSMCalculator:
                 pe_theta,
                 iv_chng,
                 T_days,
-                # curr_call_price, # ce_ltp
-                # curr_put_price, # pe_ltp
-                # call_price, # ce_theory
-                # put_price, # pe_theory
+                curr_call_price, # ce_ltp
+                curr_put_price, # pe_ltp
+                call_price, # ce_theory
+                put_price, # pe_theory
                 S_chng=S_chng,
                 instrument_type=sinst,
                 current_iv=atmiv,
