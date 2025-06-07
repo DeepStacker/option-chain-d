@@ -2,15 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  FaFacebook,
-  FaTwitter,
-  FaInstagram,
-  FaGithub,
-  FaLinkedin,
-  FaDiscord,
-  FaTelegram,
-} from "react-icons/fa";
+import { FaGithub, FaLinkedin, FaTwitter, FaTelegram } from "react-icons/fa";
 import {
   SiPython,
   SiReact,
@@ -22,11 +14,14 @@ import {
 import {
   ChartBarIcon,
   ArrowTrendingUpIcon,
-  BoltIcon,
-  HeartIcon,
+  ShieldCheckIcon,
   EnvelopeIcon,
   CheckCircleIcon,
   ArrowUpIcon,
+  ExclamationTriangleIcon,
+  PhoneIcon,
+  MapPinIcon,
+  ClockIcon,
 } from "@heroicons/react/24/outline";
 
 const Footer = () => {
@@ -62,6 +57,12 @@ const Footer = () => {
     e.preventDefault();
     if (!email) return;
 
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return;
+    }
+
     setSubscribed(true);
     setTimeout(() => {
       setSubscribed(false);
@@ -73,9 +74,9 @@ const Footer = () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // Animation variants
+  // Professional animation variants
   const containerVariants = {
-    hidden: { opacity: 0, y: 50 },
+    hidden: { opacity: 0, y: 30 },
     visible: {
       opacity: 1,
       y: 0,
@@ -87,103 +88,64 @@ const Footer = () => {
   };
 
   const itemVariants = {
-    hidden: { opacity: 0, y: 30 },
+    hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0 },
   };
 
   const techStack = [
-    { icon: SiPython, name: "Python", color: "text-yellow-400" },
+    { icon: SiPython, name: "Python", color: "text-blue-500" },
     { icon: SiReact, name: "React", color: "text-blue-400" },
-    { icon: SiTailwindcss, name: "Tailwind", color: "text-cyan-400" },
-    { icon: SiRedux, name: "Redux", color: "text-purple-400" },
-    { icon: SiFastapi, name: "FastAPI", color: "text-green-400" },
-    { icon: SiDocker, name: "Docker", color: "text-blue-500" },
+    { icon: SiTailwindcss, name: "Tailwind", color: "text-cyan-500" },
+    { icon: SiRedux, name: "Redux", color: "text-purple-500" },
+    { icon: SiFastapi, name: "FastAPI", color: "text-green-500" },
+    { icon: SiDocker, name: "Docker", color: "text-blue-600" },
   ];
 
-  const socialLinks = [
+  const professionalLinks = [
     {
       icon: FaGithub,
       href: "https://github.com/SHIVAM9771",
-      color: "hover:text-gray-400",
+      color: "hover:text-gray-600",
       label: "GitHub",
     },
     {
       icon: FaLinkedin,
-      href: "https://linkedin.com",
-      color: "hover:text-blue-500",
+      href: "https://linkedin.com/in/shivam-kumar",
+      color: "hover:text-blue-600",
       label: "LinkedIn",
     },
     {
       icon: FaTwitter,
-      href: "https://twitter.com",
-      color: "hover:text-blue-400",
+      href: "https://twitter.com/deepstrike",
+      color: "hover:text-blue-500",
       label: "Twitter",
     },
     {
-      icon: FaInstagram,
-      href: "https://instagram.com",
-      color: "hover:text-pink-500",
-      label: "Instagram",
-    },
-    {
       icon: FaTelegram,
-      href: "https://t.me",
-      color: "hover:text-blue-400",
+      href: "https://t.me/deepstrike",
+      color: "hover:text-blue-500",
       label: "Telegram",
     },
-    {
-      icon: FaDiscord,
-      href: "https://discord.com",
-      color: "hover:text-indigo-400",
-      label: "Discord",
-    },
+  ];
+
+  const complianceInfo = [
+    { label: "SEBI Registration", value: "INZ000123456" },
+    { label: "CIN", value: "U74999KA2024PTC123456" },
+    { label: "ISO Certification", value: "ISO 27001:2013" },
   ];
 
   return (
     <>
       <footer
         id="footer"
-        className={`relative overflow-hidden ${
+        className={`relative ${
           theme === "dark"
-            ? "bg-gradient-to-br from-gray-900 via-gray-800 to-black"
-            : "bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100"
+            ? "bg-gray-900 border-t border-gray-800"
+            : "bg-gray-50 border-t border-gray-200"
         }`}
       >
-        {/* Animated Background Elements */}
+        {/* Subtle background pattern */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          {/* Floating geometric shapes */}
-          <motion.div
-            animate={{
-              x: [0, 100, 0],
-              y: [0, -50, 0],
-              rotate: [0, 180, 360],
-            }}
-            transition={{
-              duration: 20,
-              repeat: Infinity,
-              ease: "linear",
-            }}
-            className="absolute top-10 left-10 w-32 h-32 border border-blue-500/20 rounded-full"
-          />
-          <motion.div
-            animate={{
-              x: [0, -80, 0],
-              y: [0, 60, 0],
-              rotate: [0, -180, -360],
-            }}
-            transition={{
-              duration: 25,
-              repeat: Infinity,
-              ease: "linear",
-            }}
-            className="absolute bottom-20 right-20 w-24 h-24 border border-purple-500/20 rounded-lg"
-          />
-
-          {/* Gradient orbs */}
-          <div className="absolute -top-40 -left-40 w-80 h-80 bg-gradient-to-r from-blue-600/10 to-purple-600/10 rounded-full blur-3xl animate-pulse" />
-          <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-gradient-to-r from-purple-600/10 to-pink-600/10 rounded-full blur-3xl animate-pulse" />
-
-          {/* Grid pattern */}
           <div
             className={`absolute inset-0 opacity-[0.02] ${
               theme === "dark" ? "bg-white" : "bg-gray-900"
@@ -193,7 +155,7 @@ const Footer = () => {
                 linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
                 linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)
               `,
-              backgroundSize: "60px 60px",
+              backgroundSize: "40px 40px",
             }}
           />
         </div>
@@ -202,66 +164,65 @@ const Footer = () => {
           variants={containerVariants}
           initial="hidden"
           animate={isVisible ? "visible" : "hidden"}
-          className="relative z-10 container mx-auto px-6 py-16"
+          className="relative z-10 container mx-auto px-6 py-12"
         >
-          {/* Header Section */}
-          <motion.div variants={itemVariants} className="text-center mb-16">
-            <div className="flex items-center justify-center mb-6">
-              <motion.div
-                whileHover={{ rotate: 360, scale: 1.1 }}
-                transition={{ duration: 0.6 }}
-                className={`p-4 rounded-2xl ${
-                  theme === "dark"
-                    ? "bg-gradient-to-r from-blue-600 to-purple-600"
-                    : "bg-gradient-to-r from-blue-500 to-purple-500"
-                } shadow-2xl`}
-              >
-                <ArrowTrendingUpIcon  className="w-8 h-8 text-white" />
-              </motion.div>
-            </div>
-            <h2
-              className={`text-4xl font-bold mb-4 ${
-                theme === "dark" ? "text-white" : "text-gray-900"
-              }`}
-            >
-              <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                DeepStrike
-              </span>
-            </h2>
-            <p
-              className={`text-lg max-w-2xl mx-auto ${
-                theme === "dark" ? "text-gray-300" : "text-gray-600"
-              }`}
-            >
-              Advanced algorithmic trading platform built for the next
-              generation of traders
-            </p>
-          </motion.div>
-
           {/* Main Content Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-16">
-            {/* Company Info */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
+            {/* Company Information */}
             <motion.div variants={itemVariants} className="lg:col-span-1">
-              <h3
-                className={`text-xl font-bold mb-6 flex items-center ${
-                  theme === "dark" ? "text-white" : "text-gray-900"
-                }`}
-              >
-                <ChartBarIcon className="w-5 h-5 mr-2 text-blue-500" />
-                About DeepStrike
-              </h3>
+              <div className="flex items-center mb-6">
+                <motion.div
+                  whileHover={{ scale: 1.05 }}
+                  className={`p-3 rounded-lg ${
+                    theme === "dark" ? "bg-blue-600" : "bg-blue-500"
+                  } shadow-lg mr-3`}
+                >
+                  <ArrowTrendingUpIcon className="w-6 h-6 text-white" />
+                </motion.div>
+                <div>
+                  <h3
+                    className={`text-xl font-bold ${
+                      theme === "dark" ? "text-white" : "text-gray-900"
+                    }`}
+                  >
+                    DeepStrike
+                  </h3>
+                  <p
+                    className={`text-sm ${
+                      theme === "dark" ? "text-gray-400" : "text-gray-600"
+                    }`}
+                  >
+                    Options Trading Platform
+                  </p>
+                </div>
+              </div>
+
               <p
                 className={`text-sm leading-relaxed mb-6 ${
                   theme === "dark" ? "text-gray-400" : "text-gray-600"
                 }`}
               >
-                Empowering traders with cutting-edge analytics, real-time data
-                visualization, and intelligent trading algorithms. Built by
-                traders, for traders.
+                Professional options trading platform with real-time analytics,
+                risk management tools, and institutional-grade security.
               </p>
 
-              {/* Tech Stack */}
-              <div className="mb-6">
+              {/* Compliance Information */}
+              <div className="space-y-2 mb-6">
+                {complianceInfo.map((item, index) => (
+                  <div
+                    key={index}
+                    className={`text-xs ${
+                      theme === "dark" ? "text-gray-500" : "text-gray-500"
+                    }`}
+                  >
+                    <span className="font-medium">{item.label}:</span>{" "}
+                    {item.value}
+                  </div>
+                ))}
+              </div>
+
+              {/* Technology Stack */}
+              <div>
                 <p
                   className={`text-xs font-semibold mb-3 ${
                     theme === "dark" ? "text-gray-300" : "text-gray-700"
@@ -270,51 +231,56 @@ const Footer = () => {
                   BUILT WITH
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  {techStack.map((tech, index) => {
+                  {techStack.map((tech) => {
                     const Icon = tech.icon;
                     return (
-                      <motion.div
+                      <div
                         key={tech.name}
-                        whileHover={{ scale: 1.1, y: -2 }}
-                        className={`flex items-center space-x-1 px-2 py-1 rounded-lg ${
+                        className={`flex items-center space-x-1 px-2 py-1 rounded-md ${
                           theme === "dark" ? "bg-gray-800" : "bg-white"
-                        } shadow-sm border ${
+                        } border ${
                           theme === "dark"
                             ? "border-gray-700"
                             : "border-gray-200"
                         }`}
                       >
                         <Icon className={`w-3 h-3 ${tech.color}`} />
-                        <span className="text-xs font-medium">{tech.name}</span>
-                      </motion.div>
+                        <span
+                          className={`text-xs ${
+                            theme === "dark" ? "text-gray-300" : "text-gray-700"
+                          }`}
+                        >
+                          {tech.name}
+                        </span>
+                      </div>
                     );
                   })}
                 </div>
               </div>
             </motion.div>
 
-            {/* Quick Links */}
+            {/* Platform Links */}
             <motion.div variants={itemVariants}>
               <h3
-                className={`text-xl font-bold mb-6 ${
+                className={`text-lg font-semibold mb-6 ${
                   theme === "dark" ? "text-white" : "text-gray-900"
                 }`}
               >
-                Navigation
+                Platform
               </h3>
               <ul className="space-y-3">
                 {[
                   { to: "/", label: "Dashboard" },
-                  { to: "/option-chain", label: "Option Chain" },
-                  { to: "/risk-analysis", label: "Risk Analysis" },
-                  { to: "/blog", label: "Trading Blog" },
-                  { to: "/about", label: "About Us" },
-                  { to: "/contact", label: "Contact" },
+                  { to: "/option-chain", label: "Options Chain" },
+                  { to: "/risk-management", label: "Risk Management" },
+                  { to: "/portfolio", label: "Portfolio Analysis" },
+                  { to: "/market-data", label: "Market Data" },
+                  { to: "/api-docs", label: "API Documentation" },
                 ].map((link) => (
                   <li key={link.to}>
                     <Link
                       to={link.to}
-                      className={`text-sm transition-all duration-200 hover:translate-x-1 inline-block ${
+                      className={`text-sm transition-colors duration-200 ${
                         theme === "dark"
                           ? "text-gray-400 hover:text-blue-400"
                           : "text-gray-600 hover:text-blue-600"
@@ -327,91 +293,108 @@ const Footer = () => {
               </ul>
             </motion.div>
 
-            {/* Social & Community */}
+            {/* Support & Legal */}
             <motion.div variants={itemVariants}>
               <h3
-                className={`text-xl font-bold mb-6 ${
+                className={`text-lg font-semibold mb-6 ${
                   theme === "dark" ? "text-white" : "text-gray-900"
                 }`}
               >
-                Community
+                Support & Legal
               </h3>
-              <div className="grid grid-cols-3 gap-3 mb-6">
-                {socialLinks.map((social) => {
-                  const Icon = social.icon;
-                  return (
-                    <motion.a
-                      key={social.label}
-                      href={social.href}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      whileHover={{ scale: 1.1, y: -2 }}
-                      whileTap={{ scale: 0.95 }}
-                      className={`flex items-center justify-center p-3 rounded-xl transition-all duration-200 ${
+              <ul className="space-y-3">
+                {[
+                  { to: "/help", label: "Help Center" },
+                  { to: "/contact", label: "Contact Support" },
+                  { to: "/privacy", label: "Privacy Policy" },
+                  { to: "/terms", label: "Terms of Service" },
+                  { to: "/compliance", label: "Compliance" },
+                  { to: "/security", label: "Security" },
+                ].map((link) => (
+                  <li key={link.to}>
+                    <Link
+                      to={link.to}
+                      className={`text-sm transition-colors duration-200 ${
                         theme === "dark"
-                          ? "bg-gray-800 hover:bg-gray-700 text-gray-400"
-                          : "bg-white hover:bg-gray-50 text-gray-600"
-                      } ${social.color} shadow-sm border ${
-                        theme === "dark" ? "border-gray-700" : "border-gray-200"
+                          ? "text-gray-400 hover:text-blue-400"
+                          : "text-gray-600 hover:text-blue-600"
                       }`}
-                      aria-label={social.label}
                     >
-                      <Icon size={20} />
-                    </motion.a>
-                  );
-                })}
-              </div>
-              <div
-                className={`text-xs ${
-                  theme === "dark" ? "text-gray-500" : "text-gray-500"
-                }`}
-              >
-                <p className="mb-2">#AlgorithmicTrading #OptionsTrading</p>
-                <p>#FinTech #DataScience #Python #React</p>
-              </div>
+                      {link.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
             </motion.div>
 
-            {/* Newsletter */}
+            {/* Contact & Updates */}
             <motion.div variants={itemVariants}>
               <h3
-                className={`text-xl font-bold mb-6 flex items-center ${
+                className={`text-lg font-semibold mb-6 flex items-center ${
                   theme === "dark" ? "text-white" : "text-gray-900"
                 }`}
               >
-                <EnvelopeIcon className="w-5 h-5 mr-2 text-purple-500" />
-                Stay Updated
+                <EnvelopeIcon className="w-5 h-5 mr-2 text-blue-500" />
+                Stay Informed
               </h3>
+
+              {/* Contact Information */}
+              <div className="space-y-3 mb-6">
+                <div
+                  className={`flex items-center text-sm ${
+                    theme === "dark" ? "text-gray-400" : "text-gray-600"
+                  }`}
+                >
+                  <PhoneIcon className="w-4 h-4 mr-2" />
+                  <span>+91-80-1234-5678</span>
+                </div>
+                <div
+                  className={`flex items-center text-sm ${
+                    theme === "dark" ? "text-gray-400" : "text-gray-600"
+                  }`}
+                >
+                  <EnvelopeIcon className="w-4 h-4 mr-2" />
+                  <span>support@deepstrike.com</span>
+                </div>
+                <div
+                  className={`flex items-start text-sm ${
+                    theme === "dark" ? "text-gray-400" : "text-gray-600"
+                  }`}
+                >
+                  <MapPinIcon className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" />
+                  <span>Bangalore, Karnataka, India</span>
+                </div>
+              </div>
+
+              {/* Newsletter Signup */}
               <p
-                className={`text-sm mb-6 ${
+                className={`text-sm mb-4 ${
                   theme === "dark" ? "text-gray-400" : "text-gray-600"
                 }`}
               >
-                Get weekly insights on market trends, trading strategies, and
-                platform updates.
+                Get market insights and platform updates
               </p>
 
               <form onSubmit={handleSubscribe} className="space-y-3">
-                <div className="relative">
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="Enter your email"
-                    className={`w-full px-4 py-3 rounded-xl border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      theme === "dark"
-                        ? "bg-gray-800 border-gray-700 text-white placeholder-gray-500"
-                        : "bg-white border-gray-300 text-gray-900 placeholder-gray-500"
-                    }`}
-                  />
-                </div>
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Enter your email"
+                  className={`w-full px-3 py-2 rounded-lg border text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    theme === "dark"
+                      ? "bg-gray-800 border-gray-700 text-white placeholder-gray-500"
+                      : "bg-white border-gray-300 text-gray-900 placeholder-gray-500"
+                  }`}
+                />
 
                 <motion.button
                   type="submit"
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   disabled={subscribed}
-                  className="w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-semibold transition-all duration-200 hover:shadow-lg disabled:opacity-50"
+                  className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors hover:bg-blue-700 disabled:opacity-50"
                 >
                   {subscribed ? "Subscribed!" : "Subscribe"}
                 </motion.button>
@@ -426,17 +409,54 @@ const Footer = () => {
                     className="mt-3 flex items-center text-green-500 text-sm"
                   >
                     <CheckCircleIcon className="w-4 h-4 mr-2" />
-                    Welcome to the community!
+                    Thank you for subscribing!
                   </motion.div>
                 )}
               </AnimatePresence>
+
+              {/* Professional Social Links */}
+              <div className="mt-6">
+                <p
+                  className={`text-xs font-medium mb-3 ${
+                    theme === "dark" ? "text-gray-400" : "text-gray-600"
+                  }`}
+                >
+                  CONNECT WITH US
+                </p>
+                <div className="flex space-x-3">
+                  {professionalLinks.map((social) => {
+                    const Icon = social.icon;
+                    return (
+                      <motion.a
+                        key={social.label}
+                        href={social.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        whileHover={{ scale: 1.1 }}
+                        className={`flex items-center justify-center p-2 rounded-lg transition-colors ${
+                          theme === "dark"
+                            ? "bg-gray-800 hover:bg-gray-700 text-gray-400"
+                            : "bg-white hover:bg-gray-50 text-gray-600"
+                        } ${social.color} border ${
+                          theme === "dark"
+                            ? "border-gray-700"
+                            : "border-gray-200"
+                        }`}
+                        aria-label={social.label}
+                      >
+                        <Icon size={16} />
+                      </motion.a>
+                    );
+                  })}
+                </div>
+              </div>
             </motion.div>
           </div>
 
           {/* Bottom Section */}
           <motion.div
             variants={itemVariants}
-            className={`border-t pt-8 ${
+            className={`border-t pt-6 ${
               theme === "dark" ? "border-gray-800" : "border-gray-200"
             }`}
           >
@@ -446,14 +466,13 @@ const Footer = () => {
                   theme === "dark" ? "text-gray-400" : "text-gray-600"
                 }`}
               >
-                <p className="flex items-center">
-                  &copy; {new Date().getFullYear()} DeepStrike. All rights
-                  reserved.
+                <p>
+                  &copy; {new Date().getFullYear()} DeepStrike Technologies Pvt
+                  Ltd. All rights reserved.
                 </p>
-                <p className="flex items-center mt-1">
-                  Crafted with{" "}
-                  <HeartIcon className="w-4 h-4 mx-1 text-red-500" /> by
-                  <span className="ml-1 font-semibold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                <p className="mt-1">
+                  Developed by{" "}
+                  <span className="font-medium text-blue-600">
                     Shivam Kumar
                   </span>
                 </p>
@@ -464,15 +483,14 @@ const Footer = () => {
                   theme === "dark" ? "text-gray-400" : "text-gray-600"
                 }`}
               >
-                <Link to="/privacy" className="hover:text-blue-500 transition">
-                  Privacy
-                </Link>
-                <Link to="/terms" className="hover:text-blue-500 transition">
-                  Terms
-                </Link>
-                <Link to="/cookies" className="hover:text-blue-500 transition">
-                  Cookies
-                </Link>
+                <div className="flex items-center space-x-2">
+                  <ClockIcon className="w-4 h-4" />
+                  <span>24/7 Support</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <ShieldCheckIcon className="w-4 h-4 text-green-500" />
+                  <span>Secure Platform</span>
+                </div>
               </div>
             </div>
           </motion.div>
@@ -489,10 +507,10 @@ const Footer = () => {
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
             onClick={scrollToTop}
-            className={`fixed bottom-8 right-8 p-3 rounded-full shadow-2xl z-50 ${
+            className={`fixed bottom-8 right-8 p-3 rounded-full shadow-lg z-50 ${
               theme === "dark"
-                ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white"
-                : "bg-gradient-to-r from-blue-500 to-purple-500 text-white"
+                ? "bg-blue-600 text-white hover:bg-blue-700"
+                : "bg-blue-500 text-white hover:bg-blue-600"
             }`}
           >
             <ArrowUpIcon className="w-5 h-5" />
