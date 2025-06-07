@@ -78,7 +78,8 @@ class Utils:
     def find_strikes(option_chain, atm_price):
         try:
             # Ensure all keys can be converted to integers
-            valid_strikes = [int(k) for k in option_chain.keys() if k.isdigit()]
+            valid_strikes = [int(k) for k in option_chain.keys()]
+            # print(f"Valid strikes: {valid_strikes}")
 
             if not valid_strikes:
                 raise ValueError("Option chain contains no valid strike prices.")

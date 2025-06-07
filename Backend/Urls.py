@@ -253,6 +253,8 @@ class Urls:
             # print(f"Processed data: {json.dumps(manipulated_data, indent=2)}")
 
             atm_price = spot_data["data"]["Ltp"]
+            # print(f"Option chain data: {option_data}")
+            # print(f"ATM price: {atm_price}")
             result = Utils.find_strikes(option_data["data"]["oc"], atm_price)
 
             filtered_data = {
