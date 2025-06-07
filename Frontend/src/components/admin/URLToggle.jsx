@@ -61,7 +61,7 @@ const URLToggle = () => {
 
     // Check socket connection (simplified check)
       try {
-      const response = await fetch(`${socketURL}/health`, {
+      const response = await fetch(`${socketURL}/api/health`, {
         method: "GET",
         timeout: 5000,
       });
