@@ -44,7 +44,7 @@ class App:
             traceback.print_exc()
             return jsonify({"error": f"Server encountered an error: {str(e)}"}), 500
 
-    def get_exp_date(symbol):
+    def get_exp_date(self, symbol):
         try:
             if not symbol:
                 return jsonify({"error": "Symbol parameter is required"}), 400

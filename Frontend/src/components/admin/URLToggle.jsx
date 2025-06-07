@@ -20,7 +20,7 @@ const productionURLs = {
 
 const localURLs = {
   baseURL: "http://127.0.0.1:10001/api",
-  socketURL: "http://127.0.0.1:5000",
+  socketURL: "http://127.0.0.1:10001",
 };
 
 const URLToggle = () => {
