@@ -162,7 +162,7 @@ class Urls:
         try:
             # print(f"Fetching expiry dates for symbol {symbol} with segment {seg}")
             payload = Urls.create_fut_payload(symbol, seg)
-            print(f"Request payload: {json.dumps(payload)}")
+            # print(f"Request payload: {json.dumps(payload)}")
             
             fut_response = requests.post(
                 Urls.fut_url,
@@ -170,7 +170,7 @@ class Urls:
                 json=payload,
                 timeout=10
             )
-            print(f"Response status code: {fut_response.status_code}")
+            # print(f"Response status code: {fut_response.status_code}")
             
             if fut_response.status_code != 200:
                 error_msg = f"API returned status code {fut_response.status_code}"
@@ -226,7 +226,7 @@ class Urls:
     @staticmethod
     def fetch_data(symbol, exp, seg):
         try:
-            print(f"Fetching data for symbol: {symbol}, exp: {exp}, seg: {seg}")
+            # print(f"Fetching data for symbol: {symbol}, exp: {exp}, seg: {seg}")
             
             # Fetch option chain data
             response = requests.post(
@@ -234,7 +234,7 @@ class Urls:
             )
             response.raise_for_status()
             option_data = response.json()
-            print(f"Option chain response status: {response.status_code}")
+            # print(f"Option chain response status: {response.status_code}")
             # print(f"Option chain data: {json.dumps(option_data, indent=2)}")
 
             # Fetch spot data
@@ -245,7 +245,7 @@ class Urls:
             )
             spot_response.raise_for_status()
             spot_data = spot_response.json()
-            print(f"Spot data response status: {spot_response.status_code}")
+            # print(f"Spot data response status: {spot_response.status_code}")
             # print(f"Spot data: {json.dumps(spot_data, indent=2)}")
 
             # Process the data

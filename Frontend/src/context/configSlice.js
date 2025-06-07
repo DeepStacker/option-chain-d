@@ -3,7 +3,7 @@ import { createSlice } from "@reduxjs/toolkit";
 // Default dev URLs
 const localURLs = {
   baseURL: "http://127.0.0.1:10001/api",
-  socketURL: "http://127.0.0.1:5000",
+  socketURL: "http://127.0.0.1:10001",
 };
 
 // Load from localStorage or fallback to dev URLs

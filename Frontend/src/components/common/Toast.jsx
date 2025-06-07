@@ -25,7 +25,7 @@ const Toast = () => {
       if (!pausedToasts.has(toast.id)) {
         const timer = setTimeout(() => {
           dispatch(removeToast(toast.id));
-        }, toast.duration || 5000);
+        }, toast.duration || 2000);
 
         return () => clearTimeout(timer);
       }
