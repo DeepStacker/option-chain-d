@@ -50,7 +50,7 @@ export default function ToggleButton() {
           isHighlighting
         )} text-white`}
       >
-        {isHighlighting ? "Highlight Off" : "Highlight On"}
+        {isHighlighting ? "Highlight On" : "Highlight Off"}
       </button>
 
       <button
@@ -60,7 +60,7 @@ export default function ToggleButton() {
           isItmHighlighting
         )} text-white`}
       >
-        {isItmHighlighting ? "ITM Off" : "ITM On"}
+        {isItmHighlighting ? "ITM On" : "ITM Off"}
       </button>
     </div>
   );
