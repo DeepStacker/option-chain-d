@@ -364,7 +364,6 @@ def get_future_price_data(current_user):
 @app.after_request
 def after_request(response):
     if request.origin in [
-        "https://main.dtruazmd8dsaa.amplifyapp.com",
         "https://stockify-oc.vercel.app",
         "http://localhost:3000",
         "http://localhost:5173",
