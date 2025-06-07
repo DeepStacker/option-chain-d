@@ -363,10 +363,15 @@ def get_future_price_data(current_user):
 # Add CORS headers to all responses
 @app.after_request
 def after_request(response):
-    response.headers.add("Access-Control-Allow-Origin", "*")
-    response.headers.add(
-        "Access-Control-Allow-Headers", "Content-Type, Authorization, Accept"
-    )
+    if request.origin in [
+        "https://main.dtruazmd8dsaa.amplifyapp.com",
+        "https://stockify-oc.vercel.app",
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:5173",
+    ]:
+        response.headers.add("Access-Control-Allow-Origin", request.origin)
     response.headers.add(
         "Access-Control-Allow-Methods", "GET, PUT, POST, DELETE, OPTIONS"
     )
