@@ -241,6 +241,8 @@ export const initializeAuth = () => (dispatch) => {
       });
     } else if (!user) {
       dispatch(clearUser());
+      localStorage.removeItem("user"); // Add this line
+      localStorage.removeItem("authToken"); // Add this line
     }
     dispatch(setAuthLoading(false));
     unsubscribe();
