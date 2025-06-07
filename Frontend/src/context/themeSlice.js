@@ -7,7 +7,7 @@ export const themeSlice = createSlice({
     theme: "dark",
     isReversed: true,
     isHighlighting: true,
-    isItmHighlighting: true,
+    isItmHighlighting: false,
   },
   reducers: {
     toggleTheme: (state) => {
