@@ -920,10 +920,10 @@ function OptionsTable() {
 
                   {/* ATM Row */}
                   <tr role="row">
-                    <td colSpan={1} className="p-2">
+                    <td colSpan={1} className="p-0">
                       <Line />
                     </td>
-                    <td colSpan={2} className="p-2">
+                    <td colSpan={2} className="p-0">
                       <Ticker />
                     </td>
                     <td colSpan={1}>
@@ -932,7 +932,7 @@ function OptionsTable() {
                     <td
                       colSpan={5}
                       onClick={() => eventHandlers.handleFuturePriceClick()}
-                      className={`p-2 cursor-pointer text-center transition-colors ${
+                      className={`p-0 cursor-pointer text-center transition-colors ${
                         theme === "dark"
                           ? "hover:bg-gray-700"
                           : "hover:bg-gray-100"
@@ -943,7 +943,7 @@ function OptionsTable() {
                     <td colSpan={1}>
                       <Line />
                     </td>
-                    <td colSpan={2} className="p-2">
+                    <td colSpan={2} className="p-0">
                       <TickerChange />
                     </td>
                     <td colSpan={1}>

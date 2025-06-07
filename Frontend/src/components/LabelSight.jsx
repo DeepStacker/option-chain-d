@@ -47,25 +47,25 @@ function LabelSight() {
 
   return (
     <div
-      className={`flex items-center justify-center space-x-3 px-4 py-1.5 rounded-lg border ${bgColor} ${borderColor} shadow-md transition-all duration-200 hover:shadow-lg`}
+      className={`flex items-center justify-center space-x-3 px-4 py-0 rounded-lg border ${bgColor} ${borderColor} shadow-md transition-all duration-200 hover:shadow-lg`}
     >
       <div className="flex items-center space-x-1">
         <div className={`text-xs ${labelTextColor}`}>Fut:</div>
-        <div className={`text-sm font-medium ${valueTextColor}`}>
+        <div className={`text-base font-medium ${valueTextColor}`}>
           {futureLtp !== null ? toFixed(futureLtp) : "--"}
         </div>
       </div>
 
       <div className="flex items-center space-x-1">
         <div className={`text-xs ${labelTextColor}`}>Spot:</div>
-        <div className={`text-sm font-medium ${valueTextColor}`}>
+        <div className={`text-base font-medium ${valueTextColor}`}>
           {spotLtp !== null ? toFixed(spotLtp) : "--"}
         </div>
       </div>
 
       <div className="flex items-center space-x-1">
         <div className={`text-xs ${labelTextColor}`}>F-S:</div>
-        <div className={`text-sm font-semibold ${spreadColor}`}>
+        <div className={`text-base font-semibold ${spreadColor}`}>
           {spread !== null ? toFixed(spread) : "--"}
         </div>
       </div>

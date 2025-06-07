@@ -6,6 +6,7 @@ import { decode } from "@msgpack/msgpack";
 axios.defaults.withCredentials = true;
 
 let socket = null;
+let activeRequests = new Map(); // Track active requests to prevent duplicates
 
 // Helpers
 const getAuthToken = () => localStorage.getItem("authToken");
@@ -72,274 +73,442 @@ const getLatestExpiry = (expiryArray) => {
   );
 };
 
-// Enhanced Thunks
+// DUPLICATE PREVENTION: Helper to create request keys
+const createRequestKey = (action, params = {}) => {
+  return `${action}_${JSON.stringify(params)}`;
+};
+
+// Enhanced Thunks with Duplicate Prevention
 
 export const fetchExpiryDate = createAsyncThunk(
   "data/fetchExpiryDate",
   async (params, { getState, rejectWithValue }) => {
     try {
+      const requestKey = createRequestKey("fetchExpiryDate", params);
+
+      // DUPLICATE PREVENTION: Check if request is already in progress
+      if (activeRequests.has(requestKey)) {
+        // console.log(
+        //   "🚫 DUPLICATE PREVENTION: fetchExpiryDate already in progress"
+        // );
+        return activeRequests.get(requestKey);
+      }
+
       const token = getAuthToken();
       if (!token) throw new Error("No auth token");
 
       const state = getState();
       const API_BASE_URL = state.config.baseURL;
 
-      const response = await axios.get(`${API_BASE_URL}/exp-date/`, {
-        params,
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const requestPromise = axios
+        .get(`${API_BASE_URL}/exp-date/`, {
+          params,
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        .then((response) => response.data);
 
-      return response.data;
+      // Track the request
+      activeRequests.set(requestKey, requestPromise);
+
+      const result = await requestPromise;
+
+      // Clean up tracking
+      activeRequests.delete(requestKey);
+
+      return result;
     } catch (err) {
+      // Clean up tracking on error
+      const requestKey = createRequestKey("fetchExpiryDate", params);
+      activeRequests.delete(requestKey);
       return rejectWithValue(handleApiError(err));
     }
   }
 );
 
-// STALE CLOSURE FIX: Always use fresh state, ignore stale parameters
+// DUPLICATE PREVENTION: Enhanced fetchLiveData
 export const fetchLiveData = createAsyncThunk(
   "data/fetchLiveData",
   async (_, { dispatch, getState, rejectWithValue }) => {
     try {
+      const freshState = getState();
+      const requestKey = createRequestKey("fetchLiveData", {
+        sid: freshState.data.sid,
+        exp_sid: freshState.data.exp_sid,
+      });
+
+      // DUPLICATE PREVENTION: Check if same request is in progress
+      if (activeRequests.has(requestKey)) {
+        // console.log(
+        //   "🚫 DUPLICATE PREVENTION: fetchLiveData already in progress"
+        // );
+        return activeRequests.get(requestKey);
+      }
+
       const token = getAuthToken();
       if (!token) throw new Error("No auth token");
 
-      // CRITICAL FIX: Always get fresh state at execution time
-      const freshState = getState();
       const API_BASE_URL = freshState.config.baseURL;
       const SOCKET_URL = freshState.config.socketURL;
 
-      // CRITICAL FIX: Build params from fresh state only
       const currentParams = {
         sid: freshState.data.sid,
-        exp_sid: freshState.data.exp_sid, // Always use fresh state
+        exp_sid: freshState.data.exp_sid,
       };
 
-      console.log(
-        `🔧 STALE CLOSURE FIX: Using fresh state exp_sid: ${freshState.data.exp_sid}`
-      );
-      console.log(`🔧 STALE CLOSURE FIX: Final params:`, currentParams);
+      // console.log(
+      //   `🔧 DUPLICATE PREVENTION: Starting fetchLiveData with params:`,
+      //   currentParams
+      // );
 
-      // API call with fresh parameters
-      const response = await axios.get(`${API_BASE_URL}/live-data/`, {
-        params: currentParams,
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
+      // Create request promise
+      const requestPromise = (async () => {
+        // API call
+        const response = await axios.get(`${API_BASE_URL}/live-data/`, {
+          params: currentParams,
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        });
+
+        // WebSocket setup
+        const socketInstance = createSocketConnection(SOCKET_URL);
+        if (!socketInstance) {
+          throw new Error("Socket connection failed");
+        }
+
+        if (!socketInstance.connected) {
+          await new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => {
+              reject(new Error("Socket connection timeout"));
+            }, 5000);
+
+            const onConnect = () => {
+              clearTimeout(timeout);
+              socketInstance.off("connect", onConnect);
+              socketInstance.off("connect_error", onError);
+              resolve();
+            };
+
+            const onError = (error) => {
+              clearTimeout(timeout);
+              socketInstance.off("connect", onConnect);
+              socketInstance.off("connect_error", onError);
+              reject(error);
+            };
+
+            if (socketInstance.connected) {
+              clearTimeout(timeout);
+              resolve();
+            } else {
+              socketInstance.once("connect", onConnect);
+              socketInstance.once("connect_error", onError);
+            }
+          });
+        }
+
+        // Setup WebSocket streaming
+        socketInstance.emit("stop_stream");
+        socketInstance.off("live_data");
+        socketInstance.emit("start_stream", currentParams);
+
+        socketInstance.on("live_data", (binaryBuffer) => {
+          try {
+            const arrayBuffer = new Uint8Array(binaryBuffer);
+            const decoded = decode(arrayBuffer);
+            dispatch(updateLiveData(decoded));
+          } catch (e) {
+            console.error("Error decoding live data:", e);
+          }
+        });
+
+        socketInstance.once("stream_started", () => {
+          dispatch(setStreamingState(true));
+          // console.log(
+          //   "✅ DUPLICATE PREVENTION: Live stream started with params:",
+          //   currentParams
+          // );
+        });
+
+        return response.data;
+      })();
+
+      // Track the request
+      activeRequests.set(requestKey, requestPromise);
+
+      const result = await requestPromise;
+
+      // Clean up tracking
+      activeRequests.delete(requestKey);
+
+      return result;
+    } catch (err) {
+      // Clean up tracking on error
+      const freshState = getState();
+      const requestKey = createRequestKey("fetchLiveData", {
+        sid: freshState.data.sid,
+        exp_sid: freshState.data.exp_sid,
+      });
+      activeRequests.delete(requestKey);
+      return rejectWithValue(handleApiError(err));
+    }
+  }
+);
+
+// DUPLICATE PREVENTION: Enhanced direct socket
+export const fetchLiveDataDirectSocket = createAsyncThunk(
+  "data/fetchLiveDataDirectSocket",
+  async (_, { dispatch, getState, rejectWithValue }) => {
+    try {
+      const freshState = getState();
+      const requestKey = createRequestKey("fetchLiveDataDirectSocket", {
+        sid: freshState.data.sid,
+        exp_sid: freshState.data.exp_sid,
       });
 
-      // WebSocket connection with same fresh parameters
-      const socketInstance = createSocketConnection(SOCKET_URL);
-      if (!socketInstance) {
-        return rejectWithValue("Socket connection failed");
+      // DUPLICATE PREVENTION: Check if same request is in progress
+      if (activeRequests.has(requestKey)) {
+        // console.log(
+        //   "🚫 DUPLICATE PREVENTION: fetchLiveDataDirectSocket already in progress"
+        // );
+        return activeRequests.get(requestKey);
       }
 
-      if (!socketInstance.connected) {
+      const token = getAuthToken();
+      if (!token) throw new Error("No auth token");
+
+      const SOCKET_URL = freshState.config.socketURL;
+
+      const currentParams = {
+        sid: freshState.data.sid,
+        exp_sid: freshState.data.exp_sid,
+      };
+
+      // console.log(
+      //   `🔧 DUPLICATE PREVENTION: Starting direct socket with params:`,
+      //   currentParams
+      // );
+
+      // Create request promise
+      const requestPromise = (async () => {
+        const socketInstance = createSocketConnection(SOCKET_URL);
+        if (!socketInstance) {
+          throw new Error("Socket connection failed");
+        }
+
         await new Promise((resolve, reject) => {
           const timeout = setTimeout(() => {
             reject(new Error("Socket connection timeout"));
           }, 5000);
 
-          const onConnect = () => {
-            clearTimeout(timeout);
-            socketInstance.off("connect", onConnect);
-            socketInstance.off("connect_error", onError);
-            resolve();
-          };
-
-          const onError = (error) => {
-            clearTimeout(timeout);
-            socketInstance.off("connect", onConnect);
-            socketInstance.off("connect_error", onError);
-            reject(error);
-          };
-
           if (socketInstance.connected) {
             clearTimeout(timeout);
             resolve();
           } else {
+            const onConnect = () => {
+              clearTimeout(timeout);
+              socketInstance.off("connect", onConnect);
+              socketInstance.off("connect_error", onError);
+              resolve();
+            };
+
+            const onError = (error) => {
+              clearTimeout(timeout);
+              socketInstance.off("connect", onConnect);
+              socketInstance.off("connect_error", onError);
+              reject(error);
+            };
+
             socketInstance.once("connect", onConnect);
             socketInstance.once("connect_error", onError);
           }
         });
-      }
 
-      // Use fresh parameters for WebSocket
-      socketInstance.emit("stop_stream");
-      socketInstance.off("live_data");
-      socketInstance.emit("start_stream", currentParams);
+        socketInstance.emit("stop_stream");
+        socketInstance.off("live_data");
+        socketInstance.emit("start_stream", currentParams);
 
-      socketInstance.on("live_data", (binaryBuffer) => {
-        try {
-          const arrayBuffer = new Uint8Array(binaryBuffer);
-          const decoded = decode(arrayBuffer);
-          dispatch(updateLiveData(decoded));
-        } catch (e) {
-          console.error("Error decoding live data:", e);
-        }
-      });
+        socketInstance.on("live_data", (binaryBuffer) => {
+          try {
+            const arrayBuffer = new Uint8Array(binaryBuffer);
+            const decoded = decode(arrayBuffer);
+            dispatch(updateLiveData(decoded));
+          } catch (e) {
+            console.error("Error decoding live data:", e);
+          }
+        });
 
-      socketInstance.once("stream_started", () => {
-        dispatch(setStreamingState(true));
-        console.log(
-          "✅ STALE CLOSURE FIX: Live stream started with fresh params:",
-          currentParams
-        );
-      });
+        socketInstance.once("stream_started", () => {
+          dispatch(setStreamingState(true));
+          // console.log(
+          //   "✅ DUPLICATE PREVENTION: Direct socket stream started with params:",
+          //   currentParams
+          // );
+        });
 
-      return response.data;
+        return { success: true, params: currentParams };
+      })();
+
+      // Track the request
+      activeRequests.set(requestKey, requestPromise);
+
+      const result = await requestPromise;
+
+      // Clean up tracking
+      activeRequests.delete(requestKey);
+
+      return result;
     } catch (err) {
-      return rejectWithValue(handleApiError(err));
-    }
-  }
-);
-
-// STALE CLOSURE FIX: Direct socket with fresh state only
-export const fetchLiveDataDirectSocket = createAsyncThunk(
-  "data/fetchLiveDataDirectSocket",
-  async (_, { dispatch, getState, rejectWithValue }) => {
-    try {
-      const token = getAuthToken();
-      if (!token) throw new Error("No auth token");
-
-      // CRITICAL FIX: Always get fresh state
+      // Clean up tracking on error
       const freshState = getState();
-      const SOCKET_URL = freshState.config.socketURL;
-
-      const currentParams = {
+      const requestKey = createRequestKey("fetchLiveDataDirectSocket", {
         sid: freshState.data.sid,
-        exp_sid: freshState.data.exp_sid, // Always use fresh state
-      };
-
-      console.log(
-        `🔧 STALE CLOSURE FIX: Direct socket fresh params:`,
-        currentParams
-      );
-
-      const socketInstance = createSocketConnection(SOCKET_URL);
-      if (!socketInstance) {
-        return rejectWithValue("Socket connection failed");
-      }
-
-      await new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          reject(new Error("Socket connection timeout"));
-        }, 5000);
-
-        if (socketInstance.connected) {
-          clearTimeout(timeout);
-          resolve();
-        } else {
-          const onConnect = () => {
-            clearTimeout(timeout);
-            socketInstance.off("connect", onConnect);
-            socketInstance.off("connect_error", onError);
-            resolve();
-          };
-
-          const onError = (error) => {
-            clearTimeout(timeout);
-            socketInstance.off("connect", onConnect);
-            socketInstance.off("connect_error", onError);
-            reject(error);
-          };
-
-          socketInstance.once("connect", onConnect);
-          socketInstance.once("connect_error", onError);
-        }
+        exp_sid: freshState.data.exp_sid,
       });
-
-      socketInstance.emit("stop_stream");
-      socketInstance.off("live_data");
-      socketInstance.emit("start_stream", currentParams);
-
-      socketInstance.on("live_data", (binaryBuffer) => {
-        try {
-          const arrayBuffer = new Uint8Array(binaryBuffer);
-          const decoded = decode(arrayBuffer);
-          dispatch(updateLiveData(decoded));
-        } catch (e) {
-          console.error("Error decoding live data:", e);
-        }
-      });
-
-      socketInstance.once("stream_started", () => {
-        dispatch(setStreamingState(true));
-        console.log(
-          "✅ STALE CLOSURE FIX: Direct socket stream started with fresh params:",
-          currentParams
-        );
-      });
-
-      return { success: true, params: currentParams };
-    } catch (err) {
+      activeRequests.delete(requestKey);
       return rejectWithValue(handleApiError(err));
     }
   }
 );
 
-// STALE CLOSURE FIX: Simplified initialization
+// DUPLICATE PREVENTION: Enhanced initialization
 export const initializeLiveData = createAsyncThunk(
   "data/initializeLiveData",
-  async ({ useDirectSocket = false }, { dispatch, rejectWithValue }) => {
+  async (
+    { useDirectSocket = false },
+    { dispatch, getState, rejectWithValue }
+  ) => {
     try {
-      console.log(
-        `🔧 STALE CLOSURE FIX: Initializing with useDirectSocket: ${useDirectSocket}`
-      );
+      const freshState = getState();
+      const requestKey = createRequestKey("initializeLiveData", {
+        useDirectSocket,
+        sid: freshState.data.sid,
+        exp_sid: freshState.data.exp_sid,
+      });
 
-      if (useDirectSocket) {
-        return await dispatch(fetchLiveDataDirectSocket()).unwrap();
-      } else {
-        return await dispatch(fetchLiveData()).unwrap();
+      // DUPLICATE PREVENTION: Check if same initialization is in progress
+      if (activeRequests.has(requestKey)) {
+        // console.log(
+        //   "🚫 DUPLICATE PREVENTION: initializeLiveData already in progress"
+        // );
+        return activeRequests.get(requestKey);
       }
+
+      // console.log(
+      //   `🔧 DUPLICATE PREVENTION: Starting initialization with useDirectSocket: ${useDirectSocket}`
+      // );
+
+      // Create request promise
+      const requestPromise = (async () => {
+        if (useDirectSocket) {
+          return await dispatch(fetchLiveDataDirectSocket()).unwrap();
+        } else {
+          return await dispatch(fetchLiveData()).unwrap();
+        }
+      })();
+
+      // Track the request
+      activeRequests.set(requestKey, requestPromise);
+
+      const result = await requestPromise;
+
+      // Clean up tracking
+      activeRequests.delete(requestKey);
+
+      return result;
     } catch (error) {
+      // Clean up tracking on error
+      const freshState = getState();
+      const requestKey = createRequestKey("initializeLiveData", {
+        useDirectSocket,
+        sid: freshState.data.sid,
+        exp_sid: freshState.data.exp_sid,
+      });
+      activeRequests.delete(requestKey);
       return rejectWithValue(error.message || "Failed to initialize live data");
     }
   }
 );
 
-// STALE CLOSURE FIX: Sequential execution without parameter passing
+// DUPLICATE PREVENTION: Enhanced workflow
 export const setSidAndFetchData = createAsyncThunk(
   "data/setSidAndFetchData",
-  async ({ newSid, useDirectSocket = false }, { dispatch }) => {
+  async ({ newSid, useDirectSocket = false }, { dispatch, getState }) => {
     try {
-      console.log(`🔧 STALE CLOSURE FIX: Starting workflow for SID: ${newSid}`);
+      const requestKey = createRequestKey("setSidAndFetchData", {
+        newSid,
+        useDirectSocket,
+      });
 
-      // Step 1: Set the new SID
-      dispatch(setSid(newSid));
-
-      // Step 2: Fetch expiry dates
-      const expiryResponse = await dispatch(
-        fetchExpiryDate({ sid: newSid })
-      ).unwrap();
-
-      if (expiryResponse?.length > 0) {
-        // Step 3: Calculate and set latest expiry
-        const latestExpiry = getLatestExpiry(expiryResponse);
-
-        if (latestExpiry) {
-          console.log(
-            `🔧 STALE CLOSURE FIX: Setting latest expiry: ${latestExpiry}`
-          );
-
-          // Step 4: Set expiry in state and wait for update
-          await dispatch(setExp_sid(latestExpiry));
-
-          // Step 5: Wait for state to be fully updated
-          await new Promise((resolve) => setTimeout(resolve, 50));
-
-          // Step 6: Initialize with fresh state (no parameters needed)
-          await dispatch(initializeLiveData({ useDirectSocket })).unwrap();
-
-          console.log(`✅ STALE CLOSURE FIX: Workflow completed successfully`);
-        } else {
-          throw new Error("No valid expiry date found");
-        }
-      } else {
-        throw new Error("No expiry dates available");
+      // DUPLICATE PREVENTION: Check if same workflow is in progress
+      if (activeRequests.has(requestKey)) {
+        // console.log(
+        //   "🚫 DUPLICATE PREVENTION: setSidAndFetchData already in progress for",
+        //   newSid
+        // );
+        return activeRequests.get(requestKey);
       }
+
+      // console.log(
+      //   `🔧 DUPLICATE PREVENTION: Starting workflow for SID: ${newSid}`
+      // );
+
+      // Create request promise
+      const requestPromise = (async () => {
+        // Step 1: Set the new SID
+        dispatch(setSid(newSid));
+
+        // Step 2: Fetch expiry dates
+        const expiryResponse = await dispatch(
+          fetchExpiryDate({ sid: newSid })
+        ).unwrap();
+
+        if (expiryResponse?.length > 0) {
+          // Step 3: Calculate and set latest expiry
+          const latestExpiry = getLatestExpiry(expiryResponse);
+
+          if (latestExpiry) {
+            // console.log(
+            //   `🔧 DUPLICATE PREVENTION: Setting latest expiry: ${latestExpiry}`
+            // );
+
+            // Step 4: Set expiry in state
+            await dispatch(setExp_sid(latestExpiry));
+
+            // Step 5: Wait for state update
+            await new Promise((resolve) => setTimeout(resolve, 50));
+
+            // Step 6: Initialize with fresh state
+            await dispatch(initializeLiveData({ useDirectSocket })).unwrap();
+
+            // console.log(
+            //   `✅ DUPLICATE PREVENTION: Workflow completed successfully`
+            // );
+            return { success: true, sid: newSid, exp_sid: latestExpiry };
+          } else {
+            throw new Error("No valid expiry date found");
+          }
+        } else {
+          throw new Error("No expiry dates available");
+        }
+      })();
+
+      // Track the request
+      activeRequests.set(requestKey, requestPromise);
+
+      const result = await requestPromise;
+
+      // Clean up tracking
+      activeRequests.delete(requestKey);
+
+      return result;
     } catch (err) {
+      // Clean up tracking on error
+      const requestKey = createRequestKey("setSidAndFetchData", {
+        newSid,
+        useDirectSocket,
+      });
+      activeRequests.delete(requestKey);
       console.error("Set SID and fetch data error:", err);
       throw err;
     }
@@ -350,11 +519,23 @@ export const startLiveStream = createAsyncThunk(
   "data/startLiveStream",
   async (_, { getState, rejectWithValue }) => {
     try {
+      const freshState = getState();
+      const requestKey = createRequestKey("startLiveStream", {
+        sid: freshState.data.sid,
+        exp_sid: freshState.data.exp_sid,
+      });
+
+      // DUPLICATE PREVENTION: Check if same stream is starting
+      if (activeRequests.has(requestKey)) {
+        // console.log(
+        //   "🚫 DUPLICATE PREVENTION: startLiveStream already in progress"
+        // );
+        return activeRequests.get(requestKey);
+      }
+
       const token = getAuthToken();
       if (!token) throw new Error("No auth token");
 
-      // CRITICAL FIX: Always use fresh state
-      const freshState = getState();
       const SOCKET_URL = freshState.config.socketURL;
 
       const streamParams = {
@@ -362,33 +543,52 @@ export const startLiveStream = createAsyncThunk(
         exp_sid: freshState.data.exp_sid,
       };
 
-      console.log(
-        `🔧 STALE CLOSURE FIX: Start stream with fresh params:`,
-        streamParams
-      );
+      // console.log(
+      //   `🔧 DUPLICATE PREVENTION: Start stream with params:`,
+      //   streamParams
+      // );
 
-      if (!socket) socket = createSocketConnection(SOCKET_URL);
-      if (!socket) throw new Error("Failed to create socket connection");
+      // Create request promise
+      const requestPromise = (async () => {
+        if (!socket) socket = createSocketConnection(SOCKET_URL);
+        if (!socket) throw new Error("Failed to create socket connection");
 
-      if (!socket.connected) socket.connect();
+        if (!socket.connected) socket.connect();
 
-      socket.emit("stop_stream");
-      socket.emit("start_stream", streamParams);
+        socket.emit("stop_stream");
+        socket.emit("start_stream", streamParams);
 
-      console.log(
-        "✅ STALE CLOSURE FIX: Live stream started with fresh params:",
-        streamParams
-      );
+        // console.log(
+        //   "✅ DUPLICATE PREVENTION: Live stream started with params:",
+        //   streamParams
+        // );
+        return streamParams;
+      })();
 
-      return streamParams;
+      // Track the request
+      activeRequests.set(requestKey, requestPromise);
+
+      const result = await requestPromise;
+
+      // Clean up tracking
+      activeRequests.delete(requestKey);
+
+      return result;
     } catch (error) {
+      // Clean up tracking on error
+      const freshState = getState();
+      const requestKey = createRequestKey("startLiveStream", {
+        sid: freshState.data.sid,
+        exp_sid: freshState.data.exp_sid,
+      });
+      activeRequests.delete(requestKey);
       console.error("Start live stream error:", error);
       return rejectWithValue(error.message);
     }
   }
 );
 
-// Slice
+// Rest of the slice remains the same...
 export const dataSlice = createSlice({
   name: "data",
   initialState: {
@@ -407,9 +607,9 @@ export const dataSlice = createSlice({
     setExp_sid: (state, action) => {
       const newExpiry = action.payload;
       state.exp_sid = newExpiry;
-      console.log(
-        `🔧 STALE CLOSURE FIX: State exp_sid updated to: ${newExpiry}`
-      );
+      // console.log(
+      //   `🔧 DUPLICATE PREVENTION: State exp_sid updated to: ${newExpiry}`
+      // );
 
       if (socket?.connected && state.isOc) {
         const streamParams = {
@@ -418,16 +618,16 @@ export const dataSlice = createSlice({
         };
         socket.emit("stop_stream");
         socket.emit("start_stream", streamParams);
-        console.log(
-          "✅ STALE CLOSURE FIX: Socket restarted with new expiry:",
-          streamParams
-        );
+        // console.log(
+        //   "✅ DUPLICATE PREVENTION: Socket restarted with new expiry:",
+        //   streamParams
+        // );
       }
     },
     setSid: (state, action) => {
       const newSid = action.payload;
       state.sid = newSid;
-      console.log(`🔧 STALE CLOSURE FIX: State sid updated to: ${newSid}`);
+      // console.log(`🔧 DUPLICATE PREVENTION: State sid updated to: ${newSid}`);
 
       if (socket?.connected && state.isOc) {
         const streamParams = {
@@ -436,10 +636,10 @@ export const dataSlice = createSlice({
         };
         socket.emit("stop_stream");
         socket.emit("start_stream", streamParams);
-        console.log(
-          "✅ STALE CLOSURE FIX: Socket restarted with new sid:",
-          streamParams
-        );
+        // console.log(
+        //   "✅ DUPLICATE PREVENTION: Socket restarted with new sid:",
+        //   streamParams
+        // );
       }
     },
     setIsOc: (state, action) => {
@@ -470,9 +670,9 @@ export const dataSlice = createSlice({
         const latestExpiry = getLatestExpiry(state.expDate);
         if (latestExpiry && latestExpiry !== state.exp_sid) {
           state.exp_sid = latestExpiry;
-          console.log(
-            `🔧 STALE CLOSURE FIX: Manually set latest expiry: ${latestExpiry}`
-          );
+          // console.log(
+          //   `🔧 DUPLICATE PREVENTION: Manually set latest expiry: ${latestExpiry}`
+          // );
 
           if (socket?.connected && state.isOc) {
             const streamParams = {
@@ -481,10 +681,10 @@ export const dataSlice = createSlice({
             };
             socket.emit("stop_stream");
             socket.emit("start_stream", streamParams);
-            console.log(
-              "✅ STALE CLOSURE FIX: Socket restarted with latest expiry:",
-              streamParams
-            );
+            // console.log(
+            //   "✅ DUPLICATE PREVENTION: Socket restarted with latest expiry:",
+            //   streamParams
+            // );
           }
         }
       }
@@ -546,9 +746,9 @@ export const dataSlice = createSlice({
           const latestExpiry = getLatestExpiry(expiryDates);
           if (latestExpiry) {
             state.exp_sid = latestExpiry;
-            console.log(
-              `✅ STALE CLOSURE FIX: Auto-selected latest expiry: ${latestExpiry}`
-            );
+            // console.log(
+            //   `✅ DUPLICATE PREVENTION: Auto-selected latest expiry: ${latestExpiry}`
+            // );
           }
         }
 
@@ -594,6 +794,12 @@ export const stopLiveStream = () => (dispatch) => {
     dispatch(setStreamingState(false));
     console.log("✅ Live stream stopped and socket disconnected");
   }
+};
+
+// DUPLICATE PREVENTION: Clear all active requests on app cleanup
+export const clearActiveRequests = () => {
+  activeRequests.clear();
+  // console.log("🔧 DUPLICATE PREVENTION: Cleared all active requests");
 };
 
 export default dataSlice.reducer;
