@@ -37,31 +37,3 @@ body {
   /* Reset default margin */
 }
 
-/* Add to your CSS file */
-.option-chain-virtualized {
-  contain: layout style paint;
-  will-change: transform;
-}
-
-.option-chain-list {
-  scrollbar-width: thin;
-  scrollbar-color: #888 #f1f1f1;
-}
-
-.option-chain-list::-webkit-scrollbar {
-  width: 8px;
-}
-
-.option-chain-list::-webkit-scrollbar-track {
-  background: #f1f1f1;
-}
-
-.option-chain-list::-webkit-scrollbar-thumb {
-  background: #888;
-  border-radius: 4px;
-}
-
-.bg-itm-highlight {
-  background-color: #000000 !important;
-  contain: paint;
-}

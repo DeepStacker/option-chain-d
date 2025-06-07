@@ -1,602 +1,414 @@
-import React, {
-  useState,
-  useEffect,
-  useRef,
-  useMemo,
-  useCallback,
-} from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { clearUser } from "../context/authSlice";
 import { toggleTheme } from "../context/themeSlice";
 import { auth } from "../firebase/init";
 import { signOut } from "firebase/auth";
-import { motion, AnimatePresence } from "framer-motion";
-import {
-  Bars3Icon,
-  XMarkIcon,
-  SunIcon,
-  MoonIcon,
-  UserCircleIcon,
-  ArrowRightOnRectangleIcon,
-  ChartBarIcon,
-  HomeIcon,
-  CalculatorIcon,
-  NewspaperIcon,
-  PhoneIcon,
-  InformationCircleIcon,
-} from "@heroicons/react/24/outline";
 import { toast } from "react-toastify";
-import LabelSight from "./LabelSight";
-import DateList from "./DateList";
+import {
+  FiHome,
+  FiBarChart2,
+  FiTrendingUp,
+  FiBook,
+  FiInfo,
+  FiPhone,
+  FiUser,
+  FiLogOut,
+  FiMenu,
+  FiX,
+  FiMoon,
+  FiSun,
+} from "react-icons/fi";
 
 const Navbar = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAuthenticated, user } = useSelector((state) => state.auth);
+  const { isAuthenticated } = useSelector((state) => state.auth);
   const { theme } = useSelector((state) => state.theme);
-  const [isOpen, setIsOpen] = useState(false);
 
-  const navRef = useRef(null);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
-  // Navigation structure
-  const navigationItems = useMemo(
-    () => [
-      {
-        category: "Main",
-        items: [
-          {
-            name: "Dashboard",
-            path: "/dashboard",
-            icon: HomeIcon,
-            description: "Trading overview and analytics",
-          },
-          {
-            name: "Option Chain",
-            path: "/option-chain",
-            icon: ChartBarIcon,
-            description: "Real-time options data and analysis",
-            badge: "Live",
-          },
-          {
-            name: "TCA",
-            path: "/tca",
-            icon: CalculatorIcon,
-            description: "Portfolio risk analysis tools",
-          },
-          {
-            name: "Blog",
-            path: "/blog",
-            icon: NewspaperIcon,
-            description: "Insights and updates on trading strategies",
-          },
-        ],
-      },
-      {
-        category: "Resources",
-        items: [
-          {
-            name: "About",
-            path: "/about",
-            icon: InformationCircleIcon,
-            description: "Learn about our platform",
-          },
-          {
-            name: "Contact",
-            path: "/contact",
-            icon: PhoneIcon,
-            description: "Get in touch with us",
-          },
-        ],
-      },
-    ],
-    []
-  );
-
-  // Flatten navigation items for easier rendering
-  const allNavItems = useMemo(
-    () => navigationItems.flatMap((category) => category.items),
-    [navigationItems]
-  );
-
-  // Handle logout with retry logic
-  const handleLogout = useCallback(async () => {
-    const MAX_RETRIES = 2;
-    let attempt = 0;
-
-    while (attempt <= MAX_RETRIES) {
-      try {
-        await signOut(auth);
-        dispatch(clearUser());
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
-        setIsOpen(false);
-        navigate("/");
-        toast.success("Logged out successfully");
-        return;
-      } catch (error) {
-        console.error(`Logout attempt ${attempt + 1} failed:`, error);
-        attempt++;
-        if (attempt > MAX_RETRIES) {
-          toast.error("Failed to logout. Please try again.");
-          return;
-        }
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-      }
-    }
-  }, [dispatch, navigate]);
-
-  // Handle theme toggle
-  const handleThemeToggle = useCallback(() => {
-    dispatch(toggleTheme());
-  }, [dispatch]);
-
-  // Close mobile menu on navigation
-  const handleNavClick = useCallback(() => {
-    setIsOpen(false);
-  }, []);
-
-  // Handle click outside to close mobile menu
+  // Check screen size for responsive behavior
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (navRef.current && !navRef.current.contains(event.target)) {
-        setIsOpen(false);
-      }
+    const checkScreenSize = () => {
+      setIsMobile(window.innerWidth < 768);
     };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    checkScreenSize();
+    window.addEventListener("resize", checkScreenSize);
+    return () => window.removeEventListener("resize", checkScreenSize);
   }, []);
 
-  // Close menu on route change
+  // Close mobile menu on route change
   useEffect(() => {
-    setIsOpen(false);
+    setIsMobileMenuOpen(false);
   }, [location.pathname]);
 
-  // MarketStatus component
-  const MarketStatus = () => {
-    const isMarketOpen =
-      new Date().getHours() >= 9 && new Date().getHours() < 16;
+  // Navigation items with icons
+  const navItems = [
+    { name: "Dashboard", path: "/dashboard", icon: <FiHome /> },
+    { name: "Option Chain", path: "/option-chain", icon: <FiBarChart2 /> },
+    // { name: "TCA", path: "/tca", icon: <FiCalculator /> },
+    { name: "Blog", path: "/blog", icon: <FiBook /> },
+    { name: "About", path: "/about", icon: <FiInfo /> },
+    { name: "Contact", path: "/contact", icon: <FiPhone /> },
+  ];
 
-    return (
-      <div
-        className={`flex items-center px-2 py-1 rounded-lg text-xs font-semibold shadow-sm transition-all duration-300
-    ${
-      isMarketOpen
-        ? "bg-gradient-to-r from-green-400 via-green-500 to-green-600 text-white"
-        : "bg-gradient-to-r from-red-400 via-red-500 to-red-600 text-white"
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      dispatch(clearUser());
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      navigate("/");
+      toast.success("Logged out successfully");
+    } catch (error) {
+      console.error("Logout failed:", error);
+      toast.error("Failed to logout. Please try again.");
     }
-  `}
-        title={isMarketOpen ? "Market is open" : "Market is closed"}
-        aria-label={isMarketOpen ? "Market open" : "Market closed"}
-      >
-        <span
-          className={`w-2 h-2 rounded-full mr-2 shadow-sm ${
-            isMarketOpen ? "bg-green-200" : "bg-red-200"
-          }`}
-        />
-        {isMarketOpen ? "Market Open" : "Market Closed"}
-      </div>
-    );
   };
+
+  const handleThemeToggle = () => {
+    dispatch(toggleTheme());
+  };
+
+  const toggleMobileMenu = () => {
+    setIsMobileMenuOpen(!isMobileMenuOpen);
+  };
+
+  // Market status
+  const isMarketOpen = new Date().getHours() >= 9 && new Date().getHours() < 16;
 
   return (
     <>
       <nav
-        className={`fixed w-full top-0 z-50 transition-all duration-300 ${
+        className={`fixed top-0 left-0 right-0 z-50 ${
           theme === "dark"
-            ? "bg-gray-900/95 backdrop-blur-md border-gray-700"
-            : "bg-white/95 backdrop-blur-md border-gray-200"
-        } border-b shadow-lg`}
-        ref={navRef}
-        role="navigation"
+            ? "bg-gray-900 border-gray-700"
+            : "bg-white border-gray-200"
+        } border-b shadow-sm transition-colors duration-200`}
         aria-label="Main navigation"
       >
-        <div className="container mx-auto px-4 lg:px-6">
-          <div className="flex items-center justify-between h-16">
-            {/* Logo Section - Fixed width to prevent overflow */}
-            <div className="flex items-center space-x-2 lg:space-x-4 flex-shrink-0 max-w-[200px] lg:max-w-none">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            {/* Logo */}
+            <div className="flex-shrink-0">
               <Link
                 to="/"
-                className="flex items-center space-x-2 lg:space-x-3 group transition-all duration-300"
+                className="flex items-center space-x-2"
+                onClick={() => setIsMobileMenuOpen(false)}
               >
-                {/* Professional Logo */}
-                <motion.div
-                  whileHover={{ rotate: 360, scale: 1.1 }}
-                  transition={{ duration: 0.6 }}
-                  className={`relative w-8 h-8 lg:w-12 lg:h-12 rounded-xl flex items-center justify-center shadow-lg ${
+                <div
+                  className={`w-9 h-9 rounded-lg flex items-center justify-center ${
                     theme === "dark"
-                      ? "bg-gradient-to-br from-blue-600 via-blue-700 to-purple-700"
-                      : "bg-gradient-to-br from-blue-500 via-blue-600 to-purple-600"
+                      ? "bg-gradient-to-br from-blue-600 to-purple-700"
+                      : "bg-gradient-to-br from-blue-500 to-purple-600"
+                  } transition-all duration-200`}
+                >
+                  <span className="text-white font-bold text-lg">D</span>
+                </div>
+                <span
+                  className={`font-semibold text-xl tracking-tight ${
+                    theme === "dark" ? "text-white" : "text-gray-900"
                   }`}
                 >
-                  {/* Trading Chart Icon */}
-                  <svg
-                    className="w-4 h-4 lg:w-7 lg:h-7 text-white"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2.5}
-                      d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
-                    />
-                  </svg>
-
-                  {/* Pulse effect for live trading */}
-                  <motion.div
-                    animate={{
-                      scale: [1, 1.2, 1],
-                      opacity: [0.5, 0.8, 0.5],
-                    }}
-                    transition={{
-                      duration: 2,
-                      repeat: Infinity,
-                      ease: "easeInOut",
-                    }}
-                    className="absolute inset-0 rounded-xl bg-blue-400/30"
-                  />
-                </motion.div>
-
-                {/* Brand Text - Hide on very small screens */}
-                <div className="hidden sm:flex flex-col min-w-0">
-                  <span
-                    className={`text-lg lg:text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent group-hover:from-purple-600 group-hover:to-blue-600 transition-all duration-300 truncate`}
-                  >
-                    DeepStrike
-                  </span>
-                  <span
-                    className={`text-xs font-medium ${
-                      theme === "dark" ? "text-gray-400" : "text-gray-500"
-                    } group-hover:text-blue-500 transition-colors duration-300 truncate`}
-                  >
-                    Options Trading
-                  </span>
-                </div>
+                  DeepStrike
+                </span>
               </Link>
             </div>
 
-            {/* Desktop Navigation - Hidden on mobile */}
-            {isAuthenticated && (
-              <div className="hidden xl:flex items-center space-x-1">
-                {allNavItems.map((item) => {
-                  const Icon = item.icon;
+            {/* Desktop Navigation */}
+            <div className="hidden md:flex items-center space-x-1">
+              {isAuthenticated ? (
+                navItems.map((item) => {
                   const isActive = location.pathname === item.path;
                   return (
                     <Link
                       key={item.path}
                       to={item.path}
-                      className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                      className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                         isActive
                           ? theme === "dark"
-                            ? "text-blue-400 bg-blue-900/30"
-                            : "text-blue-600 bg-blue-50"
+                            ? "bg-gray-800 text-blue-400"
+                            : "bg-gray-100 text-blue-600"
                           : theme === "dark"
-                          ? "text-gray-300 hover:bg-gray-800 hover:text-white"
-                          : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                          ? "text-gray-300 hover:bg-gray-800 hover:text-blue-400"
+                          : "text-gray-700 hover:bg-gray-100 hover:text-blue-600"
                       }`}
                       aria-current={isActive ? "page" : undefined}
                     >
-                      <Icon className="w-4 h-4" aria-hidden="true" />
-                      <span className="hidden 2xl:block">{item.name}</span>
-                      {item.badge && (
-                        <span className="px-2 py-1 text-xs bg-green-500 text-white rounded-full">
-                          {item.badge}
-                        </span>
-                      )}
+                      <span className="mr-2 text-lg">{item.icon}</span>
+                      {item.name}
                     </Link>
                   );
-                })}
-              </div>
-            )}
+                })
+              ) : (
+                <>
+                  {navItems.slice(3).map((item) => (
+                    <Link
+                      key={item.path}
+                      to={item.path}
+                      className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                        theme === "dark"
+                          ? "text-gray-300 hover:bg-gray-800 hover:text-blue-400"
+                          : "text-gray-700 hover:bg-gray-100 hover:text-blue-600"
+                      }`}
+                    >
+                      <span className="mr-2 text-lg">{item.icon}</span>
+                      {item.name}
+                    </Link>
+                  ))}
+                </>
+              )}
+            </div>
 
-            {/* Right Side Actions */}
-            <div className="flex items-center space-x-2 lg:space-x-4 flex-shrink-0">
+            {/* Right side items */}
+            <div className="flex items-center space-x-2">
               {/* Market Status */}
-              <MarketStatus />
+              <div
+                className={`hidden sm:flex items-center px-2.5 py-1.5 rounded-full text-xs font-medium ${
+                  isMarketOpen
+                    ? "bg-green-100 text-green-800"
+                    : "bg-red-100 text-red-800"
+                } transition-colors duration-200`}
+                aria-label={`Market is ${isMarketOpen ? "open" : "closed"}`}
+              >
+                <div
+                  className={`w-2 h-2 rounded-full mr-1.5 ${
+                    isMarketOpen ? "bg-green-500" : "bg-red-500"
+                  }`}
+                ></div>
+                {isMarketOpen ? "Open" : "Closed"}
+              </div>
 
               {/* Theme Toggle */}
               <button
                 onClick={handleThemeToggle}
-                className={`p-2 rounded-lg transition-colors duration-200 ${
+                className={`p-2 rounded-lg text-lg ${
                   theme === "dark"
                     ? "text-gray-300 hover:bg-gray-800"
-                    : "text-gray-700 hover:bg-gray-100"
-                }`}
-                aria-label="Toggle theme"
+                    : "text-gray-600 hover:bg-gray-100"
+                } transition-all duration-200`}
+                aria-label={`Switch to ${
+                  theme === "dark" ? "light" : "dark"
+                } theme`}
               >
-                {theme === "dark" ? (
-                  <SunIcon className="w-5 h-5" />
-                ) : (
-                  <MoonIcon className="w-5 h-5" />
-                )}
+                {theme === "dark" ? <FiSun /> : <FiMoon />}
               </button>
 
               {/* Desktop Auth Buttons */}
               {!isAuthenticated && (
-                <div className="hidden sm:flex items-center space-x-2">
-                  <Link
-                    to="/blog"
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200 ${
-                      theme === "dark"
-                        ? "text-gray-300 hover:bg-gray-800"
-                        : "text-gray-700 hover:bg-gray-100"
-                    }`}
-                  >
-                    Blog
-                  </Link>
-                  <Link
-                    to="/about"
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200 ${
-                      theme === "dark"
-                        ? "text-gray-300 hover:bg-gray-800"
-                        : "text-gray-700 hover:bg-gray-100"
-                    }`}
-                  >
-                    About
-                  </Link>
-                  <Link
-                    to="/contact"
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200 ${
-                      theme === "dark"
-                        ? "text-gray-300 hover:bg-gray-800"
-                        : "text-gray-700 hover:bg-gray-100"
-                    }`}
-                  >
-                    Cantact
-                  </Link>
+                <div className="hidden md:flex items-center space-x-2">
                   <Link
                     to="/login"
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200 ${
+                    className={`px-4 py-2 rounded-lg text-sm font-medium ${
                       theme === "dark"
-                        ? "text-gray-300 hover:bg-gray-800"
-                        : "text-gray-700 hover:bg-gray-100"
-                    }`}
+                        ? "text-gray-300 hover:bg-gray-800 hover:text-blue-400"
+                        : "text-gray-700 hover:bg-gray-100 hover:text-blue-600"
+                    } transition-all duration-200`}
                   >
                     Login
                   </Link>
                   <Link
                     to="/register"
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors duration-200"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-all duration-200"
                   >
                     Register
                   </Link>
                 </div>
               )}
 
-              {/* User Menu for Desktop */}
+              {/* Desktop User Menu */}
               {isAuthenticated && (
-                <div className="hidden sm:flex items-center space-x-2">
+                <div className="hidden md:flex items-center space-x-2">
                   <Link
                     to="/profile"
-                    className={`p-2 rounded-lg transition-colors duration-200 ${
+                    className={`p-2 rounded-lg text-lg ${
                       location.pathname === "/profile"
                         ? theme === "dark"
-                          ? "text-blue-400 bg-blue-900/30"
-                          : "text-blue-600 bg-blue-50"
+                          ? "bg-gray-800 text-blue-400"
+                          : "bg-gray-100 text-blue-600"
                         : theme === "dark"
-                        ? "text-gray-300 hover:bg-gray-800"
-                        : "text-gray-700 hover:bg-gray-100"
-                    }`}
-                    aria-label="Profile"
+                        ? "text-gray-300 hover:bg-gray-800 hover:text-blue-400"
+                        : "text-gray-600 hover:bg-gray-100 hover:text-blue-600"
+                    } transition-all duration-200`}
+                    aria-label="User profile"
                   >
-                    <UserCircleIcon className="w-5 h-5" />
+                    <FiUser />
                   </Link>
                   <button
                     onClick={handleLogout}
-                    className={`p-2 rounded-lg transition-colors duration-200 ${
+                    className={`p-2 rounded-lg text-lg ${
                       theme === "dark"
-                        ? "text-gray-300 hover:bg-gray-800"
-                        : "text-gray-700 hover:bg-gray-100"
-                    }`}
+                        ? "text-gray-300 hover:bg-gray-800 hover:text-red-400"
+                        : "text-gray-600 hover:bg-gray-100 hover:text-red-600"
+                    } transition-all duration-200`}
                     aria-label="Logout"
                   >
-                    <ArrowRightOnRectangleIcon className="w-5 h-5" />
+                    <FiLogOut />
                   </button>
                 </div>
               )}
 
-              {/* Mobile Menu Button */}
-              <button
-                onClick={() => setIsOpen(!isOpen)}
-                className={`xl:hidden p-2 rounded-lg transition-colors duration-200 ${
-                  theme === "dark"
-                    ? "text-gray-300 hover:bg-gray-800"
-                    : "text-gray-700 hover:bg-gray-100"
-                }`}
-                aria-label="Toggle menu"
-                aria-expanded={isOpen}
-              >
-                {isOpen ? (
-                  <XMarkIcon className="w-6 h-6" />
-                ) : (
-                  <Bars3Icon className="w-6 h-6" />
-                )}
-              </button>
+              {/* Mobile menu button */}
+              <div className="md:hidden">
+                <button
+                  onClick={toggleMobileMenu}
+                  className={`p-2 rounded-lg text-lg ${
+                    theme === "dark"
+                      ? "text-gray-300 hover:bg-gray-800"
+                      : "text-gray-600 hover:bg-gray-100"
+                  } transition-all duration-200`}
+                  aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
+                  aria-expanded={isMobileMenuOpen}
+                >
+                  {isMobileMenuOpen ? <FiX /> : <FiMenu />}
+                </button>
+              </div>
             </div>
           </div>
         </div>
-      </nav>
 
-      {/* Mobile Menu Overlay */}
-      <AnimatePresence>
-        {isOpen && (
-          <>
-            {/* Backdrop */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 xl:hidden"
-              onClick={() => setIsOpen(false)}
-            />
-
-            {/* Mobile Menu */}
-            <motion.div
-              initial={{ x: "100%" }}
-              animate={{ x: 0 }}
-              exit={{ x: "100%" }}
-              transition={{ type: "tween", duration: 0.3 }}
-              className={`fixed top-16 right-0 bottom-0 w-80 max-w-[85vw] z-50 xl:hidden ${
-                theme === "dark"
-                  ? "bg-gray-900 border-gray-700"
-                  : "bg-white border-gray-200"
-              } border-l shadow-2xl overflow-y-auto`}
-              role="menu"
-              aria-label="Mobile navigation menu"
+        {/* Mobile Menu */}
+        {isMobileMenuOpen && (
+          <div className="md:hidden">
+            <div
+              className={`px-2 pt-2 pb-3 space-y-1 sm:px-3 ${
+                theme === "dark" ? "bg-gray-900" : "bg-white"
+              } border-t ${
+                theme === "dark" ? "border-gray-700" : "border-gray-200"
+              } transition-colors duration-200`}
             >
-              <div className="p-6 space-y-6">
-                {/* Navigation Items */}
-                {isAuthenticated && (
-                  <div className="space-y-2">
-                    <h3
-                      className={`text-xs font-semibold uppercase tracking-wide ${
-                        theme === "dark" ? "text-gray-400" : "text-gray-500"
-                      }`}
+              {/* Mobile Market Status */}
+              <div
+                className={`flex items-center justify-center px-3 py-2 mb-3 rounded-lg text-sm font-medium ${
+                  isMarketOpen
+                    ? "bg-green-100 text-green-800"
+                    : "bg-red-100 text-red-800"
+                }`}
+                aria-label={`Market is ${isMarketOpen ? "open" : "closed"}`}
+              >
+                <div
+                  className={`w-2 h-2 rounded-full mr-2 ${
+                    isMarketOpen ? "bg-green-500" : "bg-red-500"
+                  }`}
+                ></div>
+                {isMarketOpen ? "Market Open" : "Market Closed"}
+              </div>
+
+              {/* Mobile Navigation Items */}
+              {isAuthenticated ? (
+                navItems.map((item) => {
+                  const isActive = location.pathname === item.path;
+                  return (
+                    <Link
+                      key={item.path}
+                      to={item.path}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className={`flex items-center px-3 py-2 rounded-lg text-base font-medium ${
+                        isActive
+                          ? theme === "dark"
+                            ? "bg-gray-800 text-blue-400"
+                            : "bg-gray-100 text-blue-600"
+                          : theme === "dark"
+                          ? "text-gray-300 hover:bg-gray-800 hover:text-blue-400"
+                          : "text-gray-700 hover:bg-gray-100 hover:text-blue-600"
+                      } transition-all duration-200`}
+                      aria-current={isActive ? "page" : undefined}
                     >
-                      Navigation
-                    </h3>
-                    {allNavItems.map((item, index) => {
-                      const Icon = item.icon;
-                      const isActive = location.pathname === item.path;
-                      return (
-                        <motion.div
-                          key={item.path}
-                          initial={{ x: 20, opacity: 0 }}
-                          animate={{ x: 0, opacity: 1 }}
-                          transition={{ delay: index * 0.1 }}
-                        >
-                          <Link
-                            to={item.path}
-                            className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors duration-200 ${
-                              isActive
-                                ? theme === "dark"
-                                  ? "text-blue-400 bg-blue-900/30"
-                                  : "text-blue-600 bg-blue-50"
-                                : theme === "dark"
-                                ? "text-gray-300 hover:bg-gray-800"
-                                : "text-gray-700 hover:bg-gray-100"
-                            }`}
-                            onClick={handleNavClick}
-                            role="menuitem"
-                            aria-current={isActive ? "page" : undefined}
-                          >
-                            <Icon
-                              className="w-5 h-5 flex-shrink-0"
-                              aria-hidden="true"
-                            />
-                            <div className="flex-1">
-                              <div className="font-medium">{item.name}</div>
-                              <div
-                                className={`text-xs mt-1 ${
-                                  theme === "dark"
-                                    ? "text-gray-400"
-                                    : "text-gray-500"
-                                }`}
-                              >
-                                {item.description}
-                              </div>
-                            </div>
-                            {item.badge && (
-                              <span className="px-2 py-1 text-xs bg-green-500 text-white rounded-full">
-                                {item.badge}
-                              </span>
-                            )}
-                          </Link>
-                        </motion.div>
-                      );
-                    })}
+                      <span className="mr-3 text-lg">{item.icon}</span>
+                      {item.name}
+                    </Link>
+                  );
+                })
+              ) : (
+                <>
+                  {navItems.slice(3).map((item) => (
+                    <Link
+                      key={item.path}
+                      to={item.path}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className={`flex items-center px-3 py-2 rounded-lg text-base font-medium ${
+                        theme === "dark"
+                          ? "text-gray-300 hover:bg-gray-800 hover:text-blue-400"
+                          : "text-gray-700 hover:bg-gray-100 hover:text-blue-600"
+                      } transition-all duration-200`}
+                    >
+                      <span className="mr-3 text-lg">{item.icon}</span>
+                      {item.name}
+                    </Link>
+                  ))}
+                </>
+              )}
+
+              {/* Mobile Auth Section */}
+              <div
+                className={`pt-4 border-t ${
+                  theme === "dark" ? "border-gray-700" : "border-gray-200"
+                }`}
+              >
+                {isAuthenticated ? (
+                  <>
+                    <Link
+                      to="/profile"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className={`flex items-center px-3 py-2 rounded-lg text-base font-medium ${
+                        location.pathname === "/profile"
+                          ? theme === "dark"
+                            ? "bg-gray-800 text-blue-400"
+                            : "bg-gray-100 text-blue-600"
+                          : theme === "dark"
+                          ? "text-gray-300 hover:bg-gray-800 hover:text-blue-400"
+                          : "text-gray-700 hover:bg-gray-100 hover:text-blue-600"
+                      } transition-all duration-200`}
+                    >
+                      <FiUser className="mr-3 text-lg" />
+                      Profile
+                    </Link>
+                    <button
+                      onClick={handleLogout}
+                      className={`w-full flex items-center px-3 py-2 rounded-lg text-base font-medium text-left ${
+                        theme === "dark"
+                          ? "text-red-400 hover:bg-gray-800"
+                          : "text-red-600 hover:bg-gray-100"
+                      } transition-all duration-200`}
+                    >
+                      <FiLogOut className="mr-3 text-lg" />
+                      Logout
+                    </button>
+                  </>
+                ) : (
+                  <div className="space-y-2">
+                    <Link
+                      to="/login"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className={`block w-full px-3 py-2 rounded-lg text-center text-base font-medium ${
+                        theme === "dark"
+                          ? "bg-gray-800 text-white hover:bg-gray-700"
+                          : "bg-gray-100 text-gray-900 hover:bg-gray-200"
+                      } transition-all duration-200`}
+                    >
+                      Login
+                    </Link>
+                    <Link
+                      to="/register"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="block w-full px-3 py-2 bg-blue-600 text-white rounded-lg text-center text-base font-medium hover:bg-blue-700 transition-all duration-200"
+                    >
+                      Register
+                    </Link>
                   </div>
                 )}
-
-                {/* Account Section */}
-                <div className="space-y-2">
-                  <h3
-                    className={`text-xs font-semibold uppercase tracking-wide ${
-                      theme === "dark" ? "text-gray-400" : "text-gray-500"
-                    }`}
-                  >
-                    Account
-                  </h3>
-                  {isAuthenticated ? (
-                    <>
-                      <Link
-                        to="/profile"
-                        className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors duration-200 ${
-                          location.pathname === "/profile"
-                            ? theme === "dark"
-                              ? "text-blue-400 bg-blue-900/30"
-                              : "text-blue-600 bg-blue-50"
-                            : theme === "dark"
-                            ? "text-gray-300 hover:bg-gray-800"
-                            : "text-gray-700 hover:bg-gray-100"
-                        }`}
-                        onClick={handleNavClick}
-                        role="menuitem"
-                      >
-                        <UserCircleIcon
-                          className="w-5 h-5"
-                          aria-hidden="true"
-                        />
-                        <span>Profile</span>
-                      </Link>
-                      <button
-                        onClick={handleLogout}
-                        className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-colors duration-200 ${
-                          theme === "dark"
-                            ? "text-gray-300 hover:bg-gray-800"
-                            : "text-gray-700 hover:bg-gray-100"
-                        }`}
-                        aria-label="Logout"
-                        role="menuitem"
-                      >
-                        <ArrowRightOnRectangleIcon
-                          className="w-5 h-5"
-                          aria-hidden="true"
-                        />
-                        <span>Logout</span>
-                      </button>
-                    </>
-                  ) : (
-                    <div className="space-y-3">
-                      <Link
-                        to="/login"
-                        className={`block w-full px-4 py-3 rounded-lg text-center font-medium transition-colors duration-200 ${
-                          theme === "dark"
-                            ? "bg-blue-600 hover:bg-blue-700 text-white"
-                            : "bg-blue-600 hover:bg-blue-700 text-white"
-                        }`}
-                        onClick={handleNavClick}
-                        role="menuitem"
-                      >
-                        Login
-                      </Link>
-                      <Link
-                        to="/register"
-                        className={`block w-full px-4 py-3 rounded-lg text-center font-medium border transition-colors duration-200 ${
-                          theme === "dark"
-                            ? "border-gray-600 text-gray-300 hover:bg-gray-800"
-                            : "border-gray-300 text-gray-700 hover:bg-gray-100"
-                        }`}
-                        onClick={handleNavClick}
-                        role="menuitem"
-                      >
-                        Register
-                      </Link>
-                    </div>
-                  )}
-                </div>
               </div>
-            </motion.div>
-          </>
+            </div>
+          </div>
         )}
-      </AnimatePresence>
+      </nav>
 
-      {/* Spacer to prevent content from hiding behind fixed navbar */}
-      <div className="h-16" />
+      {/* Spacer for fixed navbar */}
+      <div className="h-16"></div>
     </>
   );
 };

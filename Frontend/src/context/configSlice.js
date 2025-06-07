@@ -2,8 +2,8 @@ import { createSlice } from "@reduxjs/toolkit";
 
 // Default dev URLs
 const localURLs = {
-  baseURL: "http://127.0.0.1:10001/api",
-  socketURL: "http://127.0.0.1:10001",
+  baseURL: "https://option-chain-d.onrender.com/api",
+  socketURL: "https://option-chain-d-new-app.onrender.com",
 };
 
 // Load from localStorage or fallback to dev URLs
