@@ -323,7 +323,8 @@ def stop_streaming():
 
     client_streams[client_id]["active"] = False
     time.sleep(0.1)
-    del client_streams[client_id]
+    if client_id in client_streams:
+        del client_streams[client_id]
 
     logger.info(f"Stopped streaming for client {client_id}")
     # logger.info(f"Stopped streaming for client {client_id}")
@@ -430,4 +431,7 @@ if __name__ == "__main__":
             print(f"Error creating admin user: {e}")
             db.session.rollback()
 
-    socketio.run(app, host="0.0.0.0", port=10001, debug=True)
+    try:
+        socketio.run(app, host="0.0.0.0", port=10001, debug=True)
+    except Exception as e:
+        logger.error(f"Error during socketio.run: {str(e)}", exc_info=True)
