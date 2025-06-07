@@ -245,7 +245,7 @@ const Navbar = () => {
                   <span
                     className={`text-lg lg:text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent group-hover:from-purple-600 group-hover:to-blue-600 transition-all duration-300 truncate`}
                   >
-                    TradePro
+                    DeepStrike
                   </span>
                   <span
                     className={`text-xs font-medium ${

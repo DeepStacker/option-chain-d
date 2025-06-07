@@ -354,7 +354,7 @@ const ContactUs = () => {
     return `
       <div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background-color: #f8fafc; border-radius: 10px;">
         <div style="background: linear-gradient(135deg, #3b82f6, #8b5cf6); padding: 30px; border-radius: 10px; text-align: center; margin-bottom: 30px;">
-          <h1 style="color: white; margin: 0; font-size: 28px; font-weight: bold;">TradePro Contact Form</h1>
+          <h1 style="color: white; margin: 0; font-size: 28px; font-weight: bold;">DeepStrike Contact Form</h1>
           <p style="color: #e0e7ff; margin: 10px 0 0 0; font-size: 16px;">New inquiry from your trading platform</p>
         </div>
         
@@ -525,13 +525,13 @@ const ContactUs = () => {
             })} IST
           </p>
           <p style="color: #9ca3af; font-size: 14px; margin: 5px 0 0 0;">
-            This inquiry was submitted through the TradePro contact form with comprehensive device tracking.
+            This inquiry was submitted through the DeepStrike contact form with comprehensive device tracking.
           </p>
         </div>
         
         <div style="text-align: center; margin-top: 30px;">
           <p style="color: #6b7280; font-size: 14px; margin: 0;">
-            TradePro - Professional Options Trading Platform
+            DeepStrike - Professional Options Trading Platform
           </p>
         </div>
       </div>
@@ -556,7 +556,7 @@ const ContactUs = () => {
     try {
       const emailPayload = {
         to_emails: ["collagedsba@gmail.com"],
-        subject: `TradePro Contact Form: ${
+        subject: `DeepStrike Contact Form: ${
           formData.inquiryType.charAt(0).toUpperCase() +
           formData.inquiryType.slice(1)
         } Inquiry${formData.subject ? ` - ${formData.subject}` : ""} [${
@@ -566,7 +566,7 @@ const ContactUs = () => {
         is_html: true,
         cc_emails: [],
         bcc_emails: [],
-        sender_name: "TradePro Contact Form",
+        sender_name: "DeepStrike Contact Form",
         reply_to: formData.email,
         priority: formData.inquiryType === "enterprise" ? "high" : "normal",
         track_delivery: true,

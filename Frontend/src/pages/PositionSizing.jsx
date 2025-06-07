@@ -10,7 +10,7 @@ const PositionSizing = () => {
     const [analysisData, setAnalysisData] = useState(null);
 
     useEffect(() => {
-        document.title = 'Stockify | Position Sizing';
+        document.title = 'DeepStrike | Position Sizing';
     }, []);
 
     return (

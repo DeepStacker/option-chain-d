@@ -11,7 +11,7 @@ const AboutPage = () => {
   const theme = useSelector((state) => state.theme.theme);
   
   useEffect(() => {
-    document.title = 'About Stockify';
+    document.title = 'About DeepStrike';
   }, []);
   
   return (
@@ -34,7 +34,7 @@ const AboutPage = () => {
           <h1 className={`text-5xl md:text-6xl font-bold mb-6 ${
             theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
           }`}>
-            About Stockify
+            About DeepStrike
           </h1>
           <p className="text-xl md:text-2xl max-w-3xl mx-auto">
             Empowering traders with cutting-edge technology and real-time market insights

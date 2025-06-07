@@ -35,7 +35,7 @@ const ProfitLossCalculator = () => {
     const encryptionKey = 'Shivam';
 
     useEffect(() => {
-        document.title = 'Stockify | Risk Analysis';
+        document.title = 'DeepStrike | Risk Analysis';
     }, []);
 
     const data = useMemo(

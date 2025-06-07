@@ -27,7 +27,7 @@ const Home = () => {
   const heroRef = useRef(null);
   const isHeroInView = useInView(heroRef, { once: true });
 
-  const title = "TradePro";
+  const title = "DeepStrike";
 
   useEffect(() => {
     document.title = `${title} | Professional Options Trading Platform`;
@@ -132,7 +132,7 @@ const Home = () => {
       role: "Senior Options Trader",
       company: "Institutional Trading Desk",
       content:
-        "TradePro has transformed our options trading operations. The real-time analytics and risk management tools are unparalleled in the Indian market.",
+        "DeepStrike has transformed our options trading operations. The real-time analytics and risk management tools are unparalleled in the Indian market.",
       rating: 5,
       avatar:
         "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face",
@@ -800,7 +800,7 @@ const Home = () => {
               className="text-xl text-blue-100 mb-10 max-w-3xl mx-auto"
             >
               Join hundreds of professional traders and institutions who trust
-              TradePro for their options trading and risk management needs
+              DeepStrike for their options trading and risk management needs
             </motion.p>
             <motion.div
               variants={itemVariants}

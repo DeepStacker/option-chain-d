@@ -225,7 +225,7 @@ const Footer = () => {
               }`}
             >
               <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                TradePro
+                DeepStrike
               </span>
             </h2>
             <p
@@ -248,7 +248,7 @@ const Footer = () => {
                 }`}
               >
                 <ChartBarIcon className="w-5 h-5 mr-2 text-blue-500" />
-                About TradePro
+                About DeepStrike
               </h3>
               <p
                 className={`text-sm leading-relaxed mb-6 ${
@@ -447,7 +447,7 @@ const Footer = () => {
                 }`}
               >
                 <p className="flex items-center">
-                  &copy; {new Date().getFullYear()} TradePro. All rights
+                  &copy; {new Date().getFullYear()} DeepStrike. All rights
                   reserved.
                 </p>
                 <p className="flex items-center mt-1">

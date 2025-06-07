@@ -57,7 +57,7 @@ const Login = () => {
           token: token,
         };
         dispatch(setUser(userData));
-        toast.success("Welcome to TradePro! Login successful.");
+        toast.success("Welcome to DeepStrike! Login successful.");
         const redirectPath = localStorage.getItem('redirectAfterLogin') || '/dashboard';
         localStorage.removeItem('redirectAfterLogin');
         navigate(redirectPath);
@@ -232,7 +232,7 @@ const Login = () => {
               </motion.div>
               <div>
                 <h1 className="text-5xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
-                  TradePro
+                  DeepStrike
                 </h1>
                 <p
                   className={`text-xl font-medium ${
