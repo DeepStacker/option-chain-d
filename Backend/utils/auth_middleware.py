@@ -7,7 +7,11 @@ def firebase_token_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         id_token = None
-        
+
+        # Allow OPTIONS requests to pass through without authentication
+        if request.method == 'OPTIONS':
+            return f(*args, **kwargs)
+
         # Get token from header
         if 'Authorization' in request.headers:
             auth_header = request.headers['Authorization']

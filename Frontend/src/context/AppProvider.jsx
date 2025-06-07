@@ -10,6 +10,10 @@ import {
   fetchLiveData,
 } from "./dataSlice";
 import axios from 'axios';
+import { toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import { store } from "./store";
+import { checkTokenExpiry } from './authSlice';
 
 // Create a context for app-wide state management
 export const AppContext = createContext();
@@ -79,6 +83,14 @@ const selectAppState = createSelector(
 export const AppProvider = ({ children }) => {
   const dispatch = useDispatch();
   const socketInitialized = useRef(false);
+
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      checkTokenExpiry(dispatch);
+    }, 5 * 60 * 1000); // Check every 5 minutes
+
+    return () => clearInterval(intervalId);
+  }, [dispatch]);
 
   const {
     user,
@@ -181,7 +193,15 @@ export const AppProvider = ({ children }) => {
     exp_sid,
   };
 
-  return (
-    <AppContext.Provider value={contextValue}>{children}</AppContext.Provider>
-  );
-};
+    return (
+      <AppContext.Provider value={contextValue}>{children}</AppContext.Provider>
+    );
+  };
+  
+  export const AppWrapper = ({ children }) => {
+    return (
+      <AppProvider>
+        {children}
+      </AppProvider>
+    );
+  };

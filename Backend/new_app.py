@@ -77,7 +77,7 @@ limiter = Limiter(
     app=app,
     storage_uri="memory://",
     strategy="fixed-window",
-    default_limits=["200 per day", "50 per hour"]
+    default_limits=["60 per minute"]
 )
 
 # Global error handler
