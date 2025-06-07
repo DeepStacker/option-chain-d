@@ -14,7 +14,7 @@ redis_client = redis.Redis(
 
 class TokenManager:
     def __init__(self):
-        self.access_token_expiry = timedelta(hours=1)  # Short-lived access token
+        self.access_token_expiry = timedelta(seconds=60)  # Short-lived access token
         self.refresh_token_expiry = timedelta(days=7)  # Long-lived refresh token
         self.secret_key = os.getenv('JWT_SECRET_KEY', 'your-secret-key')
     

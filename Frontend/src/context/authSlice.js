@@ -138,7 +138,7 @@ export const loginWithGoogle = createAsyncThunk(
     } catch (error) {
       const message = handleApiError(error);
       dispatch(setError(message));
-      return rejectWithValue({ message });
+      return rejectWithValue({ message: error });
     }
   }
 );
@@ -214,7 +214,50 @@ const authSlice = createSlice({
 export const { setUser, clearUser, setError, setLoading, setAuthLoading } =
   authSlice.actions;
 
-// Firebase auth state sync
+// Function to check token expiry
+export const checkTokenExpiry = async(dispatch) => {
+  const token = localStorage.getItem("authToken");
+  if (token) {
+    try {
+      const base64Url = token.split(".")[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const decodedToken = JSON.parse(atob(base64));
+      if (decodedToken && decodedToken.exp) {
+        const expiryTime = decodedToken.exp * 1000; // Convert seconds to milliseconds
+        const timeUntilExpiry = expiryTime - Date.now();
+        if (timeUntilExpiry <= 60000) { // 60000 milliseconds = 1 minute
+          // Token is expiring within 1 minute, refresh it
+          const user = auth.currentUser;
+          if (user) {
+            
+            async function refreshToken() {
+             try {
+               const newToken = await user.getIdToken(true);
+                localStorage.setItem("authToken", newToken);
+                console.log("Token refreshed successfully");
+              } catch (refreshError) {
+                console.error("Error refreshing token:", refreshError);
+                dispatch(clearUser());
+              }
+            }
+            refreshToken().catch((e) => {
+             console.error("Error getting user", e);
+             dispatch(clearUser());
+           });
+          } else {
+            dispatch(clearUser());
+          }
+        } else if (Date.now() >= expiryTime) {
+          dispatch(clearUser());
+          console.log("Token expired - logging out");
+        }
+      }
+    } catch (error) {
+      console.error("Error decoding token:", error);
+    }
+  }
+};
+
 export const initializeAuth = () => (dispatch) => {
   dispatch(setAuthLoading(true));
 
@@ -241,12 +284,17 @@ export const initializeAuth = () => (dispatch) => {
       });
     } else if (!user) {
       dispatch(clearUser());
-      localStorage.removeItem("user"); // Add this line
-      localStorage.removeItem("authToken"); // Add this line
+      localStorage.removeItem("user");
+      localStorage.removeItem("authToken");
     }
     dispatch(setAuthLoading(false));
     unsubscribe();
   });
+
+  // Set up interval to check token expiry every minute
+  setInterval(() => {
+    checkTokenExpiry(dispatch);
+  }, 60000); // 60000 milliseconds = 1 minute
 };
 
 export default authSlice.reducer;
