@@ -15,7 +15,7 @@ import {
 
 const productionURLs = {
   baseURL: "https://option-chain-d.onrender.com/api",
-  socketURL: "https://option-chain-d.onrender.com/api",
+  socketURL: "https://option-chain-d.onrender.com",
 };
 
 const localURLs = {
