@@ -377,20 +377,126 @@ const Navbar = () => {
       <div className="container mx-auto px-4 lg:px-6">
         <div className="flex justify-between items-center h-16">
           {/* Enhanced Logo */}
-          <Link
-            to="/"
-            className="flex items-center space-x-3 text-2xl font-bold group"
-          >
+          <Link to="/" className="flex items-center space-x-4 group">
+            {/* Premium Logo Container */}
             <motion.div
-              whileHover={{ rotate: 360 }}
-              transition={{ duration: 0.6 }}
-              className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl flex items-center justify-center"
+              whileHover={{
+                scale: 1.05,
+                rotateY: 15,
+                rotateX: 5,
+              }}
+              transition={{
+                duration: 0.6,
+                ease: [0.16, 1, 0.3, 1],
+              }}
+              className="relative"
+              style={{ perspective: "1000px" }}
             >
-              <TrendingUpIcon className="w-6 h-6 text-white" />
+              <motion.div
+                whileHover={{
+                  boxShadow:
+                    "0 25px 50px -12px rgba(59, 130, 246, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1)",
+                }}
+                className="w-14 h-14 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700 rounded-3xl flex items-center justify-center shadow-2xl shadow-blue-500/20 border border-white/10 backdrop-blur-xl relative overflow-hidden"
+              >
+                {/* Animated Background Mesh */}
+                <motion.div
+                  animate={{
+                    backgroundPosition: ["0% 0%", "100% 100%"],
+                    opacity: [0.3, 0.6, 0.3],
+                  }}
+                  transition={{
+                    duration: 4,
+                    repeat: Infinity,
+                    ease: "linear",
+                  }}
+                  className="absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-blue-300/20"
+                  style={{
+                    backgroundImage: `radial-gradient(circle at 25% 25%, rgba(255,255,255,0.2) 0%, transparent 50%),
+                           radial-gradient(circle at 75% 75%, rgba(99,102,241,0.2) 0%, transparent 50%)`,
+                  }}
+                />
+
+                {/* Strike Pattern */}
+                <motion.div
+                  initial={{ x: -30, opacity: 0 }}
+                  animate={{ x: 30, opacity: [0, 1, 0] }}
+                  transition={{
+                    duration: 2,
+                    repeat: Infinity,
+                    repeatDelay: 3,
+                    ease: "easeInOut",
+                  }}
+                  className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent transform -skew-x-12"
+                />
+
+                {/* Main Trading Icon */}
+                <motion.div
+                  whileHover={{
+                    scale: 1.15,
+                    rotate: [0, -10, 10, 0],
+                  }}
+                  transition={{ duration: 0.4 }}
+                  className="relative z-10"
+                >
+                  <TrendingUpIcon className="w-8 h-8 text-white drop-shadow-2xl filter" />
+                </motion.div>
+
+                {/* Pulse Effect */}
+                <motion.div
+                  animate={{
+                    scale: [1, 1.2, 1],
+                    opacity: [0.5, 0, 0.5],
+                  }}
+                  transition={{
+                    duration: 2,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                  }}
+                  className="absolute inset-0 rounded-3xl bg-gradient-to-br from-blue-400 to-purple-600"
+                />
+              </motion.div>
             </motion.div>
-            <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent group-hover:from-purple-600 group-hover:to-blue-600 transition-all duration-300">
-              DeepStrike
-            </span>
+
+            {/* Enhanced Typography */}
+            <motion.div
+              whileHover={{ x: 2 }}
+              transition={{ duration: 0.3 }}
+              className="relative"
+            >
+              <motion.h1
+                whileHover={{
+                  scale: 1.02,
+                  filter: "drop-shadow(0 0 20px rgba(59, 130, 246, 0.3))",
+                }}
+                className="text-3xl font-black tracking-tight leading-none"
+              >
+                <span className="block bg-gradient-to-r from-slate-900 via-slate-700 to-slate-900 dark:from-white dark:via-gray-200 dark:to-white bg-clip-text text-transparent group-hover:from-blue-700 group-hover:via-blue-600 group-hover:to-blue-700 transition-all duration-700">
+                  Deep
+                </span>
+                <span className="block bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-700 bg-clip-text text-transparent group-hover:from-purple-600 group-hover:via-pink-600 group-hover:to-blue-600 transition-all duration-700 -mt-1">
+                  Strike
+                </span>
+              </motion.h1>
+
+              {/* Tagline */}
+              <motion.p
+                initial={{ opacity: 0 }}
+                whileHover={{ opacity: 1 }}
+                transition={{ duration: 0.3 }}
+                className="text-xs font-medium tracking-wider uppercase mt-1 bg-gradient-to-r from-gray-600 to-gray-400 dark:from-gray-400 dark:to-gray-500 bg-clip-text text-transparent"
+              >
+                Trading Platform
+              </motion.p>
+
+              {/* Dynamic Underline */}
+              <motion.div
+                initial={{ scaleX: 0, opacity: 0 }}
+                whileHover={{ scaleX: 1, opacity: 1 }}
+                transition={{ duration: 0.4, ease: "easeOut" }}
+                className="absolute -bottom-1 left-0 h-1 w-full bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 rounded-full origin-left"
+              />
+            </motion.div>
           </Link>
 
           {/* Desktop Navigation */}
