@@ -11,12 +11,13 @@ export default function DateList() {
   const theme = useSelector((state) => state.theme.theme);
   const dates = useSelector((state) => state.data.expDate) || [];
   const selectedExpiry = useSelector((state) => state.data.exp_sid);
+  const [userSelected, setUserSelected] = useState(false);
 
   useEffect(() => {
-    if (Array.isArray(dates) && dates.length > 0) {
+    if (Array.isArray(dates) && dates.length > 0 && !userSelected) {
       dispatch(setExp_sid(dates[0]));
     }
-  }, [dispatch]);
+  }, [dates, dispatch, userSelected]);
 
   const formatTimestamps = (timestamps) => {
     if (!Array.isArray(timestamps)) {
@@ -54,6 +55,7 @@ export default function DateList() {
   const handleDateSelect = (date, index) => {
     const selectedDate = dates[startIndex + index];
     if (selectedDate) {
+      setUserSelected(true);
       dispatch(setExp_sid(selectedDate));
     }
   };
@@ -62,9 +64,16 @@ export default function DateList() {
   const handleDateDropdownSelect = (event) => {
     const selectedDate = parseInt(event.target.value);
     if (!isNaN(selectedDate)) {
+      setUserSelected(true);
       dispatch(setExp_sid(selectedDate));
     }
   };
+
+  const symbol = useSelector((state) => state.data.symbol);
+
+  useEffect(() => {
+    setUserSelected(false); // reset manual selection on symbol change
+  }, [symbol]);
 
   if (!Array.isArray(dates) || dates.length === 0) {
     return (
