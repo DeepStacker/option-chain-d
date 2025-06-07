@@ -52,7 +52,7 @@ const Register = () => {
           token,
         };
         dispatch(setUser(userData));
-        toast.success("Welcome to TradePro! Registration successful.");
+        toast.success("Welcome to DeepStrike! Registration successful.");
         navigate("/dashboard");
       }
     } catch (error) {
@@ -122,7 +122,7 @@ const Register = () => {
               theme === "dark" ? "text-gray-400" : "text-gray-600"
             }`}
           >
-            Join TradePro for intelligent trading solutions
+            Join DeepStrike for intelligent trading solutions
           </p>
         </div>
 
