@@ -15,7 +15,7 @@ import {
 
 const productionURLs = {
   baseURL: "https://option-chain-d.onrender.com/api",
-  socketURL: "https://option-chain-d.onrender.com",
+  socketURL: "https://option-chain-d-new-app.onrender.com",
 };
 
 const localURLs = {
@@ -61,7 +61,7 @@ const URLToggle = () => {
 
     // Check socket connection (simplified check)
       try {
-      const response = await fetch(`${socketURL}/api/health`, {
+      const response = await fetch(`${socketURL}/health`, {
         method: "GET",
         timeout: 5000,
       });
