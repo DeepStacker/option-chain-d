@@ -1,29 +1,35 @@
-import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { useDispatch, useSelector } from 'react-redux';
-import { initializeAuth } from './context/authSlice';
-import { HelmetProvider } from 'react-helmet-async';
-import AuthRedirect from './components/AuthRedirect';
-import { ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
+import React, { useEffect } from "react";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
+import { initializeAuth } from "./context/authSlice";
+import { HelmetProvider } from "react-helmet-async";
+import AuthRedirect from "./components/AuthRedirect";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 // Components
-import Login from './components/auth/Login';
-import Register from './components/auth/Register';
-import Dashboard from './pages/Dashboard';
-import Profile from './components/auth/Profile';
-import PrivateRoute from './components/auth/PrivateRoute';
-import ErrorBoundary from './ErrorBoundary';
-import Home from './pages/Home';
-import About from './pages/About';
-import Blog from './pages/Blog';
-import ContactUs from './pages/Contact';
-import Tca from './pages/Tca';
-import PositionSizing from './pages/PositionSizing';
-import OptionChain from './pages/OptionChain';
-import NotFound from './pages/NotFound';
-import MainLayout from './layouts/MainLayout';
-import URLToggle from './components/admin/URLToggle';
+import Login from "./components/auth/Login";
+import Register from "./components/auth/Register";
+import Dashboard from "./pages/Dashboard";
+import Profile from "./components/auth/Profile";
+import PrivateRoute from "./components/auth/PrivateRoute";
+import ErrorBoundary from "./ErrorBoundary";
+import Home from "./pages/Home";
+import About from "./pages/About";
+import Blog from "./pages/Blog";
+import ContactUs from "./pages/Contact";
+import Tca from "./pages/Tca";
+import PositionSizing from "./pages/PositionSizing";
+import OptionChain from "./pages/OptionChain";
+import NotFound from "./pages/NotFound";
+import MainLayout from "./layouts/MainLayout";
+import URLToggle from "./components/admin/URLToggle";
+import { activateServices } from "./services/healthCheck";
 
 function App() {
   const dispatch = useDispatch();
@@ -32,6 +38,7 @@ function App() {
 
   useEffect(() => {
     dispatch(initializeAuth());
+    activateServices();
   }, [dispatch]);
 
   return (
@@ -39,7 +46,7 @@ function App() {
       <ErrorBoundary>
         <Router>
           <AuthRedirect />
-          <div className={theme === 'dark' ? 'dark' : 'light'}>
+          <div className={theme === "dark" ? "dark" : "light"}>
             <ToastContainer position="top-right" />
             <Routes>
               {/* Main Layout Routes */}
@@ -47,15 +54,36 @@ function App() {
                 {/* Auth Routes */}
                 <Route
                   path="/login"
-                  element={!isAuthenticated ? <Login /> : <Navigate to="/dashboard" replace />}
+                  element={
+                    !isAuthenticated ? (
+                      <Login />
+                    ) : (
+                      <Navigate to="/dashboard" replace />
+                    )
+                  }
                 />
                 <Route
                   path="/register"
-                  element={!isAuthenticated ? <Register /> : <Navigate to="/dashboard" replace />}
+                  element={
+                    !isAuthenticated ? (
+                      <Register />
+                    ) : (
+                      <Navigate to="/dashboard" replace />
+                    )
+                  }
                 />
 
                 {/* Public Routes */}
-                <Route path="/" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Home />} />
+                <Route
+                  path="/"
+                  element={
+                    isAuthenticated ? (
+                      <Navigate to="/dashboard" replace />
+                    ) : (
+                      <Home />
+                    )
+                  }
+                />
                 <Route path="/about" element={<About />} />
                 <Route path="/blog" element={<Blog />} />
                 <Route path="/contact" element={<ContactUs />} />
@@ -73,9 +101,9 @@ function App() {
               {/* 404 Route */}
               <Route path="*" element={<NotFound />} />
             </Routes>
-        </div>
-      </Router>
-    </ErrorBoundary>
+          </div>
+        </Router>
+      </ErrorBoundary>
     </HelmetProvider>
   );
 }

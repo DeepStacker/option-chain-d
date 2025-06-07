@@ -13,7 +13,8 @@ import axios from 'axios';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { store } from "./store";
-import { checkTokenExpiry } from './authSlice';
+import { initializeAuth } from './authSlice';
+import { tokenManager } from './authSlice';
 
 // Create a context for app-wide state management
 export const AppContext = createContext();
@@ -86,7 +87,13 @@ export const AppProvider = ({ children }) => {
 
   useEffect(() => {
     const intervalId = setInterval(() => {
-      checkTokenExpiry(dispatch);
+      const storedToken = localStorage.getItem("authToken") || sessionStorage.getItem("authToken");
+      if (storedToken) {
+        if (tokenManager.isTokenExpired(storedToken)) {
+          console.log("Token expired, initializing auth");
+          dispatch(initializeAuth());
+        }
+      }
     }, 5 * 60 * 1000); // Check every 5 minutes
 
     return () => clearInterval(intervalId);
