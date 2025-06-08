@@ -3,26 +3,26 @@ import { useDispatch, useSelector } from "react-redux";
 import { createSelector } from "reselect";
 import {
   fetchExpiryDate,
-  setExp_sid,  // Changed from setExp to setExp_sid
+  setExp_sid,
   startLiveStream,
   stopLiveStream,
   setSidAndFetchData,
   fetchLiveData,
 } from "./dataSlice";
-import axios from 'axios';
-import { toast } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
-import { store } from "./store";
-import { initializeAuth } from './authSlice';
-import { tokenManager } from './authSlice';
+import axios from "axios";
+import { toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import { initializeAuth } from "./authSlice";
+import { tokenManager } from "./authSlice";
 
 // Create a context for app-wide state management
 export const AppContext = createContext();
 
 // Create memoized selectors
-const selectUser = (state) => state.auth.user;  
+const selectUser = (state) => state.auth.user;
 const selectToken = (state) => state.auth.token;
 const selectIsAuthenticated = (state) => state.auth.isAuthenticated;
+const selectAuthLoading = (state) => state.auth.authLoading;
 const selectTheme = (state) => state.theme.theme;
 const selectIsReversed = (state) => state.theme.isReversed;
 const selectIsHighlighting = (state) => state.theme.isHighlighting;
@@ -39,6 +39,7 @@ const selectAppState = createSelector(
     selectUser,
     selectToken,
     selectIsAuthenticated,
+    selectAuthLoading,
     selectTheme,
     selectIsReversed,
     selectIsHighlighting,
@@ -54,6 +55,7 @@ const selectAppState = createSelector(
     user,
     token,
     isAuthenticated,
+    authLoading,
     theme,
     isReversed,
     isHighlighting,
@@ -68,6 +70,7 @@ const selectAppState = createSelector(
     user,
     token,
     isAuthenticated,
+    authLoading,
     theme,
     isReversed,
     isHighlighting,
@@ -84,25 +87,13 @@ const selectAppState = createSelector(
 export const AppProvider = ({ children }) => {
   const dispatch = useDispatch();
   const socketInitialized = useRef(false);
-
-  useEffect(() => {
-    const intervalId = setInterval(() => {
-      const storedToken = localStorage.getItem("authToken") || sessionStorage.getItem("authToken");
-      if (storedToken) {
-        if (tokenManager.isTokenExpired(storedToken)) {
-          console.log("Token expired, initializing auth");
-          dispatch(initializeAuth());
-        }
-      }
-    }, 5 * 60 * 1000); // Check every 5 minutes
-
-    return () => clearInterval(intervalId);
-  }, [dispatch]);
+  const tokenCheckInterval = useRef(null);
 
   const {
     user,
     token,
     isAuthenticated,
+    authLoading,
     theme,
     isReversed,
     isHighlighting,
@@ -115,28 +106,51 @@ export const AppProvider = ({ children }) => {
     exp_sid,
   } = useSelector(selectAppState);
 
+  // Token expiry check with proper cleanup
+  useEffect(() => {
+    if (tokenCheckInterval.current) {
+      clearInterval(tokenCheckInterval.current);
+    }
+
+    tokenCheckInterval.current = setInterval(() => {
+      const storedToken =
+        localStorage.getItem("authToken") ||
+        sessionStorage.getItem("authToken");
+      if (storedToken && tokenManager.isTokenExpired(storedToken)) {
+        console.log("Token expired, re-initializing auth");
+        dispatch(initializeAuth());
+      }
+    }, 5 * 60 * 1000); // Check every 5 minutes
+
+    return () => {
+      if (tokenCheckInterval.current) {
+        clearInterval(tokenCheckInterval.current);
+      }
+    };
+  }, [dispatch]);
+
   // Set up axios auth header when token changes
   useEffect(() => {
     if (token) {
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
     } else {
-      delete axios.defaults.headers.common['Authorization'];
+      delete axios.defaults.headers.common["Authorization"];
     }
   }, [token]);
 
-  // Initialize data when symbol changes
+  // Initialize data when symbol changes - only when auth is complete
   useEffect(() => {
-    if (isAuthenticated && isOc && symbol) {
+    if (!authLoading && isAuthenticated && isOc && symbol) {
       dispatch(setSidAndFetchData(symbol));
     }
-  }, [dispatch, symbol, isAuthenticated, isOc]);
+  }, [dispatch, symbol, isAuthenticated, authLoading, isOc]);
 
   // Fetch expiry dates when the symbol changes and user is authenticated
   const fetchExpiryDates = useCallback(() => {
-    if (symbol && isAuthenticated && isOc) {  
+    if (!authLoading && symbol && isAuthenticated && isOc) {
       dispatch(fetchExpiryDate({ sid: symbol, exp }));
     }
-  }, [dispatch, symbol, isAuthenticated, exp, isOc]);  
+  }, [dispatch, symbol, isAuthenticated, authLoading, exp, isOc]);
 
   useEffect(() => {
     fetchExpiryDates();
@@ -144,50 +158,62 @@ export const AppProvider = ({ children }) => {
 
   // Fetch live data when expiry changes
   useEffect(() => {
-    if (isAuthenticated && isOc && symbol && exp_sid) {
+    if (!authLoading && isAuthenticated && isOc && symbol && exp_sid) {
       dispatch(fetchLiveData({ sid: symbol, exp_sid }));
     }
-  }, [dispatch, symbol, exp_sid, isAuthenticated, isOc]);
+  }, [dispatch, symbol, exp_sid, isAuthenticated, authLoading, isOc]);
 
-  // Update expiry when expiry list changes
+  // Update expiry when expiry list changes - fixed dependency array
   useEffect(() => {
-    if (data?.fut?.data?.explist?.length && isOc) {  
+    if (!authLoading && data?.fut?.data?.explist?.length && isOc && !exp_sid) {
       const firstExpiry = data.fut.data.explist[0];
       if (firstExpiry) {
-        dispatch(setExp_sid(firstExpiry));  
+        dispatch(setExp_sid(firstExpiry));
       }
     }
-  }, [dispatch, symbol, isOc]);  
+  }, [dispatch, data?.fut?.data?.explist, isOc, authLoading, exp_sid]);
 
-  // Manage WebSocket streaming state
+  // Manage WebSocket streaming state with proper cleanup
   useEffect(() => {
+    // Don't proceed if auth is still loading
+    if (authLoading) return;
+
     if (!isOc || !isAuthenticated) {
       // Stop the live stream if Open Chain is disabled or user is not authenticated
-      if (isStreaming) {
+      if (isStreaming && socketInitialized.current) {
         dispatch(stopLiveStream());
-        socketInitialized.current = false;  
+        socketInitialized.current = false;
       }
       return;
     }
 
-    if (!socketInitialized.current && isAuthenticated) {
-      // Initialize WebSocket only once and when authenticated
+    if (!socketInitialized.current && isAuthenticated && symbol && exp_sid) {
+      // Initialize WebSocket only once and when authenticated with required data
       socketInitialized.current = true;
       dispatch(startLiveStream());
     }
 
     return () => {
-      if (isStreaming) {
+      if (socketInitialized.current && isStreaming) {
         dispatch(stopLiveStream());
         socketInitialized.current = false;
       }
     };
-  }, [dispatch, exp, symbol, isOc, isStreaming, isAuthenticated]);
+  }, [
+    dispatch,
+    symbol,
+    exp_sid,
+    isOc,
+    isAuthenticated,
+    authLoading,
+    isStreaming,
+  ]);
 
   const contextValue = {
     user,
     token,
     isAuthenticated,
+    authLoading,
     theme,
     isReversed,
     isHighlighting,
@@ -200,15 +226,11 @@ export const AppProvider = ({ children }) => {
     exp_sid,
   };
 
-    return (
-      <AppContext.Provider value={contextValue}>{children}</AppContext.Provider>
-    );
-  };
-  
-  export const AppWrapper = ({ children }) => {
-    return (
-      <AppProvider>
-        {children}
-      </AppProvider>
-    );
-  };
+  return (
+    <AppContext.Provider value={contextValue}>{children}</AppContext.Provider>
+  );
+};
+
+export const AppWrapper = ({ children }) => {
+  return <AppProvider>{children}</AppProvider>;
+};

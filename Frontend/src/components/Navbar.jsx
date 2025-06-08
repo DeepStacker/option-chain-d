@@ -9,7 +9,6 @@ import { toast } from "react-toastify";
 import {
   FiHome,
   FiBarChart2,
-  FiTrendingUp,
   FiBook,
   FiInfo,
   FiPhone,
@@ -19,7 +18,9 @@ import {
   FiX,
   FiMoon,
   FiSun,
+  FiCalendar,
 } from "react-icons/fi";
+import { FaCalculator } from "react-icons/fa";
 
 const Navbar = () => {
   const dispatch = useDispatch();
@@ -50,7 +51,8 @@ const Navbar = () => {
   const navItems = [
     { name: "Dashboard", path: "/dashboard", icon: <FiHome /> },
     { name: "Option Chain", path: "/option-chain", icon: <FiBarChart2 /> },
-    // { name: "TCA", path: "/tca", icon: <FiCalculator /> },
+    { name: "TCA", path: "/tca", icon: <FaCalculator /> },
+    { name: "Position Sizing", path: "/position-sizing", icon: <FaCalculator /> },
     { name: "Blog", path: "/blog", icon: <FiBook /> },
     { name: "About", path: "/about", icon: <FiInfo /> },
     { name: "Contact", path: "/contact", icon: <FiPhone /> },

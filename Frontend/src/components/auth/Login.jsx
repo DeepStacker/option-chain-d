@@ -33,7 +33,9 @@ const Login = () => {
   const [isBlocked, setIsBlocked] = useState(false);
   const [blockTimeRemaining, setBlockTimeRemaining] = useState(0);
 
-  const { isAuthenticated, user } = useSelector((state) => state.auth);
+  const { isAuthenticated, user, authLoading } = useSelector(
+    (state) => state.auth
+  );
   const theme = useSelector((state) => state.theme?.theme || "light");
 
   // Security: Track login attempts and implement rate limiting
@@ -86,17 +88,15 @@ const Login = () => {
     setMounted(true);
   }, []);
 
-  const { authLoading } = useSelector((state) => state.auth);
-
-  // Redirect if already authenticated
+  // Fixed redirect logic - wait for auth loading to complete and prevent double navigation
   useEffect(() => {
-    if (!authLoading && isAuthenticated && user) {
+    if (!authLoading && isAuthenticated && user && mounted) {
       const redirectPath =
         localStorage.getItem("redirectAfterLogin") || "/dashboard";
       localStorage.removeItem("redirectAfterLogin");
-      navigate(redirectPath);
+      navigate(redirectPath, { replace: true });
     }
-  }, [isAuthenticated, user, navigate, authLoading]);
+  }, [isAuthenticated, user, navigate, authLoading, mounted]);
 
   const handleLogin = async () => {
     if (isBlocked) {
@@ -127,15 +127,14 @@ const Login = () => {
           photoURL: user.photoURL,
           token: token,
         };
+
         dispatch(setUser(userData));
         toast.success(
           "Login successful. Welcome to your secure trading platform."
         );
 
-        const redirectPath =
-          localStorage.getItem("redirectAfterLogin") || "/dashboard";
-        localStorage.removeItem("redirectAfterLogin");
-        navigate(redirectPath);
+        // Don't navigate here - let the useEffect handle it to prevent conflicts
+        // The redirect will be handled by the useEffect above
       }
     } catch (error) {
       console.error("Login Error:", error);
@@ -239,15 +238,23 @@ const Login = () => {
     { name: "SOC 2", description: "Security & Availability" },
   ];
 
-  if (!mounted) {
+  // Show loading while auth is initializing or component is mounting
+  if (!mounted || authLoading) {
     return (
       <div
         className={`min-h-screen flex items-center justify-center ${
           theme === "dark" ? "bg-gray-900" : "bg-gray-50"
         }`}
       >
-        <div className="animate-pulse">
-          <div className="w-16 h-16 bg-blue-500 rounded-2xl"></div>
+        <div className="flex flex-col items-center space-y-4">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500"></div>
+          <p
+            className={`text-lg font-medium ${
+              theme === "dark" ? "text-gray-300" : "text-gray-600"
+            }`}
+          >
+            Initializing secure connection...
+          </p>
         </div>
       </div>
     );
@@ -300,7 +307,6 @@ const Login = () => {
             theme === "dark" ? "text-white" : "text-gray-900"
           }`}
         >
-         
           {/* Security Headline */}
           <motion.div variants={itemVariants} className="mb-10">
             <h2 className="text-4xl xl:text-5xl font-bold mb-6 leading-tight">
