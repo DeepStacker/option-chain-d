@@ -1,41 +1,42 @@
+# 📌 Must be first line
+import eventlet
+
+eventlet.monkey_patch()
+
+# ✅ All imports after monkey-patch
 from flask import Flask, jsonify, request, send_from_directory
 from flask_socketio import SocketIO
 from flask_cors import CORS
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from routes.auth import auth_bp
 from utils.auth_middleware import firebase_token_required as token_required
 from models.user import db
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
 from APIs import App
 import msgpack
 import os
-import logging
 from dotenv import load_dotenv
-import eventlet
+import logging
 
-eventlet.monkey_patch()  # Monkey patch everything
-
-# Load environment variables
+# ————————————————————————
+# Environment & Logging Setup
 load_dotenv()
-
-# Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Flask app setup
+# ————————————————————————
+# Flask App Setup
 app = Flask(__name__)
-
-# Configure Flask app
-app.config["SECRET_KEY"] = os.environ.get("JWT_SECRET_KEY", "your-secret-key")
-app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
-    "DATABASE_URL", "sqlite:///app.db"
-)
+app.config["SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "your-secret-key")
+app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL", "sqlite:///app.db")
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["UPLOAD_FOLDER"] = os.path.join(os.path.dirname(__file__), "uploads")
-app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16MB max file size
+app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16MB
+
 os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 
-# CORS
+# ————————————————————————
+# CORS & Rate Limiting
 CORS(
     app,
     origins=[
@@ -49,17 +50,21 @@ CORS(
     supports_credentials=True,
 )
 
-# DB
+limiter = Limiter(
+    app=app,
+    key_func=get_remote_address,
+    default_limits=["60 per minute"],
+    storage_uri="memory://",
+)
+
+# ————————————————————————
+# Database Initialization
 db.init_app(app)
 with app.app_context():
     db.create_all()
 
-# Limiter
-limiter = Limiter(
-    app=app, key_func=get_remote_address, default_limits=["60 per minute"]
-)
-
-# SocketIO
+# ————————————————————————
+# SocketIO Setup (Eventlet)
 socketio = SocketIO(
     app,
     cors_allowed_origins="*",
@@ -70,9 +75,9 @@ socketio = SocketIO(
     async_mode="eventlet",
 )
 
-client_streams = {}
 
-
+# ————————————————————————
+# Health & Static Uploads Endpoints
 @app.route("/health", methods=["GET"])
 def healthcheck():
     return {"status": "ok", "message": "API is running"}, 200
@@ -83,132 +88,128 @@ def uploaded_file(filename):
     return send_from_directory(app.config["UPLOAD_FOLDER"], filename)
 
 
+# ————————————————————————
+# WebSocket Stream Management
+client_streams = {}
+
+
 def broadcast_live_data(client_id, sid, exp_sid):
-    logger.info(
-        f"Starting live data broadcast - Client ID: {client_id}, SID: {sid}, EXP_SID: {exp_sid}"
-    )
+    logger.info(f"[{client_id}] Stream started: SID={sid}, EXP_SID={exp_sid}")
     while client_streams.get(client_id, {}).get("active", False):
         try:
-            current_params = client_streams[client_id]
-            if current_params["sid"] != sid or current_params["exp_sid"] != exp_sid:
-                logger.info(
-                    f"Stream parameters changed for client {client_id}, stopping current stream"
-                )
+            params = client_streams[client_id]
+            if params["sid"] != sid or params["exp_sid"] != exp_sid:
+                logger.info(f"[{client_id}] Params changed; stopping stream")
                 break
 
-            live_data = App.get_live_data(sid, exp_sid)
-            binary_data = msgpack.packb(live_data)
-            socketio.emit("live_data", binary_data, room=client_id)
+            data = App.get_live_data(sid, exp_sid)
+            packed = msgpack.packb(data)
+            socketio.emit("live_data", packed, room=client_id)
 
             eventlet.sleep(1)
         except Exception as e:
-            logger.error(
-                f"Error in live data broadcast - Client ID: {client_id}: {str(e)}"
-            )
+            logger.error(f"[{client_id}] Stream error: {e}")
             break
-    logger.info(f"Stopped live data broadcast - Client ID: {client_id}")
+    logger.info(f"[{client_id}] Stream stopped")
 
 
 @socketio.on("connect")
-def handle_connect():
-    try:
-        client_id = request.sid
-        client_streams[client_id] = {"active": False}
-        logger.info(f"WebSocket client connected - ID: {client_id}")
-        socketio.emit("connection_established", {"sid": client_id}, room=client_id)
-    except Exception as e:
-        logger.error(f"Error in handle_connect: {str(e)}")
+def on_connect():
+    sid = request.sid
+    client_streams[sid] = {"active": False}
+    logger.info(f"Client connected: {sid}")
+    socketio.emit("connection_established", {"sid": sid}, room=sid)
 
 
 @socketio.on("disconnect")
-def handle_disconnect():
-    client_id = request.sid
-    if client_id in client_streams:
-        client_streams[client_id]["active"] = False
-        del client_streams[client_id]
-    logger.info(f"WebSocket client disconnected - ID: {client_id}")
+def on_disconnect():
+    sid = request.sid
+    client_streams.pop(sid, None)
+    logger.info(f"Client disconnected: {sid}")
 
 
 @socketio.on("start_stream")
-def start_streaming(data):
-    try:
-        client_id = request.sid
-        sid = data.get("sid", "NIFTY")
-        exp_sid = data.get("exp_sid", "1419013800")
+def on_start_stream(data):
+    sid = request.sid
+    sym = data.get("sid", "NIFTY")
+    exp = data.get("exp_sid", "1419013800")
+    logger.info(f"[{sid}] start_stream: {sym}, exp={exp}")
 
-        logger.info(
-            f"Received start_stream request - Client ID: {client_id}, SID: {sid}, EXP_SID: {exp_sid}"
-        )
+    # Stop old if exists
+    client_streams[sid]["active"] = False
+    eventlet.sleep(0.1)
 
-        if client_id in client_streams:
-            client_streams[client_id]["active"] = False
-            eventlet.sleep(0.1)
-
-        client_streams[client_id] = {"active": True, "sid": sid, "exp_sid": exp_sid}
-        socketio.start_background_task(
-            target=broadcast_live_data, client_id=client_id, sid=sid, exp_sid=exp_sid
-        )
-
-        socketio.emit(
-            "stream_started",
-            {"status": "Streaming started", "client_id": client_id},
-            room=client_id,
-        )
-    except Exception as e:
-        logger.error(f"Error in start_streaming: {str(e)}")
-        socketio.emit("stream_error", {"error": str(e)}, room=client_id)
+    client_streams[sid] = {"active": True, "sid": sym, "exp_sid": exp}
+    socketio.start_background_task(broadcast_live_data, sid, sym, exp)
+    socketio.emit(
+        "stream_started", {"status": "Streaming started", "client_id": sid}, room=sid
+    )
 
 
 @socketio.on("stop_stream")
-def stop_streaming():
-    client_id = request.sid
-    if client_id not in client_streams:
-        socketio.emit("stream_stopped", {"status": "No active stream"}, room=client_id)
-        return
-
-    client_streams[client_id]["active"] = False
-    eventlet.sleep(0.1)
-    del client_streams[client_id]
-    socketio.emit("stream_stopped", {"status": "Streaming stopped"}, room=client_id)
+def on_stop_stream():
+    sid = request.sid
+    if sid in client_streams:
+        client_streams[sid]["active"] = False
+        eventlet.sleep(0.1)
+        client_streams.pop(sid, None)
+        socketio.emit("stream_stopped", {"status": "Streaming stopped"}, room=sid)
 
 
-# Auth Blueprint
+# ————————————————————————
+# Auth Routes & APIs (unchanged)
 app.register_blueprint(auth_bp, url_prefix="/api/auth")
 
 
-# Sample protected route
+@app.route("/api/percentage-data/", methods=["POST", "OPTIONS"])
+@token_required
+def get_percentage_data(current_user):
+    if request.method == "OPTIONS":
+        return "", 200
+    data = request.get_json() or {}
+    missing = [f for f in ["sid", "exp_sid", "strike", "option_type"] if f not in data]
+    if missing:
+        return jsonify({"error": f"Missing fields: {', '.join(missing)}"}), 400
+    return jsonify(App.get_percentage_data(**data)), 200
+
+
+# — repeat similar patterns for /iv-data/, /delta-data/, /fut-data/ …
+
+
+# ————————————————————————
+# CORS Headers (optional fine-tuning)
+@app.after_request
+def after_request(res):
+    allow = [
+        "https://stockify-oc.vercel.app",
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:5173",
+    ]
+    if request.origin in allow:
+        res.headers["Access-Control-Allow-Origin"] = request.origin
+    res.headers["Access-Control-Allow-Methods"] = "GET,PUT,POST,DELETE,OPTIONS"
+    res.headers["Access-Control-Max-Age"] = "3600"
+    return res
+
+
+# ————————————————————————
+# Root Route
 @limiter.limit("200 per day")
 @app.route("/")
 def home():
     return {"message": "Authentication API is running"}
 
 
-# CORS Headers
-@app.after_request
-def after_request(response):
-    if request.origin in [
-        "https://stockify-oc.vercel.app",
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:5173",
-    ]:
-        response.headers.add("Access-Control-Allow-Origin", request.origin)
-    response.headers.add(
-        "Access-Control-Allow-Methods", "GET, PUT, POST, DELETE, OPTIONS"
-    )
-    response.headers.add("Access-Control-Max-Age", "3600")
-    return response
-
-
-# Error Handler
+# ————————————————————————
+# Error Handling
 @app.errorhandler(Exception)
-def handle_error(error):
-    logger.error(f"An error occurred: {str(error)}")
-    return jsonify({"error": "Internal Server Error", "message": str(error)}), 500
+def handle_error(e):
+    logger.error(f"Internal Error: {e}")
+    return jsonify({"error": "Internal Server Error", "message": str(e)}), 500
 
 
-# Your other routes (iv-data, delta-data, fut-data, etc.) stay unchanged...
-
+# ————————————————————————
 if __name__ == "__main__":
     socketio.run(app, host="0.0.0.0", port=5000, debug=False)
