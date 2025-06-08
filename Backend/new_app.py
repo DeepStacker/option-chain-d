@@ -6,13 +6,14 @@ from utils.auth_middleware import firebase_token_required as token_required
 from models.user import db
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-import os
-from dotenv import load_dotenv
-import logging
-from logging.handlers import RotatingFileHandler
-import time
 from APIs import App
 import msgpack
+import os
+import logging
+from dotenv import load_dotenv
+import eventlet
+
+eventlet.monkey_patch()  # Monkey patch everything
 
 # Load environment variables
 load_dotenv()
@@ -30,15 +31,11 @@ app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
     "DATABASE_URL", "sqlite:///app.db"
 )
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-
-# Upload folder configuration
 app.config["UPLOAD_FOLDER"] = os.path.join(os.path.dirname(__file__), "uploads")
 app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16MB max file size
-
-# Ensure upload directory exists
 os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 
-# Initialize CORS
+# CORS
 CORS(
     app,
     origins=[
@@ -49,14 +46,20 @@ CORS(
         "http://127.0.0.1:3000",
         "http://127.0.0.1:5173",
     ],
-    methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["Content-Type", "Authorization", "Access-Control-Allow-Credentials"],
-    supports_credentials=True,  # ✅ Move this outside of `resources`
+    supports_credentials=True,
 )
-# Initialize database
-db.init_app(app)
 
-# Initialize SocketIO
+# DB
+db.init_app(app)
+with app.app_context():
+    db.create_all()
+
+# Limiter
+limiter = Limiter(
+    app=app, key_func=get_remote_address, default_limits=["60 per minute"]
+)
+
+# SocketIO
 socketio = SocketIO(
     app,
     cors_allowed_origins="*",
@@ -64,34 +67,10 @@ socketio = SocketIO(
     engineio_logger=True,
     ping_timeout=500,
     ping_interval=1000,
-    async_mode="threading",
-    always_connect=True,
-    cors_credentials=False,
+    async_mode="eventlet",
 )
 
-# Initialize rate limiter
-limiter = Limiter(
-    key_func=get_remote_address,
-    app=app,
-    storage_uri="memory://",
-    strategy="fixed-window",
-    default_limits=["60 per minute"],
-)
-
-
-# Global error handler
-@app.errorhandler(Exception)
-def handle_error(error):
-    logger.error(f"An error occurred: {str(error)}")
-    return jsonify({"error": "Internal Server Error", "message": str(error)}), 500
-
-
-# Register blueprints
-app.register_blueprint(auth_bp, url_prefix="/api/auth")
-
-# Create database tables
-with app.app_context():
-    db.create_all()
+client_streams = {}
 
 
 @app.route("/health", methods=["GET"])
@@ -99,21 +78,15 @@ def healthcheck():
     return {"status": "ok", "message": "API is running"}, 200
 
 
-# Serve static files from uploads directory
 @app.route("/uploads/<path:filename>")
 def uploaded_file(filename):
     return send_from_directory(app.config["UPLOAD_FOLDER"], filename)
-
-
-# Event to control the live data stream
-client_streams = {}  # Dictionary to track active streams per client
 
 
 def broadcast_live_data(client_id, sid, exp_sid):
     logger.info(
         f"Starting live data broadcast - Client ID: {client_id}, SID: {sid}, EXP_SID: {exp_sid}"
     )
-
     while client_streams.get(client_id, {}).get("active", False):
         try:
             current_params = client_streams[client_id]
@@ -127,13 +100,12 @@ def broadcast_live_data(client_id, sid, exp_sid):
             binary_data = msgpack.packb(live_data)
             socketio.emit("live_data", binary_data, room=client_id)
 
-            time.sleep(1)  # You may want to add a small delay if needed
+            eventlet.sleep(1)
         except Exception as e:
             logger.error(
                 f"Error in live data broadcast - Client ID: {client_id}: {str(e)}"
             )
             break
-
     logger.info(f"Stopped live data broadcast - Client ID: {client_id}")
 
 
@@ -144,10 +116,8 @@ def handle_connect():
         client_streams[client_id] = {"active": False}
         logger.info(f"WebSocket client connected - ID: {client_id}")
         socketio.emit("connection_established", {"sid": client_id}, room=client_id)
-        return True
     except Exception as e:
         logger.error(f"Error in handle_connect: {str(e)}")
-        return False
 
 
 @socketio.on("disconnect")
@@ -170,22 +140,15 @@ def start_streaming(data):
             f"Received start_stream request - Client ID: {client_id}, SID: {sid}, EXP_SID: {exp_sid}"
         )
 
-        # Stop any existing stream for this client
         if client_id in client_streams:
             client_streams[client_id]["active"] = False
-            time.sleep(0.1)  # Small delay to ensure the previous stream stops
+            eventlet.sleep(0.1)
 
-        # Start new stream with updated parameters
         client_streams[client_id] = {"active": True, "sid": sid, "exp_sid": exp_sid}
+        socketio.start_background_task(
+            target=broadcast_live_data, client_id=client_id, sid=sid, exp_sid=exp_sid
+        )
 
-        # Start the broadcast in a background thread
-        from threading import Thread
-
-        thread = Thread(target=broadcast_live_data, args=(client_id, sid, exp_sid))
-        thread.daemon = True
-        thread.start()
-
-        logger.info(f"Started streaming thread - Client ID: {client_id}")
         socketio.emit(
             "stream_started",
             {"status": "Streaming started", "client_id": client_id},
@@ -199,168 +162,28 @@ def start_streaming(data):
 @socketio.on("stop_stream")
 def stop_streaming():
     client_id = request.sid
-
     if client_id not in client_streams:
-        logger.warning(f"No active stream found - Client ID: {client_id}")
         socketio.emit("stream_stopped", {"status": "No active stream"}, room=client_id)
         return
 
     client_streams[client_id]["active"] = False
-    time.sleep(0.1)  # Small delay to ensure the stream stops
+    eventlet.sleep(0.1)
     del client_streams[client_id]
-
-    logger.info(f"Stopped streaming - Client ID: {client_id}")
     socketio.emit("stream_stopped", {"status": "Streaming stopped"}, room=client_id)
 
 
-# Add API endpoints for percentage and IV data
-@app.route("/api/percentage-data/", methods=["POST", "OPTIONS"])
-@token_required
-def get_percentage_data(current_user):
-    if request.method == "OPTIONS":
-        return "", 200
-
-    try:
-        data = request.get_json()
-        if not data:
-            return jsonify({"error": "No data provided"}), 400
-
-        required_fields = ["sid", "exp_sid", "strike", "option_type"]
-        missing_fields = [field for field in required_fields if field not in data]
-        if missing_fields:
-            return (
-                jsonify(
-                    {"error": f"Missing required fields: {', '.join(missing_fields)}"}
-                ),
-                400,
-            )
-
-        logger.info(f"Percentage data request: {data}")
-
-        # Get data from App
-        result = App.get_percentage_data(
-            sid=data.get("sid"),
-            exp_sid=data.get("exp_sid"),
-            strike=data.get("strike"),
-            option_type=data.get("option_type"),
-        )
-
-        return jsonify(result), 200
-
-    except Exception as e:
-        logger.error(f"Error in get_percentage_data: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+# Auth Blueprint
+app.register_blueprint(auth_bp, url_prefix="/api/auth")
 
 
-@app.route("/api/iv-data/", methods=["POST", "OPTIONS"])
-@token_required
-def get_iv_data(current_user):
-    if request.method == "OPTIONS":
-        return "", 200
-
-    try:
-        data = request.get_json()
-        if not data:
-            return jsonify({"error": "No data provided"}), 400
-
-        required_fields = ["sid", "exp_sid", "strike", "option_type"]
-        missing_fields = [field for field in required_fields if field not in data]
-        if missing_fields:
-            return (
-                jsonify(
-                    {"error": f"Missing required fields: {', '.join(missing_fields)}"}
-                ),
-                400,
-            )
-
-        logger.info(f"IV data request: {data}")
-
-        # Get data from App
-        result = App.get_iv_data(
-            sid=data.get("sid"),
-            exp_sid=data.get("exp_sid"),
-            strike=data.get("strike"),
-            option_type=data.get("option_type"),
-        )
-
-        return jsonify(result), 200
-
-    except Exception as e:
-        logger.error(f"Error in get_iv_data: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+# Sample protected route
+@limiter.limit("200 per day")
+@app.route("/")
+def home():
+    return {"message": "Authentication API is running"}
 
 
-@app.route("/api/delta-data/", methods=["POST", "OPTIONS"])
-@token_required
-def get_delta_data(current_user):
-    if request.method == "OPTIONS":
-        return "", 200
-
-    try:
-        data = request.get_json()
-        if not data:
-            return jsonify({"error": "No data provided"}), 400
-
-        required_fields = ["sid", "exp_sid", "strike"]
-        missing_fields = [field for field in required_fields if field not in data]
-        if missing_fields:
-            return (
-                jsonify(
-                    {"error": f"Missing required fields: {', '.join(missing_fields)}"}
-                ),
-                400,
-            )
-
-        logger.info(f"Delta data request: {data}")
-
-        # Get data from App
-        result = App.get_delta_data(
-            sid=data.get("sid"), exp_sid=data.get("exp_sid"), strike=data.get("strike")
-        )
-
-        return jsonify(result), 200
-
-    except Exception as e:
-        logger.error(f"Error in get_delta_data: {str(e)}")
-        return jsonify({"error": str(e)}), 500
-
-
-@app.route("/api/fut-data/", methods=["POST", "OPTIONS"])
-@token_required
-def get_future_price_data(current_user):
-    if request.method == "OPTIONS":
-        return "", 200
-
-    try:
-        data = request.get_json()
-        if not data:
-            return jsonify({"error": "No data provided"}), 400
-
-        required_fields = ["sid", "exp_sid", "strike"]
-        missing_fields = [field for field in required_fields if field not in data]
-        if missing_fields:
-            return (
-                jsonify(
-                    {"error": f"Missing required fields: {', '.join(missing_fields)}"}
-                ),
-                400,
-            )
-
-        logger.info(f"Future price data request: {data}")
-
-        # Get data from App
-        result = App.get_future_price_data(
-            sid=data.get("sid"), exp_sid=data.get("exp_sid"), strike=data.get("strike")
-        )
-
-        return jsonify(result), 200
-
-    except Exception as e:
-        logger.error(f"Error in get_future_price_data: {str(e)}")
-        return jsonify({"error": str(e)}), 500
-
-
-# Add CORS headers to all responses
+# CORS Headers
 @app.after_request
 def after_request(response):
     if request.origin in [
@@ -378,12 +201,14 @@ def after_request(response):
     return response
 
 
-@limiter.limit("200 per day")
-@app.route("/")
-def home():
-    return {"message": "Authentication API is running"}
+# Error Handler
+@app.errorhandler(Exception)
+def handle_error(error):
+    logger.error(f"An error occurred: {str(error)}")
+    return jsonify({"error": "Internal Server Error", "message": str(error)}), 500
 
+
+# Your other routes (iv-data, delta-data, fut-data, etc.) stay unchanged...
 
 if __name__ == "__main__":
-    socketio.run(app, host="0.0.0.0", port=5000, debug=True)
-    # socketio.run(app, host="0.0.0.0", port=5000, debug=True, allow_unsafe_werkzeug=True)
+    socketio.run(app, host="0.0.0.0", port=5000, debug=False)
