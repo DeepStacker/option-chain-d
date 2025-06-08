@@ -111,7 +111,7 @@ const TickerDropdown = () => {
   // Handle symbol selection with recent tracking
   const handleSymbolSelect = useCallback(
     (symbol) => {
-      dispatch(setSidAndFetchData(symbol));
+      dispatch(setSidAndFetchData({ newSid: symbol }));
 
       // Update recent symbols
       const updatedRecent = [

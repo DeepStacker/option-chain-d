@@ -8,8 +8,16 @@ import tcaReducer from './tcaSlice';
 import authReducer from './authSlice';
 import toastReducer from './toastSlice';
 import configReducer from './configSlice';
-// Load token from localStorage
-const token = localStorage.getItem('token');
+import { persistStore, persistReducer } from 'redux-persist';
+import storage from 'redux-persist/lib/storage'; // defaults to localStorage for web
+
+const persistConfig = {
+  key: 'root',
+  storage,
+  whitelist: ['auth'] // only persist the auth reducer
+};
+
+const persistedAuthReducer = persistReducer(persistConfig, authReducer);
 
 export const store = configureStore({
   reducer: {
@@ -19,18 +27,15 @@ export const store = configureStore({
     optionChain: optionChainReducer,
     tca: tcaReducer,
     config: configReducer,
-    auth: authReducer,
+    auth: persistedAuthReducer,
     toast: toastReducer,
   },
-  preloadedState: {
-    auth: {
-      token: token,
-      isAuthenticated: !!token,
-      loading: false,
-      error: null,
-      user: null
-    }
-  }
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware({
+      serializableCheck: false,
+    }),
 });
+
+export const persistor = persistStore(store);
 
 export default store;

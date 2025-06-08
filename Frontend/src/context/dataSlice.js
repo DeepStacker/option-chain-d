@@ -365,7 +365,7 @@ export const dataSlice = createSlice({
     data: {},
     expDate: [],
     exp_sid: 1419013800,
-    sid: "NIFTY",
+    sid: "NIFTY", // Ensure sid has an initial value
     isOc: true,
     error: null,
     isStreaming: false,

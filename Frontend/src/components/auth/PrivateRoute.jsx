@@ -1,18 +1,27 @@
-import React from 'react';
-import { Navigate, Outlet } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import React from "react";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
+import { useSelector } from "react-redux";
 
 const PrivateRoute = () => {
-  const { isAuthenticated, user, authLoading } = useSelector((state) => state.auth);
+  const { isAuthenticated, authLoading } = useSelector((state) => state.auth);
+  const location = useLocation();
 
+  // Show loading while checking authentication
   if (authLoading) {
-    // Show a loading indicator while authenticating
-    return <div>Loading...</div>; // Or any other loading indicator
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+      </div>
+    );
   }
 
-  if (!isAuthenticated || !user) {
-    localStorage.setItem('redirectAfterLogin', window.location.pathname);
-    return <Navigate to="/login" replace />;
+  if (!isAuthenticated) {
+    // Store the attempted URL for redirect after login
+    localStorage.setItem(
+      "redirectAfterLogin",
+      location.pathname + location.search
+    );
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
   return <Outlet />;

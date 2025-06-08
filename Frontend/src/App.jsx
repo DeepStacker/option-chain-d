@@ -6,11 +6,13 @@ import {
   Navigate,
 } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import { initializeAuth } from "./context/authSlice";
+import { initializeAuth, setupAuthListener } from "./context/authSlice";
 import { HelmetProvider } from "react-helmet-async";
 import AuthRedirect from "./components/AuthRedirect";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { PersistGate } from 'redux-persist/integration/react';
+import { persistor } from './context/store';
 
 // Components
 import Login from "./components/auth/Login";
@@ -33,76 +35,88 @@ import { activateServices } from "./services/healthCheck";
 
 function App() {
   const dispatch = useDispatch();
-  const { isAuthenticated } = useSelector((state) => state.auth);
+  const { isAuthenticated, authLoading } = useSelector((state) => state.auth);
   const theme = useSelector((state) => state.theme.theme);
 
   useEffect(() => {
     dispatch(initializeAuth());
+    dispatch(setupAuthListener());
     activateServices();
   }, [dispatch]);
+
+  // Show loading spinner while authentication is being initialized
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
+        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
 
   return (
     <HelmetProvider>
       <ErrorBoundary>
-        <Router>
-          <AuthRedirect />
-          <div className={theme === "dark" ? "dark" : "light"}>
-            <ToastContainer position="top-right" />
-            <Routes>
-              {/* Main Layout Routes */}
-              <Route element={<MainLayout />}>
-                {/* Auth Routes */}
-                <Route
-                  path="/login"
-                  element={
-                    !isAuthenticated ? (
-                      <Login />
-                    ) : (
-                      <Navigate to="/dashboard" replace />
-                    )
-                  }
-                />
-                <Route
-                  path="/register"
-                  element={
-                    !isAuthenticated ? (
-                      <Register />
-                    ) : (
-                      <Navigate to="/dashboard" replace />
-                    )
-                  }
-                />
+        <PersistGate loading={null} persistor={persistor}>
+          <Router>
+            <AuthRedirect />
+            <div className={theme === "dark" ? "dark" : "light"}>
+              <ToastContainer position="top-right" />
+              <Routes>
+                {/* Main Layout Routes */}
+                <Route element={<MainLayout />}>
+                  {/* Auth Routes */}
+                  <Route
+                    path="/login"
+                    element={
+                      !isAuthenticated ? (
+                        <Login />
+                      ) : (
+                        <Navigate to="/dashboard" replace />
+                      )
+                    }
+                  />
+                  <Route
+                    path="/register"
+                    element={
+                      !isAuthenticated ? (
+                        <Register />
+                      ) : (
+                        <Navigate to="/dashboard" replace />
+                      )
+                    }
+                  />
 
-                {/* Public Routes */}
-                <Route
-                  path="/"
-                  element={
-                    isAuthenticated ? (
-                      <Navigate to="/dashboard" replace />
-                    ) : (
-                      <Home />
-                    )
-                  }
-                />
-                <Route path="/about" element={<About />} />
-                <Route path="/blog" element={<Blog />} />
-                <Route path="/contact" element={<ContactUs />} />
+                  {/* Public Routes */}
+                  <Route
+                    path="/"
+                    element={
+                      isAuthenticated ? (
+                        <Navigate to="/dashboard" replace />
+                      ) : (
+                        <Home />
+                      )
+                    }
+                  />
+                  <Route path="/about" element={<About />} />
+                  <Route path="/blog" element={<Blog />} />
+                  <Route path="/contact" element={<ContactUs />} />
 
-                {/* Protected Routes */}
-                <Route element={<PrivateRoute />}>
-                  <Route path="/dashboard" element={<Dashboard />} />
-                  <Route path="/profile" element={<Profile />} />
-                  <Route path="/option-chain" element={<OptionChain />} />
-                  <Route path="/position-sizing" element={<PositionSizing />} />
-                  <Route path="/tca" element={<Tca />} />
-                  <Route path="/admin" element={<URLToggle />} />
+                  {/* Protected Routes */}
+                  <Route element={<PrivateRoute />}>
+                    <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="/profile" element={<Profile />} />
+                    <Route path="/option-chain" element={<OptionChain />} />
+                    <Route path="/position-sizing" element={<PositionSizing />} />
+                    <Route path="/tca" element={<Tca />} />
+                    <Route path="/admin" element={<URLToggle />} />
+                  </Route>
                 </Route>
-              </Route>
-              {/* 404 Route */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </div>
-        </Router>
+                {/* 404 Route */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </div>
+          </Router>
+        </PersistGate>
       </ErrorBoundary>
     </HelmetProvider>
   );
