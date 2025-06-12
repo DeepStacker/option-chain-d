@@ -79,21 +79,21 @@ const ReversalPopup = ({ onClose }) => {
         data: [
           {
             label: "Weekly Resistance",
-            value: reversal?.[strike]?.wkly_reversal || 0,
+            value: reversal?.[upperStrike]?.wkly_reversal || 0,
             type: "resistance",
             strike: strike,
             distance: spotPrice
-              ? Math.abs(spotPrice - (reversal?.[strike]?.wkly_reversal || 0))
+              ? Math.abs(spotPrice - (reversal?.[upperStrike]?.wkly_reversal || 0))
               : 0,
           },
           {
             label: "Weekly Support",
-            value: reversal?.[lowerStrike]?.wkly_reversal || 0,
+            value: reversal?.[strike]?.wkly_reversal || 0,
             type: "support",
             strike: lowerStrike,
             distance: spotPrice
               ? Math.abs(
-                  spotPrice - (reversal?.[lowerStrike]?.wkly_reversal || 0)
+                  spotPrice - (reversal?.[strike]?.wkly_reversal || 0)
                 )
               : 0,
           },
