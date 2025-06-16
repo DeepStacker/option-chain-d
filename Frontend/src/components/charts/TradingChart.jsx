@@ -278,6 +278,8 @@ const TradingChart = React.memo(() => {
     [theme, daily, weekly]
   );
 
+  const getAuthToken = () => localStorage.getItem("authToken");
+
   // Optimized WebSocket connection with connection pooling
   const connectWebSocket = useCallback(() => {
     if (isConnectingRef.current || !currentSymbol) {
@@ -292,7 +294,7 @@ const TradingChart = React.memo(() => {
     }
 
     isConnectingRef.current = true;
-    const wsUrl = `ws://localhost:3000?sid=${sid}&exp_sid=${exp_sid}&interval=30`;
+    const wsUrl = `ws://localhost:3000?sid=${sid}&exp_sid=${exp_sid}&interval=30&token=${getAuthToken()}`;
     console.log("Connecting to WebSocket:", wsUrl);
 
     try {
