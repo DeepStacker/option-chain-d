@@ -4,9 +4,10 @@ const initialState = {
   symbols: [],
   currentSymbol: null,
   timeframe: "10",
-  // Initialize chartData as an empty array to prevent errors
   chartData: [],
   connectionStatus: "disconnected",
+  weekly: true,
+  daily: true,
 };
 
 const chartSlice = createSlice({
@@ -16,29 +17,35 @@ const chartSlice = createSlice({
     setSymbols: (state, action) => {
       state.symbols = action.payload;
     },
+    setWeekly: (state, action) => {
+      state.weekly = action.payload; // expect true/false directly
+    },
+    setDaily: (state, action) => {
+      state.daily = action.payload; // expect true/false directly
+    },
     setCurrentSymbol: (state, action) => {
       state.currentSymbol = action.payload;
     },
     setTimeframe: (state, action) => {
-        action.payload !== "1" ? state.timeframe = action.payload : state.timeframe = "";
+      state.timeframe = action.payload === "1" ? "" : action.payload;
     },
-    // This reducer is for setting the initial historical data
     setChartData: (state, action) => {
-      state.chartData = action.payload;
+      state.chartData = Array.isArray(action.payload) ? action.payload : [];
     },
     setConnectionStatus: (state, action) => {
       state.connectionStatus = action.payload;
     },
-    // 1. Add the new reducer for live updates
     appendLiveCandle: (state, action) => {
       const newCandle = action.payload;
+      if (!newCandle || !newCandle.time) return;
+
       const lastCandle = state.chartData[state.chartData.length - 1];
 
-      if (lastCandle && lastCandle.time === newCandle.time) {
-        // If the new candle has the same timestamp, it's an update to the current candle
+      if (lastCandle?.time === newCandle.time) {
+        // Update existing candle
         state.chartData[state.chartData.length - 1] = newCandle;
       } else {
-        // Otherwise, it's a new candle, so we append it
+        // Append new candle
         state.chartData.push(newCandle);
       }
     },
@@ -47,12 +54,12 @@ const chartSlice = createSlice({
 
 export const {
   setSymbols,
+  setDaily,
+  setWeekly,
   setCurrentSymbol,
   setTimeframe,
-  // Renamed updateChartData to setChartData for clarity
   setChartData,
   setConnectionStatus,
-  // 2. Export the new action so it can be imported elsewhere
   appendLiveCandle,
 } = chartSlice.actions;
 
