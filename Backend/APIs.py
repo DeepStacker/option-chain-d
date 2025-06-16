@@ -32,7 +32,18 @@ class App:
 
             option_data, spot_data, fut_data = Urls.fetch_data(symbol_id, exp_sid, seg_id)
 
-            result = Utils.find_strikes(option_data["data"]["oc"], spot_data["data"]["Ltp"])
+            options_data = option_data.get("data", {})
+            # print(symbol)
+            cp = [ int(k) for k in options_data.get("fl", {}).keys()]
+            if str(symbol) == "CRUDEOIL":
+                fl = min(cp)
+                # print(fl)
+                current_price = options_data.get("fl", {}).get(str(fl), {}).get("ltp", 0)
+            else:
+                current_price = options_data.get("sltp", 0)
+
+            # print(current_price)
+            result = Utils.find_strikes(option_data["data"]["oc"], current_price)
             if not result:
                 return jsonify({"error": "Option chain contains no valid strike prices."}), 400
 

@@ -8,6 +8,7 @@ import tcaReducer from './tcaSlice';
 import authReducer from './authSlice';
 import toastReducer from './toastSlice';
 import configReducer from './configSlice';
+import chartReducer from "./chartSlice";
 import { persistStore, persistReducer } from 'redux-persist';
 import storage from 'redux-persist/lib/storage'; // defaults to localStorage for web
 
@@ -29,6 +30,7 @@ export const store = configureStore({
     config: configReducer,
     auth: persistedAuthReducer,
     toast: toastReducer,
+    chart: chartReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

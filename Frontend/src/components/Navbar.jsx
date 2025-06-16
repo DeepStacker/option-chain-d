@@ -51,6 +51,7 @@ const Navbar = () => {
   const navItems = [
     { name: "Dashboard", path: "/dashboard", icon: <FiHome /> },
     { name: "Option Chain", path: "/option-chain", icon: <FiBarChart2 /> },
+    { name: "Chart", path: "/charts", icon: <FiBarChart2 /> },
     { name: "TCA", path: "/tca", icon: <FaCalculator /> },
     { name: "Position Sizing", path: "/position-sizing", icon: <FaCalculator /> },
     { name: "Blog", path: "/blog", icon: <FiBook /> },

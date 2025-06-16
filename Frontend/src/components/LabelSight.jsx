@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import { toFixed } from "../utils/utils";
 
@@ -8,19 +8,35 @@ function LabelSight() {
 
   const marketData = data?.spot?.data;
   const futData = data?.fut?.data?.flst;
+  const optionsData = data?.options?.data;
   const flstKey = Object.keys(futData || {})[0];
   const futureLtp = futData?.[flstKey]?.ltp ?? null;
-  const spotLtp = marketData?.Ltp ?? null;
+  const [spotLtp, setSpotLtp] = useState(marketData?.Ltp ?? null);
+  const fls = Math.min(Object.keys(optionsData?.fl));
+  const ltp = optionsData[fls]?.ltp;
+  const isCommodity = optionsData?.u_id === 294;
 
   const spread = futureLtp && spotLtp ? futureLtp - spotLtp : null;
   const isSpreadUp = spread > 0;
   const isSpotUp = marketData?.ch > 0;
+   const optionsFl = optionsData?.fl;
+  const flKeys = optionsFl ? Object.keys(optionsFl) : [];
+  const ltpKey = flKeys.length > 0 ? flKeys.reduce((a, b) => (+a < +b ? a : b)) : null;
+  const optionsLtp = ltpKey ? optionsFl?.[ltpKey]?.ltp : null;
 
   if (marketData && spotLtp !== null) {
     document.title = `${marketData?.d_sym || "N/A"} | ${toFixed(
       spotLtp
     )} | ${toFixed(spread)}`;
   }
+
+  useEffect(() => {
+    if (isCommodity && optionsLtp !== undefined) {
+      setSpotLtp(optionsLtp);
+    } else if (!isCommodity && marketData?.Ltp !== undefined) {
+      setSpotLtp(marketData.Ltp);
+    }
+  }, [isCommodity, optionsLtp, marketData?.Ltp]);
 
   // 🖌️ Dynamic Styling
   const bgColor =

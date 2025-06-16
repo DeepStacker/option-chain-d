@@ -251,8 +251,19 @@ class Urls:
             # Process the data
             manipulated_data = Utils.modify_oc_keys(option_data)
             # print(f"Processed data: {json.dumps(manipulated_data, indent=2)}")
+            options_data = option_data.get("data", {})
+            # print(symbol)
+            cp = [ int(k) for k in options_data.get("fl", {}).keys()]
+            # print(symbol)
+            if symbol == 294:
+                fl = min(cp)
+                # print("in if condition here is fl: ",fl)
+                atm_price = options_data.get("fl", {}).get(str(fl), {}).get("ltp", 0)
+            else:
+                # print("in else part")
+                atm_price = options_data.get("sltp", 0)
 
-            atm_price = spot_data["data"]["Ltp"]
+            # atm_price = spot_data["data"]["Ltp"]
             # print(f"Option chain data: {option_data}")
             # print(f"ATM price: {atm_price}")
             result = Utils.find_strikes(option_data["data"]["oc"], atm_price)

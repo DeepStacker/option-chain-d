@@ -1,5 +1,7 @@
 import os, json
 from pymongo import MongoClient
+from scipy.stats import norm
+import numpy as np
 
 FILE_PATH = "Percentage_Data.json"
 
@@ -272,3 +274,122 @@ class Utils:
                 )
         else:
             print("No data to save.")
+
+    def calculate_all_greeks_advanced(S, K, T, r, sigma, option_type="call"):
+        sigma /= 100
+        T /= 365
+        d1 = (np.log(S / K) + (r + 0.5 * sigma**2) * T) / (sigma * np.sqrt(T))
+        d2 = d1 - sigma * np.sqrt(T)
+
+        if option_type == "call":
+            delta = norm.cdf(d1)
+            price = S * norm.cdf(d1) - K * np.exp(-r * T) * norm.cdf(d2)
+        else:
+            delta = norm.cdf(d1) - 1
+            price = K * np.exp(-r * T) * norm.cdf(-d2) - S * norm.cdf(-d1)
+
+        gamma = norm.pdf(d1) / (S * sigma * np.sqrt(T))
+        vega = S * norm.pdf(d1) * np.sqrt(T)
+        theta = -S * norm.pdf(d1) * sigma / (2 * np.sqrt(T)) - r * K * np.exp(
+            -r * T
+        ) * norm.cdf(d2 if option_type == "call" else -d2)
+        rho = K * T * np.exp(-r * T) * norm.cdf(d2 if option_type == "call" else -d2)
+
+        # Higher-order Greeks
+        vomma = vega * d1 * d2 / sigma
+        vanna = norm.pdf(d1) * d2 / sigma
+        charm = (
+            -norm.pdf(d1)
+            * (2 * r * T - d2 * sigma * np.sqrt(T))
+            / (2 * T * sigma * np.sqrt(T))
+        )
+        speed = -gamma / S * (d1 / (sigma * np.sqrt(T)) + 1)
+        zomma = gamma * ((d1 * d2 - 1) / sigma)
+        color = (
+            -norm.pdf(d1) / (2 * S * T * sigma * np.sqrt(T)) * (2 * r * T + 1 - d1 * d2)
+        )
+        ultima = -vega * (d1 * d2 * (1 - d1 * d2) + d1**2 + d2**2) / sigma**2
+
+        return {
+            "price": price,
+            "delta": delta,
+            "gamma": gamma,
+            "vega": vega / 100,  # standardized to 1% vol change
+            "theta": theta / 365,  # per day
+            "rho": rho / 100,  # standardized to 1% rate change
+            "vomma": vomma,
+            "vanna": vanna,
+            "charm": charm,
+            "speed": speed,
+            "zomma": zomma,
+            "color": color,
+            "ultima": ultima,
+        }
+
+    def get_greeks(option_chain, T, r=0.10):
+        """
+        Calculate Greeks for call and put options in an option chain and store them in the chain.
+
+        Args:
+            option_chain (dict): Option chain with data structure containing 'data' and 'oc' keys.
+            T (float): Time to expiration in years (must be positive).
+            r (float, optional): Risk-free interest rate. Defaults to 0.10 (10%).
+
+        Returns:
+            dict: Modified option_chain with Greeks added under 'optgeeks' for each strike's CE and PE.
+
+        Raises:
+            ValueError: If input data is invalid or T is not positive.
+        """
+        if not isinstance(option_chain, dict) or "data" not in option_chain:
+            raise ValueError("option_chain must be a dictionary with a 'data' key")
+        if not isinstance(T, (int, float)) or T <= 0:
+            raise ValueError("T (time to expiration) must be a positive number")
+
+        data = option_chain.get("data", {})
+        oc = data.get("oc", {})
+        if not oc:
+            return option_chain  # Return unchanged if no option chain data
+
+        S = data.get("sltp", 0)
+        if S <= 0:
+            raise ValueError("Spot price (sltp) must be positive")
+
+        for strike, strike_data in oc.items():
+            ce_data = strike_data.get("ce", {})
+            pe_data = strike_data.get("pe", {})
+
+            # Calculate Greeks for call option if CE data exists
+            if ce_data:
+                ce_iv = ce_data.get("iv", 0)
+                if ce_iv > 0:  # Only calculate if IV is positive
+                    greeks = Utils.calculate_all_greeks_advanced(
+                        S=S,
+                        K=float(strike),  # Ensure strike is numeric
+                        T=T,
+                        r=r,
+                        sigma=ce_iv,
+                        option_type="call"
+                    )
+                    oc[strike]["ce"]["optgeeks"] = greeks
+                else:
+                    oc[strike]["ce"]["optgeeks"] = {}  # Empty dict if IV is invalid
+
+            # Calculate Greeks for put option if PE data exists
+            if pe_data:
+                pe_iv = pe_data.get("iv", 0)
+                if pe_iv > 0:  # Only calculate if IV is positive
+                    greeks = Utils.calculate_all_greeks_advanced(
+                        S=S,
+                        K=float(strike),  # Ensure strike is numeric
+                        T=T,
+                        r=r,
+                        sigma=pe_iv,
+                        option_type="put"
+                    )
+                    oc[strike]["pe"]["optgeeks"] = greeks
+                else:
+                    oc[strike]["pe"]["optgeeks"] = {}  # Empty dict if IV is invalid
+
+        option_chain["data"]["oc"] = oc
+        return option_chain

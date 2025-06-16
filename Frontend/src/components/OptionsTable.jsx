@@ -269,14 +269,14 @@ const ErrorFallback = memo(({ error, resetErrorBoundary, theme }) => (
 ErrorFallback.displayName = "ErrorFallback";
 
 // Optimized Spot Component
-const Spot = memo(({ spotPrice, isPriceUp, theme }) => (
+const Spot = memo(({ sltp, isPriceUp, theme }) => (
   <div className="flex items-center space-x-2">
     <span
       className={`font-semibold text-sm ${
         isPriceUp ? "text-green-500" : "text-red-500"
       }`}
     >
-      {spotPrice}
+      {sltp}
     </span>
     {isPriceUp ? (
       <ArrowUpIcon className="h-4 w-4 text-green-500" aria-hidden="true" />
@@ -480,12 +480,38 @@ function OptionsTable() {
     (state) => state.theme.isItmHighlighting
   );
   const data = useSelector((state) => state.data.data);
-  const sltp = useSelector((state) => state.data.data?.options?.data?.sltp);
+  // const sltp = useSelector((state) => state.data.data?.options?.data?.sltp);
   const exp = useSelector((state) => state.data.exp_sid);
   const sid = useSelector((state) => state.data.sid);
   const error = useSelector((state) => state.data.error);
   const strike = useSelector((state) => state.optionChain.strike);
   const popupData = useSelector((state) => state.optionChain.popupData);
+
+   const marketData = data?.spot?.data;
+  const futData = data?.fut?.data?.flst;
+  const optionsData = data?.options?.data;
+
+  const flstKey = Object.keys(futData || {})[0];
+  const futureLtp = futData?.[flstKey]?.ltp ?? null;
+  const isCommodity = optionsData?.u_id === 294;
+
+  const [sltp, setSpotLtp] = useState(marketData?.Ltp ?? null);
+
+  const optionsFl = optionsData?.fl;
+  const flKeys = optionsFl ? Object.keys(optionsFl) : [];
+  const ltpKey = flKeys.length > 0 ? flKeys.reduce((a, b) => (+a < +b ? a : b)) : null;
+  const optionsLtp = ltpKey ? optionsFl?.[ltpKey]?.ltp : null;
+
+  // Update spotLtp if it's a commodity
+  useEffect(() => {
+    if (isCommodity && optionsLtp !== undefined) {
+      setSpotLtp(optionsLtp);
+    } else if (!isCommodity && marketData?.Ltp !== undefined) {
+      setSpotLtp(marketData.Ltp);
+    }
+  }, [isCommodity, optionsLtp, marketData?.Ltp]);
+
+  // console.log(sltp)
 
   // Local state
   const [popupStates, setPopupStates] = useState({
@@ -505,43 +531,43 @@ function OptionsTable() {
     [data?.options?.data?.oc]
   );
 
-  const atmPrice = useMemo(
-    () => (data?.spot?.data?.Ltp ? Math.round(data.spot.data.Ltp) : null),
-    [data?.spot?.data?.Ltp]
-  );
+  // const sltp = useMemo(
+  //   () => (data?.spot?.data?.Ltp ? Math.round(data.spot.data.Ltp) : null),
+  //   [data?.spot?.data?.Ltp]
+  // );
 
-  const spotPrice = useMemo(
-    () =>
-      data?.spot?.data?.Ltp !== undefined
-        ? parseFloat(data.spot.data.Ltp).toFixed(2)
-        : null,
-    [data?.spot?.data?.Ltp]
-  );
+  // const sltp = useMemo(
+  //   () =>
+  //     data?.spot?.data?.Ltp !== undefined
+  //       ? parseFloat(data.spot.data.Ltp).toFixed(2)
+  //       : null,
+  //   [data?.spot?.data?.Ltp]
+  // );
 
   // Price tracking with throttling
-  const lastSpotPriceRef = useRef(spotPrice);
+  const lastsltpRef = useRef(sltp);
   const [isPriceUp, setIsPriceUp] = useState(false);
 
   const updatePriceDirection = useCallback(
     throttle((newPrice, lastPrice) => {
       if (newPrice !== null && lastPrice !== null && newPrice !== lastPrice) {
         setIsPriceUp(newPrice > lastPrice);
-        lastSpotPriceRef.current = newPrice;
+        lastsltpRef.current = newPrice;
       }
     }, 100),
     []
   );
 
   useEffect(() => {
-    if (spotPrice !== null) {
-      updatePriceDirection(parseFloat(spotPrice), lastSpotPriceRef.current);
+    if (sltp !== null) {
+      updatePriceDirection(parseFloat(sltp), lastsltpRef.current);
     }
-  }, [spotPrice, updatePriceDirection]);
+  }, [sltp, updatePriceDirection]);
 
   // Memoized strikes with performance optimization
   const { nearestStrike, otmStrikes, itmStrikes } = useMemo(() => {
-    return findStrikes(options, atmPrice);
-  }, [options, atmPrice]);
+    return findStrikes(options, sltp);
+  }, [options, sltp]);
 
   // Optimized strike data processing
   const processedStrikes = useMemo(() => {
@@ -746,7 +772,7 @@ function OptionsTable() {
         {/* Controls */}
         {/* <div className="flex justify-between items-center p-4 bg-opacity-80 sticky top-0 z-20">
           <div className="flex items-center space-x-2">
-            <Spot spotPrice={spotPrice} isPriceUp={isPriceUp} theme={theme} />
+            <Spot sltp={sltp} isPriceUp={isPriceUp} theme={theme} />
             <LabelSight />
           </div>
           <div className="flex space-x-2">

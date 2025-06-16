@@ -31,6 +31,7 @@ import OptionChain from "./pages/OptionChain";
 import NotFound from "./pages/NotFound";
 import MainLayout from "./layouts/MainLayout";
 import URLToggle from "./components/admin/URLToggle";
+import TradingChart from "./components/charts/TradingChart";
 import { activateServices } from "./services/healthCheck";
 
 function App() {
@@ -109,6 +110,7 @@ function App() {
                     <Route path="/position-sizing" element={<PositionSizing />} />
                     <Route path="/tca" element={<Tca />} />
                     <Route path="/admin" element={<URLToggle />} />
+                    <Route path="/charts" element={<TradingChart />} />
                   </Route>
                 </Route>
                 {/* 404 Route */}

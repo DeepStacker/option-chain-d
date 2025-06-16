@@ -124,6 +124,22 @@ class BSMCalculator:
         pe_gamma,
         pe_theta,
         ce_theta,
+        ce_rho,
+        pe_rho,
+        ce_vomma,
+        pe_vomma,
+        ce_vanna,
+        pe_vanna,
+        ce_charm,
+        pe_charm,
+        ce_speed,
+        pe_speed,
+        ce_zomma,
+        pe_zomma,
+        ce_color,
+        pe_color,
+        ce_ultima,
+        pe_ultima,
         fut_price=0,
         atmiv=0,
         sinst="IDX",
@@ -145,7 +161,9 @@ class BSMCalculator:
             if sigma_put <= 0:
                 sigma_put = sigma_call if sigma_call > 0 else 0.15
 
-            call_price = BSMCalculator.black_scholes_price(S, K, T, r, sigma_call, "call")
+            call_price = BSMCalculator.black_scholes_price(
+                S, K, T, r, sigma_call, "call"
+            )
             put_price = BSMCalculator.black_scholes_price(S, K, T, r, sigma_put, "put")
             call_greeks = BSMCalculator.greeks(S, K, T, r, sigma_call, "call")
             put_greeks = BSMCalculator.greeks(S, K, T, r, sigma_put, "put")
@@ -165,25 +183,43 @@ class BSMCalculator:
             )
 
             rev, confidence, all_data = advanced_reversal_point(
-                K,
-                ce_delta,
-                pe_delta,
-                ce_gamma,
-                pe_gamma,
-                ce_vega,
-                pe_vega,
-                ce_theta,
-                pe_theta,
-                iv_chng,
-                T_days,
-                curr_call_price, # ce_ltp
-                curr_put_price, # pe_ltp
-                call_price, # ce_theory
-                put_price, # pe_theory
+                K=K,
+                spot_price=S,
+                T_days=T_days,
+                current_iv=atmiv,
+                iv_chng=iv_chng,
+                ce_delta=ce_delta,
+                pe_delta=pe_delta,
+                ce_gamma=ce_gamma,
+                pe_gamma=pe_gamma,
+                ce_vega=ce_vega,
+                pe_vega=pe_vega,
+                ce_theta=ce_theta,
+                pe_theta=pe_theta,
+                ce_rho=ce_rho,
+                pe_rho=pe_rho,
+                ce_vomma=ce_vomma,
+                pe_vomma=pe_vomma,
+                ce_vanna=ce_vanna,
+                pe_vanna=pe_vanna,
+                ce_charm=ce_charm,
+                pe_charm=pe_charm,
+                ce_speed=ce_speed,
+                pe_speed=pe_speed,
+                ce_zomma=ce_zomma,
+                pe_zomma=pe_zomma,
+                ce_color=ce_color,
+                pe_color=pe_color,
+                ce_ultima=ce_ultima,
+                pe_ultima=pe_ultima,
+                curr_call_price=curr_call_price,
+                curr_put_price=curr_put_price,
+                call_price=call_price,
+                put_price=put_price,
                 S_chng=S_chng,
                 instrument_type=sinst,
-                current_iv=atmiv,
-                # spot_price=S,
+                vol_chng=0.01,
+                time_chng=1 / 365,
             )
 
             iv_skew = sigma_call - sigma_put
@@ -197,7 +233,9 @@ class BSMCalculator:
                 volatility_weight * sigma_call + (1 - volatility_weight) * sigma_put
             )
 
-            price_low, price_high = BSMCalculator.expected_price_range(S, effective_iv, T_days)
+            price_low, price_high = BSMCalculator.expected_price_range(
+                S, effective_iv, T_days
+            )
             range_pct = (price_high - price_low) / S
             rr_base = 2.5 if range_pct < 0.01 else 1.5 if range_pct < 0.02 else 1.0
 
@@ -226,10 +264,11 @@ class BSMCalculator:
                 "fut_reversal": fut_rev,
                 "call_greeks": call_greeks,
                 "put_greeks": put_greeks,
+                "debug_data": all_data,
                 "price_range": {
                     "low": price_low,
                     "high": price_high,
-                    "confidence": "68%",
+                    "confidence": confidence,
                 },
                 "trading_signals": {
                     "entry": entry_price,
