@@ -19,6 +19,27 @@ const formatDate = (date) => {
   return `${year}-${month}-${day}`;
 };
 
+// Convert UTC timestamp to IST timestamp for chart display
+const convertUTCToISTTimestamp = (utcTimestamp) => {
+  // Add 5.5 hours (19800 seconds) to convert UTC to IST
+  return utcTimestamp + 5.5 * 60 * 60;
+};
+
+// Format time for IST display
+const formatTimeForIST = (timestamp) => {
+  const date = new Date(timestamp * 1000);
+  return date.toLocaleString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
+};
+
 function TradingChart() {
   const dispatch = useDispatch();
 
@@ -29,7 +50,7 @@ function TradingChart() {
   const evtSourceRef = useRef(null);
   const supportResistanceLinesRef = useRef([]);
 
-  // State for OHLC display
+  // State for OHLC display and custom timeframe
   const [ohlcData, setOhlcData] = useState({
     open: 0,
     high: 0,
@@ -37,11 +58,30 @@ function TradingChart() {
     close: 0,
     time: "",
   });
+  const [showCustomTimeframe, setShowCustomTimeframe] = useState(false);
+  const [customInterval, setCustomInterval] = useState("");
 
   // Get state from Redux
   const { symbols, currentSymbol, timeframe, connectionStatus } = useSelector(
     (state) => state.chart
   );
+
+  // Extended timeframe options
+  const timeframes = [
+    { value: "1", label: "1min" },
+    { value: "2", label: "2min" },
+    { value: "3", label: "3min" },
+    { value: "5", label: "5min" },
+    { value: "10", label: "10min" },
+    { value: "15", label: "15min" },
+    { value: "30", label: "30min" },
+    { value: "60", label: "1H" },
+    { value: "120", label: "2H" },
+    { value: "240", label: "4H" },
+    { value: "D", label: "Daily" },
+    { value: "W", label: "Weekly" },
+    { value: "M", label: "Monthly" },
+  ];
 
   // Function to draw support/resistance lines
   const drawSupportResistanceLines = (levels) => {
@@ -63,7 +103,7 @@ function TradingChart() {
     const lineOptions = (price, color, title) => ({
       price,
       color,
-      lineWidth: 3,
+      lineWidth: 2,
       lineStyle: LineStyle.Dashed,
       axisLabelVisible: true,
       title,
@@ -98,7 +138,7 @@ function TradingChart() {
     };
   };
 
-  // Initialize chart
+  // Initialize chart ONLY ONCE
   useEffect(() => {
     if (!chartContainerRef.current || chartRef.current) return;
 
@@ -112,13 +152,47 @@ function TradingChart() {
         horzLines: { color: "#363c4e" },
       },
       crosshair: { mode: 0 },
-      rightPriceScale: { borderColor: "#485c7b" },
+      rightPriceScale: {
+        borderColor: "#485c7b",
+        scaleMargins: {
+          top: 0.1,
+          bottom: 0.1,
+        },
+      },
       timeScale: {
         borderColor: "#485c7b",
         timeVisible: true,
+        secondsVisible: false,
+        rightBarStaysOnScroll: true,
+        barSpacing: 12,
+        fixLeftEdge: false,
+        fixRightEdge: false,
+        lockVisibleTimeRangeOnResize: true,
+        rightOffset: 12,
+        visible: true,
+        // --- FIXED: Custom time formatter for IST display ---
+        tickMarkFormatter: (time, tickMarkType, locale) => {
+          // The time parameter is already in IST (converted before passing to chart)
+          const date = new Date(time * 1000);
+
+          // Format based on timeframe for IST
+          if (timeframe === "D" || timeframe === "W" || timeframe === "M") {
+            return date.toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+            });
+          } else {
+            // For intraday timeframes, show IST time
+            return date.toLocaleTimeString("en-US", {
+              hour: "2-digit",
+              minute: "2-digit",
+              hour12: false,
+            });
+          }
+        },
       },
       width: chartContainerRef.current.clientWidth,
-      height: 600,
+      height: window.innerHeight - 180,
     });
 
     // Use v5 syntax for adding candlestick series
@@ -133,7 +207,7 @@ function TradingChart() {
     chartRef.current = chart;
     candleSeriesRef.current = candleSeries;
 
-    // Add crosshair move handler to update OHLC data
+    // Add crosshair move handler to update OHLC data with IST time
     chart.subscribeCrosshairMove((param) => {
       if (param.time) {
         const data = param.seriesData.get(candleSeries);
@@ -143,32 +217,18 @@ function TradingChart() {
             high: data.high?.toFixed(2) || 0,
             low: data.low?.toFixed(2) || 0,
             close: data.close?.toFixed(2) || 0,
-            time: new Date(param.time * 1000).toLocaleString(),
+            time: formatTimeForIST(param.time),
           });
         }
       }
     });
-
-    // Load symbols
-    const loadSymbols = async () => {
-      try {
-        const response = await fetch("http://localhost:3000/symbol");
-        const symbolsData = await response.json();
-        dispatch(setSymbols(symbolsData));
-        if (symbolsData.length > 0) {
-          dispatch(setCurrentSymbol(symbolsData[0]));
-        }
-      } catch (error) {
-        console.error("Failed to load symbols:", error);
-      }
-    };
-    loadSymbols();
 
     // Handle resize
     const handleResize = () => {
       if (chartContainerRef.current && chartRef.current) {
         chartRef.current.applyOptions({
           width: chartContainerRef.current.clientWidth,
+          height: window.innerHeight - 180,
         });
       }
     };
@@ -183,6 +243,54 @@ function TradingChart() {
       candleSeriesRef.current = null;
     };
   }, [dispatch]);
+
+  // Load symbols only once on component mount
+  useEffect(() => {
+    const loadSymbols = async () => {
+      try {
+        const response = await fetch("http://localhost:3000/symbol");
+        const symbolsData = await response.json();
+        dispatch(setSymbols(symbolsData));
+        // Only set default symbol if no symbol is currently selected
+        if (symbolsData.length > 0 && !currentSymbol) {
+          dispatch(setCurrentSymbol(symbolsData[0]));
+        }
+      } catch (error) {
+        console.error("Failed to load symbols:", error);
+      }
+    };
+
+    // Only load symbols if they haven't been loaded yet
+    if (symbols.length === 0) {
+      loadSymbols();
+    }
+  }, [dispatch, symbols.length, currentSymbol]);
+
+  // Update time scale formatter when timeframe changes
+  useEffect(() => {
+    if (chartRef.current) {
+      chartRef.current.applyOptions({
+        timeScale: {
+          tickMarkFormatter: (time, tickMarkType, locale) => {
+            const date = new Date(time * 1000);
+
+            if (timeframe === "D" || timeframe === "W" || timeframe === "M") {
+              return date.toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+              });
+            } else {
+              return date.toLocaleTimeString("en-US", {
+                hour: "2-digit",
+                minute: "2-digit",
+                hour12: false,
+              });
+            }
+          },
+        },
+      });
+    }
+  }, [timeframe]);
 
   // Fetch data and connect to SSE
   useEffect(() => {
@@ -200,8 +308,22 @@ function TradingChart() {
       const params = new URLSearchParams({
         from: formatDate(fromDate),
         to: formatDate(toDate),
-        interval: timeframe === "D" ? "1" : timeframe,
-        type: timeframe === "D" ? "day" : "minute",
+        interval:
+          timeframe === "D"
+            ? "1"
+            : timeframe === "W"
+            ? "W"
+            : timeframe === "M"
+            ? "M"
+            : timeframe,
+        type:
+          timeframe === "D"
+            ? "day"
+            : timeframe === "W"
+            ? "week"
+            : timeframe === "M"
+            ? "month"
+            : "minute",
         instrument_token: currentSymbol.sym_id,
       });
 
@@ -221,9 +343,7 @@ function TradingChart() {
 
         evtSourceRef.current.onmessage = async (event) => {
           try {
-            console.log("Raw SSE data received:", event.data);
             const obj = JSON.parse(event.data);
-            console.log("Parsed SSE data:", obj);
 
             if (obj.status === "success" && obj.data?.candles) {
               console.log(
@@ -231,34 +351,30 @@ function TradingChart() {
                 obj.data.candles.length
               );
 
-              // Format data according to your structure: [timestamp, open, high, low, close, volume1, volume2]
-              const formattedData = obj.data.candles.map((candle, index) => {
+              // --- FIXED: Convert timestamps to IST before passing to chart ---
+              const formattedData = obj.data.candles.map((candle) => {
                 const [timestamp, open, high, low, close] = candle;
 
-                const formatted = {
-                  time: Math.floor(new Date(timestamp).getTime() / 1000),
+                // Convert UTC timestamp to IST timestamp
+                const utcTimestamp = Math.floor(
+                  new Date(timestamp).getTime() / 1000
+                );
+                const istTimestamp = convertUTCToISTTimestamp(utcTimestamp);
+
+                return {
+                  time: istTimestamp, // Now using IST timestamp
                   open: parseFloat(open),
                   high: parseFloat(high),
                   low: parseFloat(low),
                   close: parseFloat(close),
                 };
-
-                // Log first few candles for debugging
-                if (index < 3) {
-                  console.log(`Candle ${index}:`, formatted);
-                }
-
-                return formatted;
               });
 
               console.log("Formatted data sample:", formattedData.slice(0, 3));
-              console.log("Total formatted candles:", formattedData.length);
 
               // Update chart and Redux state
               if (candleSeriesRef.current && formattedData.length > 0) {
-                console.log("Setting data on chart...");
                 candleSeriesRef.current.setData(formattedData);
-                console.log("Chart data set successfully");
 
                 // Set initial OHLC data to the last candle
                 const lastCandle = formattedData[formattedData.length - 1];
@@ -267,7 +383,7 @@ function TradingChart() {
                   high: lastCandle.high.toFixed(2),
                   low: lastCandle.low.toFixed(2),
                   close: lastCandle.close.toFixed(2),
-                  time: new Date(lastCandle.time * 1000).toLocaleString(),
+                  time: formatTimeForIST(lastCandle.time),
                 });
 
                 // Draw support/resistance lines
@@ -275,15 +391,10 @@ function TradingChart() {
                   currentSymbol.symbol
                 );
                 drawSupportResistanceLines(levels);
-                console.log("Support/resistance lines drawn");
 
                 // Update Redux state
                 dispatch(setChartData(formattedData));
-              } else {
-                console.error("Candle series not available or no data");
               }
-            } else {
-              console.error("Invalid data structure:", obj);
             }
           } catch (error) {
             console.error("Error processing SSE data:", error);
@@ -295,17 +406,25 @@ function TradingChart() {
       }
     };
 
-    // Add a small delay to ensure chart is fully initialized
     setTimeout(fetchHistoricalAndDraw, 200);
   }, [currentSymbol, timeframe, dispatch]);
+
+  // Handle custom timeframe submission
+  const handleCustomTimeframe = () => {
+    if (customInterval && parseInt(customInterval) > 0) {
+      dispatch(setTimeframe(customInterval));
+      setShowCustomTimeframe(false);
+      setCustomInterval("");
+    }
+  };
 
   return (
     <div className="h-screen bg-gray-900 text-white font-sans flex flex-col relative">
       {/* OHLC Display - Top Left Corner */}
-      <div className="absolute top-16 left-4 z-10 bg-gray-800 bg-opacity-90 rounded-lg p-3 shadow-lg border border-gray-700">
+      <div className="absolute top-20 left-4 z-10 bg-gray-800 bg-opacity-90 rounded-lg p-3 shadow-lg border border-gray-700">
         <div className="text-sm font-semibold text-gray-300 mb-2">
           {currentSymbol?.symbol || "Loading..."} -{" "}
-          {timeframe === "D" ? "Daily" : `${timeframe}min`}
+          {timeframes.find((tf) => tf.value === timeframe)?.label || timeframe}
         </div>
         <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
           <div className="flex justify-between">
@@ -327,10 +446,46 @@ function TradingChart() {
         </div>
         {ohlcData.time && (
           <div className="text-xs text-gray-500 mt-2 border-t border-gray-600 pt-1">
-            {ohlcData.time}
+            IST: {ohlcData.time}
           </div>
         )}
       </div>
+
+      {/* Custom Timeframe Modal */}
+      {showCustomTimeframe && (
+        <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-20">
+          <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
+            <h3 className="text-lg font-semibold mb-4">Custom Timeframe</h3>
+            <div className="flex gap-2 mb-4">
+              <input
+                type="number"
+                placeholder="Enter minutes"
+                value={customInterval}
+                onChange={(e) => setCustomInterval(e.target.value)}
+                className="bg-gray-700 text-white px-3 py-2 rounded border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <span className="text-gray-400 self-center">minutes</span>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={handleCustomTimeframe}
+                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+              >
+                Apply
+              </button>
+              <button
+                onClick={() => {
+                  setShowCustomTimeframe(false);
+                  setCustomInterval("");
+                }}
+                className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Toolbar */}
       <div className="flex flex-wrap gap-2 p-3 bg-gray-800 border-b border-gray-700 shadow-lg">
@@ -350,28 +505,27 @@ function TradingChart() {
           ))}
         </select>
 
-        <div className="flex gap-1">
-          {["", "2", "3", "5", "10", "15", "30", "60", "D"].map((tf) => (
+        <div className="flex flex-wrap gap-1">
+          {timeframes.map((tf) => (
             <button
-              key={tf}
+              key={tf.value}
               className={`px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
-                timeframe === tf
+                timeframe === tf.value
                   ? "bg-blue-600 text-white shadow-md"
                   : "bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white"
               }`}
-              onClick={() => dispatch(setTimeframe(tf))}
+              onClick={() => dispatch(setTimeframe(tf.value))}
             >
-              {tf === "D"
-                ? "Daily"
-                : tf === "w"
-                ? "Weekly"
-                : tf === "H"
-                ? "Hours"
-                : tf === "m"
-                ? "Monthly"
-                : `${tf}min`}
+              {tf.label}
             </button>
           ))}
+
+          <button
+            onClick={() => setShowCustomTimeframe(true)}
+            className="px-3 py-2 rounded-md text-sm font-medium bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white transition-all duration-200"
+          >
+            Custom
+          </button>
         </div>
 
         <div
@@ -387,11 +541,11 @@ function TradingChart() {
         </div>
       </div>
 
-      {/* Chart Container */}
+      {/* Chart Container with adjusted height */}
       <div
         ref={chartContainerRef}
         className="w-full flex-grow bg-gray-900"
-        style={{ minHeight: "600px" }}
+        style={{ height: `${window.innerHeight - 180}px` }}
       />
     </div>
   );
