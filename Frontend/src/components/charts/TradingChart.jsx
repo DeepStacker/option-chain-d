@@ -842,33 +842,51 @@ const TradingChart = React.memo(() => {
         </div>
 
         {/* Support/Resistance Toggle Controls */}
-        <div className="flex items-center gap-4">
-          <label
-            className={`flex items-center gap-1 cursor-pointer ${
-              theme === "dark" ? "text-gray-300" : "text-gray-700"
-            }`}
-          >
-            <input
-              type="checkbox"
-              checked={daily}
-              onChange={(e) => dispatch(setDaily(e.target.checked))}
-              className="rounded"
-            />
-            <span>Daily</span>
+        <div className="flex items-center gap-6">
+          {/* Daily Toggle */}
+          <label className="flex items-center gap-3 cursor-pointer">
+            <span
+              className={`text-sm font-medium ${
+                theme === "dark" ? "text-gray-200" : "text-gray-800"
+              }`}
+            >
+              Daily
+            </span>
+            <div className="relative">
+              <input
+                type="checkbox"
+                checked={daily}
+                onChange={(e) => dispatch(setDaily(e.target.checked))}
+                className="sr-only peer"
+              />
+              <div
+                className={`w-11 h-6 bg-gray-300 peer-checked:bg-blue-600 rounded-full peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500 transition duration-300`}
+              ></div>
+              <div className="absolute top-0.5 left-0.5 bg-white w-5 h-5 rounded-full transition-transform duration-300 peer-checked:translate-x-5"></div>
+            </div>
           </label>
 
-          <label
-            className={`flex items-center gap-1 cursor-pointer ${
-              theme === "dark" ? "text-gray-300" : "text-gray-700"
-            }`}
-          >
-            <input
-              type="checkbox"
-              checked={weekly}
-              onChange={(e) => dispatch(setWeekly(e.target.checked))}
-              className="rounded"
-            />
-            <span>Weekly</span>
+          {/* Weekly Toggle */}
+          <label className="flex items-center gap-3 cursor-pointer">
+            <span
+              className={`text-sm font-medium ${
+                theme === "dark" ? "text-gray-200" : "text-gray-800"
+              }`}
+            >
+              Weekly
+            </span>
+            <div className="relative">
+              <input
+                type="checkbox"
+                checked={weekly}
+                onChange={(e) => dispatch(setWeekly(e.target.checked))}
+                className="sr-only peer"
+              />
+              <div
+                className={`w-11 h-6 bg-gray-300 peer-checked:bg-green-600 rounded-full peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-green-500 transition duration-300`}
+              ></div>
+              <div className="absolute top-0.5 left-0.5 bg-white w-5 h-5 rounded-full transition-transform duration-300 peer-checked:translate-x-5"></div>
+            </div>
           </label>
         </div>
 

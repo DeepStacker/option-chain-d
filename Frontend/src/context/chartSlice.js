@@ -6,7 +6,7 @@ const initialState = {
   timeframe: "10",
   chartData: [],
   connectionStatus: "disconnected",
-  weekly: true,
+  weekly: false,
   daily: true,
 };
 
