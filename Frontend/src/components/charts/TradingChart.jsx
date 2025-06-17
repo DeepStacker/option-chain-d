@@ -26,7 +26,7 @@ import {
   HistogramSeries,
 } from "lightweight-charts";
 
-// Optimized helper functions with memoization
+// Helper functions (same as before)
 const formatDate = (date) => {
   const d = new Date(date);
   const year = d.getFullYear();
@@ -55,7 +55,10 @@ const formatTimeForIST = (timestamp) => {
 
 // Support/Resistance computation function
 const computeLevels = (oc, price, isCommodity) => {
+  console.log("🔢 Computing levels with:", { oc: !!oc, price, isCommodity });
+
   if (!oc || typeof oc !== "object") {
+    console.log("❌ Invalid OC data");
     return {
       support_1: null,
       support_2: null,
@@ -93,29 +96,27 @@ const computeLevels = (oc, price, isCommodity) => {
     if (!levels.length) return null;
     const idx = selector(levels);
     if (idx < 0 || idx >= levels.length) return null;
-    return oc[levels[idx]] || null;
+    const strikeKey = levels[idx];
+    const strikeData = oc[strikeKey];
+    return strikeData || null;
   };
 
-  return {
+  const levels = {
     support_1: pick(below, (l) => l.length - 1)?.reversal,
-    support_2: pick(below, (l) =>
-      isCommodity && l.length > 1 ? l.length - 1 : l.length - 1
-    )?.wkly_reversal,
+    support_2: pick(below, (l) => l.length - 1)?.wkly_reversal,
     support_1_1: pick(below, (l) => l.length - 2)?.reversal,
-    support_2_1: pick(below, (l) =>
-      isCommodity && l.length > 2 ? l.length - 2 : l.length - 2
-    )?.wkly_reversal,
+    support_2_1: pick(below, (l) => l.length - 2)?.wkly_reversal,
 
     resistance_1: pick(above, (l) => 0)?.reversal,
-    resistance_2: pick(above, (l) => (isCommodity && l.length > 1 ? 0 : 0))
-      ?.wkly_reversal,
+    resistance_2: pick(above, (l) => 0)?.wkly_reversal,
     resistance_1_1: pick(above, (l) => 1)?.reversal,
-    resistance_2_1: pick(above, (l) => (isCommodity && l.length > 2 ? 1 : 1))
-      ?.wkly_reversal,
+    resistance_2_1: pick(above, (l) => 1)?.wkly_reversal,
   };
+
+  console.log("✅ Computed levels:", levels);
+  return levels;
 };
 
-// Debounce utility for performance
 const debounce = (func, wait) => {
   let timeout;
   return function executedFunction(...args) {
@@ -128,7 +129,6 @@ const debounce = (func, wait) => {
   };
 };
 
-// Throttle utility for high-frequency events
 const throttle = (func, limit) => {
   let inThrottle;
   return function (...args) {
@@ -157,7 +157,7 @@ const TradingChart = React.memo(() => {
     [theme]
   );
 
-  // Optimized chart theme configuration
+  // Chart theme configuration
   const chartTheme = useMemo(
     () => ({
       layout: {
@@ -207,7 +207,6 @@ const TradingChart = React.memo(() => {
   const candleSeriesRef = useRef(null);
   const evtSourceRef = useRef(null);
   const supportResistanceLinesRef = useRef(new Map());
-  const lastSupportDataRef = useRef(null);
 
   // State
   const [ohlcData, setOhlcData] = useState({
@@ -252,41 +251,34 @@ const TradingChart = React.memo(() => {
     []
   );
 
-  // Compute support/resistance levels using local function
+  // Compute support/resistance levels
   const supportResistanceLevels = useMemo(() => {
     if (!oc || !price) {
-      console.log("Missing data for support/resistance calculation:", {
-        oc: !!oc,
-        price,
-      });
       return null;
     }
-
-    const levels = computeLevels(oc, price, isCommodity);
-    console.log("Computed support/resistance levels:", levels);
-    return levels;
+    return computeLevels(oc, price, isCommodity);
   }, [oc, price, isCommodity]);
 
-  // Optimized support/resistance line drawing with proper cleanup
+  // FIXED: Enhanced support/resistance line drawing with immediate response
   const drawSupportResistanceLines = useCallback(
     (levels) => {
       if (!candleSeriesRef.current || !levels) {
-        console.log("Cannot draw lines: missing candleSeries or levels");
+        console.log("⚠️ Cannot draw lines: missing candleSeries or levels");
         return;
       }
 
-      console.log("Drawing support/resistance lines:", {
+      console.log("🎨 Drawing support/resistance lines with toggles:", {
         daily,
         weekly,
-        levels,
       });
 
-      // Clear existing lines efficiently
+      // Clear ALL existing lines first
       supportResistanceLinesRef.current.forEach((line, key) => {
         try {
           candleSeriesRef.current.removePriceLine(line);
+          console.log(`🧹 Removed line: ${key}`);
         } catch (error) {
-          console.warn(`Error removing price line ${key}:`, error);
+          console.warn(`❌ Error removing price line ${key}:`, error);
         }
       });
       supportResistanceLinesRef.current.clear();
@@ -295,6 +287,7 @@ const TradingChart = React.memo(() => {
 
       // Add daily lines if enabled
       if (daily) {
+        console.log("📅 Adding daily lines");
         const dailyLines = [
           { key: "support_1", title: "S1", color: themeColors.supportColor },
           {
@@ -318,6 +311,7 @@ const TradingChart = React.memo(() => {
 
       // Add weekly lines if enabled
       if (weekly) {
+        console.log("📊 Adding weekly lines");
         const weeklyLines = [
           { key: "support_2", title: "S2", color: themeColors.supportColor },
           {
@@ -339,11 +333,20 @@ const TradingChart = React.memo(() => {
         lineConfigs.push(...weeklyLines);
       }
 
-      // Create lines with validation
+      console.log(
+        `🔧 Total line configurations to create: ${lineConfigs.length}`
+      );
+
+      // Create lines
       let createdCount = 0;
       lineConfigs.forEach((config) => {
         const priceValue = levels[config.key];
-        if (priceValue && !isNaN(parseFloat(priceValue))) {
+
+        if (
+          priceValue !== null &&
+          priceValue !== undefined &&
+          !isNaN(parseFloat(priceValue))
+        ) {
           try {
             const line = candleSeriesRef.current.createPriceLine({
               price: parseFloat(priceValue),
@@ -353,33 +356,33 @@ const TradingChart = React.memo(() => {
               axisLabelVisible: true,
               title: config.title,
             });
+
             supportResistanceLinesRef.current.set(config.key, line);
             createdCount++;
+            console.log(
+              `✅ Created line ${config.title} at price ${priceValue}`
+            );
           } catch (error) {
             console.error(
-              `Error creating price line for ${config.key}:`,
+              `❌ Error creating price line for ${config.key}:`,
               error
             );
           }
         } else {
-          console.warn(`Invalid price for ${config.key}:`, priceValue);
+          console.log(
+            `⚠️ Skipping invalid price for ${config.key}: ${priceValue}`
+          );
         }
       });
 
       console.log(
-        `Successfully created ${createdCount} support/resistance lines`
+        `🎨 Successfully created ${createdCount} support/resistance lines`
       );
     },
-    [
-      theme,
-      daily,
-      weekly,
-      themeColors.supportColor,
-      themeColors.resistanceColor,
-    ]
+    [daily, weekly, themeColors.supportColor, themeColors.resistanceColor]
   );
 
-  // Optimized chart theme updates
+  // Chart theme updates
   useEffect(() => {
     if (chartRef.current) {
       chartRef.current.applyOptions(chartTheme);
@@ -389,30 +392,44 @@ const TradingChart = React.memo(() => {
     }
   }, [chartTheme, candlestickTheme]);
 
-  // Re-draw support/resistance lines when levels or selection changes
+  // FIXED: Immediate response to daily/weekly toggle changes
   useEffect(() => {
-    console.log("Support/resistance data changed:", {
-      daily,
-      weekly,
-      hasLevels: !!supportResistanceLevels,
-    });
+    console.log("🔄 Daily/Weekly toggle changed:", { daily, weekly });
 
-    if (supportResistanceLevels) {
-      const currentLevelsString = JSON.stringify(supportResistanceLevels);
-      const lastLevelsString = JSON.stringify(lastSupportDataRef.current);
-
-      if (
-        currentLevelsString !== lastLevelsString ||
-        lastSupportDataRef.current === null
-      ) {
-        console.log("Levels changed, updating lines");
-        lastSupportDataRef.current = supportResistanceLevels;
-        drawSupportResistanceLines(supportResistanceLevels);
-      }
+    if (
+      supportResistanceLevels &&
+      candleSeriesRef.current &&
+      connectionStatus === "connected"
+    ) {
+      console.log("🎯 Immediately redrawing lines due to toggle change");
+      // No delay - immediate redraw
+      drawSupportResistanceLines(supportResistanceLevels);
     }
-  }, [supportResistanceLevels, daily, weekly, drawSupportResistanceLines]);
+  }, [
+    daily,
+    weekly,
+    drawSupportResistanceLines,
+    supportResistanceLevels,
+    connectionStatus,
+  ]);
 
-  // FIXED: Optimized chart initialization with v5 syntax
+  // FIXED: Also redraw when levels change (but not duplicate with toggle changes)
+  useEffect(() => {
+    console.log("📊 Support/resistance levels changed");
+
+    if (
+      supportResistanceLevels &&
+      candleSeriesRef.current &&
+      connectionStatus === "connected"
+    ) {
+      console.log("🎯 Redrawing lines due to level changes");
+      setTimeout(() => {
+        drawSupportResistanceLines(supportResistanceLevels);
+      }, 100);
+    }
+  }, [supportResistanceLevels, drawSupportResistanceLines, connectionStatus]);
+
+  // Chart initialization
   useEffect(() => {
     if (!chartContainerRef.current || chartRef.current) return;
 
@@ -436,13 +453,12 @@ const TradingChart = React.memo(() => {
         },
       });
 
-      // FIXED: Use new v5 syntax for adding candlestick series
       const candleSeries = chart.addSeries(CandlestickSeries, candlestickTheme);
 
       chartRef.current = chart;
       candleSeriesRef.current = candleSeries;
 
-      // Throttled crosshair move handler
+      // Crosshair move handler
       const throttledCrosshairMove = throttle((param) => {
         if (param.time) {
           const data = param.seriesData.get(candleSeries);
@@ -456,11 +472,11 @@ const TradingChart = React.memo(() => {
             });
           }
         }
-      }, 16); // ~60fps
+      }, 16);
 
       chart.subscribeCrosshairMove(throttledCrosshairMove);
 
-      // Debounced resize handler
+      // Resize handler
       const debouncedResize = debounce(() => {
         if (chartContainerRef.current && chartRef.current) {
           chartRef.current.applyOptions({
@@ -478,29 +494,21 @@ const TradingChart = React.memo(() => {
         console.log("🧹 Cleaning up chart...");
         window.removeEventListener("resize", debouncedResize);
 
-        // Cleanup connections
-        if (evtSourceRef.current) {
-          evtSourceRef.current.close();
-          evtSourceRef.current = null;
-        }
-
-        // Cleanup chart
         if (chartRef.current) {
           chartRef.current.remove();
           chartRef.current = null;
           candleSeriesRef.current = null;
         }
 
-        // Clear support/resistance lines
         supportResistanceLinesRef.current.clear();
       };
     } catch (error) {
       console.error("❌ Error initializing chart:", error);
       dispatch(setConnectionStatus("error"));
     }
-  }, []); // Empty dependency array for initialization
+  }, []);
 
-  // Optimized symbols loading
+  // Load symbols
   const loadSymbols = useCallback(async () => {
     try {
       const response = await fetch("http://localhost:3000/symbol");
@@ -525,14 +533,19 @@ const TradingChart = React.memo(() => {
     }
   }, [symbols.length, loadSymbols]);
 
-  // Optimized data fetching
+  // SSE connection - ONLY depends on currentSymbol and timeframe
   useEffect(() => {
     if (!currentSymbol?.sym_id || !candleSeriesRef.current) return;
 
-    console.log("🔄 Symbol or timeframe changed, fetching new data...");
+    console.log(
+      "🔄 Creating SSE connection for:",
+      currentSymbol.symbol,
+      timeframe
+    );
 
-    // Cleanup existing connections
+    // Cleanup existing SSE connection
     if (evtSourceRef.current) {
+      console.log("🧹 Closing existing SSE connection");
       evtSourceRef.current.close();
       evtSourceRef.current = null;
     }
@@ -568,10 +581,12 @@ const TradingChart = React.memo(() => {
 
       try {
         const url = `http://localhost:3000/data?${params.toString()}`;
+        console.log("📡 Creating new SSE connection:", url);
+
         evtSourceRef.current = new EventSource(url);
 
         evtSourceRef.current.onopen = () => {
-          console.log("📡 SSE connection opened");
+          console.log("✅ SSE connection opened successfully");
         };
 
         evtSourceRef.current.onerror = (error) => {
@@ -589,7 +604,6 @@ const TradingChart = React.memo(() => {
                 obj.data.candles.length
               );
 
-              // Optimized batch processing
               const formattedData = obj.data.candles.map((candle) => {
                 const [timestamp, open, high, low, close] = candle;
                 const utcTimestamp = Math.floor(
@@ -618,9 +632,7 @@ const TradingChart = React.memo(() => {
                   time: formatTimeForIST(lastCandle.time),
                 });
 
-                // Update live price from last candle
                 setLivePrice(lastCandle.close);
-
                 dispatch(setChartData(formattedData));
                 dispatch(setConnectionStatus("connected"));
 
@@ -637,13 +649,34 @@ const TradingChart = React.memo(() => {
       }
     };
 
-    // Reduced timeout for faster response
     const timeoutId = setTimeout(fetchHistoricalData, 50);
 
     return () => {
       clearTimeout(timeoutId);
+      if (evtSourceRef.current) {
+        console.log("🧹 Cleaning up SSE connection");
+        evtSourceRef.current.close();
+        evtSourceRef.current = null;
+      }
     };
   }, [currentSymbol?.sym_id, timeframe, dispatch]);
+
+  // FIXED: Custom toggle handlers with immediate state updates
+  const handleDailyToggle = useCallback(
+    (checked) => {
+      console.log("📅 Daily toggle clicked:", checked);
+      dispatch(setDaily(checked));
+    },
+    [dispatch]
+  );
+
+  const handleWeeklyToggle = useCallback(
+    (checked) => {
+      console.log("📊 Weekly toggle clicked:", checked);
+      dispatch(setWeekly(checked));
+    },
+    [dispatch]
+  );
 
   // Custom timeframe handler
   const handleCustomTimeframe = useCallback(() => {
@@ -654,7 +687,7 @@ const TradingChart = React.memo(() => {
     }
   }, [customInterval, dispatch]);
 
-  // Memoized theme classes
+  // Theme classes
   const themeClasses = useMemo(
     () => ({
       container:
@@ -696,160 +729,62 @@ const TradingChart = React.memo(() => {
     >
       {/* OHLC Display */}
       <div
-        className={`absolute top-20 left-4 z-10 rounded-lg p-3 shadow-lg border ${themeClasses.ohlcBox}`}
+        className={`absolute top-20 left-4 z-10 px-3 py-1 rounded-md shadow-sm border text-xs flex flex-wrap items-center gap-x-3 gap-y-1 ${
+          theme === "dark"
+            ? "bg-gray-800 border-gray-700 text-gray-300"
+            : "bg-white border-gray-200 text-gray-700"
+        }`}
       >
-        <div
-          className={`text-sm font-semibold mb-2 ${
-            theme === "dark" ? "text-gray-300" : "text-gray-700"
-          }`}
-        >
-          {currentSymbol?.symbol || "Loading..."} -{" "}
-          {timeframes.find((tf) => tf.value === timeframe)?.label || timeframe}
-          {livePrice && (
-            <span
-              className={`ml-2 ${
-                theme === "dark" ? "text-green-400" : "text-green-600"
-              }`}
-            >
-              Live: {livePrice.toFixed(2)}
-            </span>
-          )}
-        </div>
-        <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-          <div className="flex justify-between">
-            <span
-              className={theme === "dark" ? "text-gray-400" : "text-gray-600"}
-            >
-              O:
-            </span>
-            <span
-              className={`font-mono ${
-                theme === "dark" ? "text-white" : "text-gray-900"
-              }`}
-            >
-              {ohlcData.open}
-            </span>
-          </div>
-          <div className="flex justify-between">
-            <span
-              className={theme === "dark" ? "text-gray-400" : "text-gray-600"}
-            >
-              H:
-            </span>
-            <span
-              className={`font-mono ${
-                theme === "dark" ? "text-green-400" : "text-green-600"
-              }`}
-            >
-              {ohlcData.high}
-            </span>
-          </div>
-          <div className="flex justify-between">
-            <span
-              className={theme === "dark" ? "text-gray-400" : "text-gray-600"}
-            >
-              L:
-            </span>
-            <span
-              className={`font-mono ${
-                theme === "dark" ? "text-red-400" : "text-red-600"
-              }`}
-            >
-              {ohlcData.low}
-            </span>
-          </div>
-          <div className="flex justify-between">
-            <span
-              className={theme === "dark" ? "text-gray-400" : "text-gray-600"}
-            >
-              C:
-            </span>
-            <span
-              className={`font-mono ${
-                theme === "dark" ? "text-white" : "text-gray-900"
-              }`}
-            >
-              {ohlcData.close}
-            </span>
-          </div>
-        </div>
-        {ohlcData.time && (
-          <div
-            className={`text-xs mt-2 border-t pt-1 ${
-              theme === "dark"
-                ? "text-gray-500 border-gray-600"
-                : "text-gray-500 border-gray-300"
+        {/* Symbol + Timeframe */}
+        <span className="font-semibold">
+          {currentSymbol?.symbol || "Loading..."} (
+          {timeframes.find((tf) => tf.value === timeframe)?.label || timeframe})
+        </span>
+
+        {/* Live Price */}
+        {livePrice && (
+          <span
+            className={`font-semibold ${
+              theme === "dark" ? "text-green-400" : "text-green-600"
             }`}
           >
-            IST: {ohlcData.time}
-          </div>
+            {livePrice.toFixed(2)}
+          </span>
         )}
 
-        {/* Support/Resistance Info */}
-        {supportResistanceLevels && (daily || weekly) && (
-          <div
-            className={`text-xs mt-2 border-t pt-1 ${
-              theme === "dark"
-                ? "text-gray-500 border-gray-600"
-                : "text-gray-500 border-gray-300"
-            }`}
+        {/* OHLC - single line */}
+        <span>
+          O:{" "}
+          <span className={theme === "dark" ? "text-white" : "text-gray-900"}>
+            {ohlcData.open}
+          </span>
+        </span>
+        <span>
+          H:{" "}
+          <span
+            className={theme === "dark" ? "text-green-400" : "text-green-600"}
           >
-            <div className="text-xs font-medium mb-1">S/R Levels:</div>
-            <div className="grid grid-cols-2 gap-x-2 text-xs">
-              {daily && (
-                <>
-                  {supportResistanceLevels.support_1 && (
-                    <div
-                      className={`text-${
-                        theme === "dark" ? "blue-400" : "blue-600"
-                      }`}
-                    >
-                      S1:{" "}
-                      {parseFloat(supportResistanceLevels.support_1).toFixed(2)}
-                    </div>
-                  )}
-                  {supportResistanceLevels.resistance_1 && (
-                    <div
-                      className={`text-${
-                        theme === "dark" ? "yellow-400" : "orange-600"
-                      }`}
-                    >
-                      R1:{" "}
-                      {parseFloat(supportResistanceLevels.resistance_1).toFixed(
-                        2
-                      )}
-                    </div>
-                  )}
-                </>
-              )}
-              {weekly && (
-                <>
-                  {supportResistanceLevels.support_2 && (
-                    <div
-                      className={`text-${
-                        theme === "dark" ? "blue-400" : "blue-600"
-                      }`}
-                    >
-                      S2:{" "}
-                      {parseFloat(supportResistanceLevels.support_2).toFixed(2)}
-                    </div>
-                  )}
-                  {supportResistanceLevels.resistance_2 && (
-                    <div
-                      className={`text-${
-                        theme === "dark" ? "yellow-400" : "orange-600"
-                      }`}
-                    >
-                      R2:{" "}
-                      {parseFloat(supportResistanceLevels.resistance_2).toFixed(
-                        2
-                      )}
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          </div>
+            {ohlcData.high}
+          </span>
+        </span>
+        <span>
+          L:{" "}
+          <span className={theme === "dark" ? "text-red-400" : "text-red-600"}>
+            {ohlcData.low}
+          </span>
+        </span>
+        <span>
+          C:{" "}
+          <span className={theme === "dark" ? "text-white" : "text-gray-900"}>
+            {ohlcData.close}
+          </span>
+        </span>
+
+        {/* IST Time */}
+        {ohlcData.time && (
+          <span className="text-[10px] opacity-70 ml-1">
+            ({ohlcData.time} IST)
+          </span>
         )}
       </div>
 
@@ -942,7 +877,7 @@ const TradingChart = React.memo(() => {
           </button>
         </div>
 
-        {/* Support/Resistance Toggle Controls */}
+        {/* FIXED: Support/Resistance Toggle Controls with immediate handlers */}
         <div className="flex items-center gap-6">
           <label className="flex items-center gap-3 cursor-pointer">
             <span
@@ -956,10 +891,7 @@ const TradingChart = React.memo(() => {
               <input
                 type="checkbox"
                 checked={daily}
-                onChange={(e) => {
-                  console.log("Daily toggle changed:", e.target.checked);
-                  dispatch(setDaily(e.target.checked));
-                }}
+                onChange={(e) => handleDailyToggle(e.target.checked)}
                 className="sr-only peer"
               />
               <div className="w-11 h-6 bg-gray-300 peer-checked:bg-blue-600 rounded-full peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500 transition duration-300"></div>
@@ -979,10 +911,7 @@ const TradingChart = React.memo(() => {
               <input
                 type="checkbox"
                 checked={weekly}
-                onChange={(e) => {
-                  console.log("Weekly toggle changed:", e.target.checked);
-                  dispatch(setWeekly(e.target.checked));
-                }}
+                onChange={(e) => handleWeeklyToggle(e.target.checked)}
                 className="sr-only peer"
               />
               <div className="w-11 h-6 bg-gray-300 peer-checked:bg-green-600 rounded-full peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-green-500 transition duration-300"></div>
