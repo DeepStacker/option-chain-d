@@ -63,11 +63,15 @@ const computeLevels = (oc, price, isCommodity) => {
       support_1: null,
       support_2: null,
       support_1_1: null,
+      support_1_2: null,
       support_2_1: null,
+      support_2_2: null,
       resistance_1: null,
       resistance_2: null,
       resistance_1_1: null,
+      resistance_1_2: null,
       resistance_2_1: null,
+      resistance_2_2: null,
     };
   }
 
@@ -81,11 +85,15 @@ const computeLevels = (oc, price, isCommodity) => {
       support_1: null,
       support_2: null,
       support_1_1: null,
+      support_1_2: null,
       support_2_1: null,
+      support_2_2: null,
       resistance_1: null,
       resistance_2: null,
       resistance_1_1: null,
+      resistance_1_2: null,
       resistance_2_1: null,
+      resistance_2_2: null,
     };
   }
 
@@ -105,12 +113,16 @@ const computeLevels = (oc, price, isCommodity) => {
     support_1: pick(below, (l) => l.length - 1)?.reversal,
     support_2: pick(below, (l) => l.length - 1)?.wkly_reversal,
     support_1_1: pick(below, (l) => l.length - 2)?.reversal,
+    support_1_2: pick(below, (l) => l.length - 3)?.reversal,
     support_2_1: pick(below, (l) => l.length - 2)?.wkly_reversal,
+    support_2_2: pick(below, (l) => l.length - 3)?.wkly_reversal,
 
     resistance_1: pick(above, (l) => 0)?.reversal,
     resistance_2: pick(above, (l) => 0)?.wkly_reversal,
     resistance_1_1: pick(above, (l) => 1)?.reversal,
+    resistance_1_2: pick(above, (l) => 2)?.reversal,
     resistance_2_1: pick(above, (l) => 1)?.wkly_reversal,
+    resistance_2_2: pick(above, (l) => 2)?.wkly_reversal,
   };
 
   console.log("✅ Computed levels:", levels);
@@ -151,8 +163,10 @@ const TradingChart = React.memo(() => {
       text: theme === "dark" ? "#e0e0e0" : "#333",
       gridColor:
         theme === "dark" ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.1)",
-      supportColor: theme === "dark" ? "#00b3ff" : "#1976d2",
-      resistanceColor: theme === "dark" ? "#fbc02d" : "#f57c00",
+      supportColor: theme === "dark" ? " #00b3ff" : " #1976d2 ",
+      resistanceColor: theme === "dark" ? " #fbc02d" : " #f57c00 ",
+      nearersupportColor: theme === "dark" ? " #33cc33" : " #33cc33 ",
+      nearerresistanceColor: theme === "dark" ? " #cc3300" : " #cc3300 ",
     }),
     [theme]
   );
@@ -272,7 +286,7 @@ const TradingChart = React.memo(() => {
         weekly,
       });
 
-      // Clear ALL existing lines first
+      // Clear all existing lines first
       supportResistanceLinesRef.current.forEach((line, key) => {
         try {
           candleSeriesRef.current.removePriceLine(line);
@@ -283,62 +297,84 @@ const TradingChart = React.memo(() => {
       });
       supportResistanceLinesRef.current.clear();
 
-      const lineConfigs = [];
-
-      // Add daily lines if enabled
-      if (daily) {
-        console.log("📅 Adding daily lines");
+      // Helper function for line config generation
+      const getLineConfigs = (daily, weekly, themeColors) => {
         const dailyLines = [
-          { key: "support_1", title: "S1", color: themeColors.supportColor },
+          {
+            key: "support_1",
+            title: "S1",
+            color: themeColors.nearersupportColor,
+          },
           {
             key: "support_1_1",
             title: "S1.1",
             color: themeColors.supportColor,
           },
           {
+            key: "support_1_2",
+            title: "S1.2",
+            color: themeColors.supportColor,
+          },
+          {
             key: "resistance_1",
             title: "R1",
-            color: themeColors.resistanceColor,
+            color: themeColors.nearerresistanceColor,
           },
           {
             key: "resistance_1_1",
             title: "R1.1",
             color: themeColors.resistanceColor,
           },
+          {
+            key: "resistance_1_2",
+            title: "R1.2",
+            color: themeColors.resistanceColor,
+          },
         ];
-        lineConfigs.push(...dailyLines);
-      }
 
-      // Add weekly lines if enabled
-      if (weekly) {
-        console.log("📊 Adding weekly lines");
         const weeklyLines = [
-          { key: "support_2", title: "S2", color: themeColors.supportColor },
+          {
+            key: "support_2",
+            title: "S2",
+            color: themeColors.nearersupportColor,
+          },
           {
             key: "support_2_1",
             title: "S2.1",
             color: themeColors.supportColor,
           },
           {
+            key: "support_2_2",
+            title: "S2.2",
+            color: themeColors.supportColor,
+          },
+          {
             key: "resistance_2",
             title: "R2",
-            color: themeColors.resistanceColor,
+            color: themeColors.nearerresistanceColor,
           },
           {
             key: "resistance_2_1",
             title: "R2.1",
             color: themeColors.resistanceColor,
           },
+          {
+            key: "resistance_2_2",
+            title: "R2.2",
+            color: themeColors.resistanceColor,
+          },
         ];
-        lineConfigs.push(...weeklyLines);
-      }
 
+        return [...(daily ? dailyLines : []), ...(weekly ? weeklyLines : [])];
+      };
+
+      const lineConfigs = getLineConfigs(daily, weekly, themeColors);
       console.log(
         `🔧 Total line configurations to create: ${lineConfigs.length}`
       );
 
-      // Create lines
       let createdCount = 0;
+
       lineConfigs.forEach((config) => {
         const priceValue = levels[config.key];
 
@@ -348,13 +384,23 @@ const TradingChart = React.memo(() => {
           !isNaN(parseFloat(priceValue))
         ) {
           try {
+            // Determine dynamic styling
+            const isSupport = config.key.includes("support");
+            const isMajor = ["support_1", "support_2", "resistance_1", "resistance_2"].includes(config.key);
+            const baseColor = config.color;
+            const colorWithAlpha =
+              baseColor.length === 7 ? `${baseColor}CC` : baseColor; // Add 80% opacity
+
             const line = candleSeriesRef.current.createPriceLine({
               price: parseFloat(priceValue),
-              color: config.color,
-              lineWidth: 2,
-              lineStyle: LineStyle.Dashed,
+              color: colorWithAlpha,
+              lineWidth: isMajor ? 2 : 2,
+              lineStyle: isMajor ? LineStyle.Solid : LineStyle.Dashed,
               axisLabelVisible: true,
-              title: config.title,
+              axisLabelBackgroundColor: isSupport ? "#002B36" : "#360000",
+              axisLabelTextColor: "#FFFFFF",
+              axisLabelBorderColor: baseColor,
+              title: `${config.title}`,
             });
 
             supportResistanceLinesRef.current.set(config.key, line);
