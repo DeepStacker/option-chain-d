@@ -228,7 +228,7 @@ const TradingChart = React.memo(() => {
   // Get options data from store for support/resistance calculation
   const optionsData = useSelector((state) => state.data?.data?.options?.data);
   const oc = optionsData?.oc;
-  const price = optionsData?.sltp;
+  const price = ohlcData?.close;
   const isCommodity = sid === "CRUDEOIL";
 
   // Timeframe options
