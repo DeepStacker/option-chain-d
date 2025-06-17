@@ -16,9 +16,17 @@ import {
   setDaily,
   setWeekly,
 } from "../../context/chartSlice";
-import { createChart, LineStyle, CandlestickSeries } from "lightweight-charts";
+import {
+  createChart,
+  LineStyle,
+  CandlestickSeries,
+  LineSeries,
+  AreaSeries,
+  BarSeries,
+  HistogramSeries,
+} from "lightweight-charts";
 
-// Memoized helper functions
+// Optimized helper functions with memoization
 const formatDate = (date) => {
   const d = new Date(date);
   const year = d.getFullYear();
@@ -45,26 +53,112 @@ const formatTimeForIST = (timestamp) => {
   });
 };
 
-// Performance optimized TradingChart component
+// Support/Resistance computation function
+const computeLevels = (oc, price, isCommodity) => {
+  if (!oc || typeof oc !== "object") {
+    return {
+      support_1: null,
+      support_2: null,
+      support_1_1: null,
+      support_2_1: null,
+      resistance_1: null,
+      resistance_2: null,
+      resistance_1_1: null,
+      resistance_2_1: null,
+    };
+  }
+
+  const strikes = Object.keys(oc)
+    .filter((k) => /^\d+$/.test(k))
+    .map(Number)
+    .sort((a, b) => a - b);
+
+  if (strikes.length === 0) {
+    return {
+      support_1: null,
+      support_2: null,
+      support_1_1: null,
+      support_2_1: null,
+      resistance_1: null,
+      resistance_2: null,
+      resistance_1_1: null,
+      resistance_2_1: null,
+    };
+  }
+
+  const below = strikes.filter((s) => s <= price);
+  const above = strikes.filter((s) => s > price);
+
+  const pick = (levels, selector) => {
+    if (!levels.length) return null;
+    const idx = selector(levels);
+    if (idx < 0 || idx >= levels.length) return null;
+    return oc[levels[idx]] || null;
+  };
+
+  return {
+    support_1: pick(below, (l) => l.length - 1)?.reversal,
+    support_2: pick(below, (l) =>
+      isCommodity && l.length > 1 ? l.length - 1 : l.length - 1
+    )?.wkly_reversal,
+    support_1_1: pick(below, (l) => l.length - 2)?.reversal,
+    support_2_1: pick(below, (l) =>
+      isCommodity && l.length > 2 ? l.length - 2 : l.length - 2
+    )?.wkly_reversal,
+
+    resistance_1: pick(above, (l) => 0)?.reversal,
+    resistance_2: pick(above, (l) => (isCommodity && l.length > 1 ? 0 : 0))
+      ?.wkly_reversal,
+    resistance_1_1: pick(above, (l) => 1)?.reversal,
+    resistance_2_1: pick(above, (l) => (isCommodity && l.length > 2 ? 1 : 1))
+      ?.wkly_reversal,
+  };
+};
+
+// Debounce utility for performance
+const debounce = (func, wait) => {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+};
+
+// Throttle utility for high-frequency events
+const throttle = (func, limit) => {
+  let inThrottle;
+  return function (...args) {
+    if (!inThrottle) {
+      func.apply(this, args);
+      inThrottle = true;
+      setTimeout(() => (inThrottle = false), limit);
+    }
+  };
+};
+
 const TradingChart = React.memo(() => {
   const dispatch = useDispatch();
-
-  // Theme selector and configuration
   const theme = useSelector((state) => state.theme.theme);
 
-  // Memoized theme colors to prevent recalculation
+  // Memoized theme colors
   const themeColors = useMemo(
     () => ({
       background: theme === "dark" ? "bg-gray-800" : "bg-teal-400",
       text: theme === "dark" ? "#e0e0e0" : "#333",
       gridColor:
         theme === "dark" ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.1)",
+      supportColor: theme === "dark" ? "#00b3ff" : "#1976d2",
+      resistanceColor: theme === "dark" ? "#fbc02d" : "#f57c00",
     }),
     [theme]
   );
 
-  // Memoized chart theme configuration
-  const getChartTheme = useMemo(
+  // Optimized chart theme configuration
+  const chartTheme = useMemo(
     () => ({
       layout: {
         background: { color: theme === "dark" ? "#131722" : "#ffffff" },
@@ -95,8 +189,8 @@ const TradingChart = React.memo(() => {
     [theme, themeColors.gridColor]
   );
 
-  // Memoized candlestick theme
-  const getCandlestickTheme = useMemo(
+  // Candlestick theme
+  const candlestickTheme = useMemo(
     () => ({
       upColor: theme === "dark" ? "#26a69a" : "#00c853",
       downColor: theme === "dark" ? "#ef5350" : "#f44336",
@@ -107,19 +201,15 @@ const TradingChart = React.memo(() => {
     [theme]
   );
 
-  // Refs for chart elements
+  // Refs
   const chartContainerRef = useRef(null);
   const chartRef = useRef(null);
   const candleSeriesRef = useRef(null);
   const evtSourceRef = useRef(null);
-  const supportResistanceLinesRef = useRef([]);
-  const wsRef = useRef(null);
-  const isConnectingRef = useRef(false);
+  const supportResistanceLinesRef = useRef(new Map());
   const lastSupportDataRef = useRef(null);
-  const messageQueueRef = useRef([]);
-  const processingRef = useRef(false);
 
-  // State for OHLC display and custom timeframe
+  // State
   const [ohlcData, setOhlcData] = useState({
     open: 0,
     high: 0,
@@ -131,12 +221,18 @@ const TradingChart = React.memo(() => {
   const [customInterval, setCustomInterval] = useState("");
   const [livePrice, setLivePrice] = useState(null);
 
-  // Get state from Redux with shallow equality check
+  // Redux state
   const { symbols, currentSymbol, timeframe, connectionStatus, daily, weekly } =
     useSelector((state) => state.chart);
   const { sid, exp_sid } = useSelector((state) => state.data);
 
-  // Memoized timeframe options
+  // Get options data from store for support/resistance calculation
+  const optionsData = useSelector((state) => state.data?.data?.options?.data);
+  const oc = optionsData?.oc;
+  const price = optionsData?.sltp;
+  const isCommodity = sid === "CRUDEOIL";
+
+  // Timeframe options
   const timeframes = useMemo(
     () => [
       { value: "1", label: "1min" },
@@ -156,213 +252,167 @@ const TradingChart = React.memo(() => {
     []
   );
 
-  // Debounced message processing for WebSocket
-  const processMessageQueue = useCallback(() => {
-    if (processingRef.current || messageQueueRef.current.length === 0) return;
+  // Compute support/resistance levels using local function
+  const supportResistanceLevels = useMemo(() => {
+    if (!oc || !price) {
+      console.log("Missing data for support/resistance calculation:", {
+        oc: !!oc,
+        price,
+      });
+      return null;
+    }
 
-    processingRef.current = true;
-    const messages = [...messageQueueRef.current];
-    messageQueueRef.current = [];
+    const levels = computeLevels(oc, price, isCommodity);
+    console.log("Computed support/resistance levels:", levels);
+    return levels;
+  }, [oc, price, isCommodity]);
 
-    // Process messages in batch
-    messages.forEach((message) => {
-      try {
-        const response = JSON.parse(message.data);
-        if (response.type === "market_update" && response.data) {
-          const marketData = response.data;
-
-          if (marketData.price) {
-            setLivePrice(marketData.price);
-          }
-
-          if (
-            marketData.support &&
-            JSON.stringify(marketData.support) !==
-              JSON.stringify(lastSupportDataRef.current)
-          ) {
-            lastSupportDataRef.current = marketData.support;
-            drawSupportResistanceLines(marketData.support);
-          }
-
-          setOhlcData((prev) => ({
-            ...prev,
-            close: marketData.price?.toFixed(2) || prev.close,
-            time: formatTimeForIST(Date.now() / 1000),
-          }));
-        }
-      } catch (error) {
-        console.error("❌ Failed to parse WebSocket message:", error);
-      }
-    });
-
-    processingRef.current = false;
-  }, []);
-
-  // Throttled support/resistance line drawing
+  // Optimized support/resistance line drawing with proper cleanup
   const drawSupportResistanceLines = useCallback(
     (levels) => {
-      if (!candleSeriesRef.current || !levels) return;
+      if (!candleSeriesRef.current || !levels) {
+        console.log("Cannot draw lines: missing candleSeries or levels");
+        return;
+      }
 
-      // Remove existing lines efficiently
-      supportResistanceLinesRef.current.forEach((line) => {
+      console.log("Drawing support/resistance lines:", {
+        daily,
+        weekly,
+        levels,
+      });
+
+      // Clear existing lines efficiently
+      supportResistanceLinesRef.current.forEach((line, key) => {
         try {
           candleSeriesRef.current.removePriceLine(line);
         } catch (error) {
-          console.warn("Error removing price line:", error);
+          console.warn(`Error removing price line ${key}:`, error);
         }
       });
-      supportResistanceLinesRef.current = [];
+      supportResistanceLinesRef.current.clear();
 
-      const colors = {
-        support: theme === "dark" ? "rgb(0, 179, 255)" : "#1976d2",
-        resistance: theme === "dark" ? "#fbc02d" : "#f57c00",
-      };
+      const lineConfigs = [];
 
-      const lineOptions = (price, color, title) => ({
-        price: parseFloat(price),
-        color,
-        lineWidth: 3,
-        lineStyle: LineStyle.Dashed,
-        axisLabelVisible: true,
-        title,
-      });
+      // Add daily lines if enabled
+      if (daily) {
+        const dailyLines = [
+          { key: "support_1", title: "S1", color: themeColors.supportColor },
+          {
+            key: "support_1_1",
+            title: "S1.1",
+            color: themeColors.supportColor,
+          },
+          {
+            key: "resistance_1",
+            title: "R1",
+            color: themeColors.resistanceColor,
+          },
+          {
+            key: "resistance_1_1",
+            title: "R1.1",
+            color: themeColors.resistanceColor,
+          },
+        ];
+        lineConfigs.push(...dailyLines);
+      }
 
-      try {
-        const linesToCreate = [];
+      // Add weekly lines if enabled
+      if (weekly) {
+        const weeklyLines = [
+          { key: "support_2", title: "S2", color: themeColors.supportColor },
+          {
+            key: "support_2_1",
+            title: "S2.1",
+            color: themeColors.supportColor,
+          },
+          {
+            key: "resistance_2",
+            title: "R2",
+            color: themeColors.resistanceColor,
+          },
+          {
+            key: "resistance_2_1",
+            title: "R2.1",
+            color: themeColors.resistanceColor,
+          },
+        ];
+        lineConfigs.push(...weeklyLines);
+      }
 
-        // Batch line creation for better performance
-        const lineConfigs = [];
-
-        if (daily) {
-          lineConfigs.push(
-            { key: "support_1", title: "S1", color: colors.support },
-            { key: "support_1_1", title: "S1.1", color: colors.support },
-            { key: "resistance_1", title: "R1", color: colors.resistance },
-            { key: "resistance_1_1", title: "R1.1", color: colors.resistance }
-          );
-        }
-
-        if (weekly) {
-          lineConfigs.push(
-            { key: "support_2", title: "S2", color: colors.support },
-            { key: "support_2_1", title: "S2.1", color: colors.support },
-            { key: "resistance_2", title: "R2", color: colors.resistance },
-            { key: "resistance_2_1", title: "R2.1", color: colors.resistance }
-          );
-        }
-
-        // Filter and create lines efficiently
-        lineConfigs.forEach((config) => {
-          if (levels[config.key] && !isNaN(parseFloat(levels[config.key]))) {
-            linesToCreate.push({
-              price: levels[config.key],
+      // Create lines with validation
+      let createdCount = 0;
+      lineConfigs.forEach((config) => {
+        const priceValue = levels[config.key];
+        if (priceValue && !isNaN(parseFloat(priceValue))) {
+          try {
+            const line = candleSeriesRef.current.createPriceLine({
+              price: parseFloat(priceValue),
               color: config.color,
+              lineWidth: 2,
+              lineStyle: LineStyle.Dashed,
+              axisLabelVisible: true,
               title: config.title,
             });
+            supportResistanceLinesRef.current.set(config.key, line);
+            createdCount++;
+          } catch (error) {
+            console.error(
+              `Error creating price line for ${config.key}:`,
+              error
+            );
           }
-        });
-
-        // Create lines in batch
-        const newLines = linesToCreate.map((line) =>
-          candleSeriesRef.current.createPriceLine(
-            lineOptions(line.price, line.color, line.title)
-          )
-        );
-
-        supportResistanceLinesRef.current = newLines;
-        console.log(`Created ${newLines.length} support/resistance lines`);
-      } catch (error) {
-        console.error("Error creating price lines:", error);
-      }
-    },
-    [theme, daily, weekly]
-  );
-
-  const getAuthToken = () => localStorage.getItem("authToken");
-
-  // Optimized WebSocket connection with connection pooling
-  const connectWebSocket = useCallback(() => {
-    if (isConnectingRef.current || !currentSymbol) {
-      console.log("Connection already in progress or no symbol selected");
-      return;
-    }
-
-    if (wsRef.current) {
-      console.log("Closing existing WebSocket connection");
-      wsRef.current.close();
-      wsRef.current = null;
-    }
-
-    isConnectingRef.current = true;
-    const wsUrl = `ws://localhost:3000?sid=${sid}&exp_sid=${exp_sid}&interval=30&token=${getAuthToken()}`;
-    console.log("Connecting to WebSocket:", wsUrl);
-
-    try {
-      const ws = new WebSocket(wsUrl);
-      wsRef.current = ws;
-
-      ws.onopen = () => {
-        console.log("✅ WebSocket connected successfully");
-        dispatch(setConnectionStatus("connected"));
-        isConnectingRef.current = false;
-      };
-
-      ws.onmessage = (event) => {
-        // Queue messages for batch processing
-        messageQueueRef.current.push(event);
-
-        // Process queue with RAF for better performance
-        requestAnimationFrame(processMessageQueue);
-      };
-
-      ws.onclose = (event) => {
-        console.log(
-          `🔌 WebSocket connection closed: ${event.code} - ${event.reason}`
-        );
-        dispatch(setConnectionStatus("disconnected"));
-        isConnectingRef.current = false;
-        wsRef.current = null;
-
-        if (event.code !== 1000 && currentSymbol && !isConnectingRef.current) {
-          console.log("🔄 Attempting to reconnect in 3 seconds...");
-          setTimeout(() => {
-            if (currentSymbol && !wsRef.current) {
-              connectWebSocket();
-            }
-          }, 3000);
+        } else {
+          console.warn(`Invalid price for ${config.key}:`, priceValue);
         }
-      };
+      });
 
-      ws.onerror = (error) => {
-        console.error("❌ WebSocket error:", error);
-        dispatch(setConnectionStatus("error"));
-        isConnectingRef.current = false;
-      };
-    } catch (error) {
-      console.error("❌ Failed to create WebSocket connection:", error);
-      dispatch(setConnectionStatus("error"));
-      isConnectingRef.current = false;
-    }
-  }, [currentSymbol, dispatch, processMessageQueue, sid, exp_sid]);
+      console.log(
+        `Successfully created ${createdCount} support/resistance lines`
+      );
+    },
+    [
+      theme,
+      daily,
+      weekly,
+      themeColors.supportColor,
+      themeColors.resistanceColor,
+    ]
+  );
 
   // Optimized chart theme updates
   useEffect(() => {
     if (chartRef.current) {
-      chartRef.current.applyOptions(getChartTheme);
+      chartRef.current.applyOptions(chartTheme);
     }
     if (candleSeriesRef.current) {
-      candleSeriesRef.current.applyOptions(getCandlestickTheme);
+      candleSeriesRef.current.applyOptions(candlestickTheme);
     }
-  }, [getChartTheme, getCandlestickTheme]);
+  }, [chartTheme, candlestickTheme]);
 
-  // Re-draw support/resistance lines when selection changes
+  // Re-draw support/resistance lines when levels or selection changes
   useEffect(() => {
-    if (lastSupportDataRef.current) {
-      drawSupportResistanceLines(lastSupportDataRef.current);
-    }
-  }, [daily, weekly, drawSupportResistanceLines]);
+    console.log("Support/resistance data changed:", {
+      daily,
+      weekly,
+      hasLevels: !!supportResistanceLevels,
+    });
 
-  // Initialize chart with performance optimizations
+    if (supportResistanceLevels) {
+      const currentLevelsString = JSON.stringify(supportResistanceLevels);
+      const lastLevelsString = JSON.stringify(lastSupportDataRef.current);
+
+      if (
+        currentLevelsString !== lastLevelsString ||
+        lastSupportDataRef.current === null
+      ) {
+        console.log("Levels changed, updating lines");
+        lastSupportDataRef.current = supportResistanceLevels;
+        drawSupportResistanceLines(supportResistanceLevels);
+      }
+    }
+  }, [supportResistanceLevels, daily, weekly, drawSupportResistanceLines]);
+
+  // FIXED: Optimized chart initialization with v5 syntax
   useEffect(() => {
     if (!chartContainerRef.current || chartRef.current) return;
 
@@ -370,10 +420,9 @@ const TradingChart = React.memo(() => {
       console.log("🎯 Initializing chart...");
 
       const chart = createChart(chartContainerRef.current, {
-        ...getChartTheme,
+        ...chartTheme,
         width: chartContainerRef.current.clientWidth,
         height: window.innerHeight - 180,
-        // Performance optimizations
         handleScroll: {
           mouseWheel: true,
           pressedMouseMove: true,
@@ -387,84 +436,71 @@ const TradingChart = React.memo(() => {
         },
       });
 
-      const candleSeries = chart.addSeries(
-        CandlestickSeries,
-        getCandlestickTheme
-      );
+      // FIXED: Use new v5 syntax for adding candlestick series
+      const candleSeries = chart.addSeries(CandlestickSeries, candlestickTheme);
 
       chartRef.current = chart;
       candleSeriesRef.current = candleSeries;
 
       // Throttled crosshair move handler
-      let crosshairTimeout;
-      chart.subscribeCrosshairMove((param) => {
-        clearTimeout(crosshairTimeout);
-        crosshairTimeout = setTimeout(() => {
-          if (param.time) {
-            const data = param.seriesData.get(candleSeries);
-            if (data) {
-              setOhlcData({
-                open: data.open?.toFixed(2) || 0,
-                high: data.high?.toFixed(2) || 0,
-                low: data.low?.toFixed(2) || 0,
-                close: data.close?.toFixed(2) || 0,
-                time: formatTimeForIST(param.time),
-              });
-            }
-          }
-        }, 16); // ~60fps
-      });
-
-      // Throttled resize handler
-      let resizeTimeout;
-      const handleResize = () => {
-        clearTimeout(resizeTimeout);
-        resizeTimeout = setTimeout(() => {
-          if (chartContainerRef.current && chartRef.current) {
-            chartRef.current.applyOptions({
-              width: chartContainerRef.current.clientWidth,
-              height: window.innerHeight - 180,
+      const throttledCrosshairMove = throttle((param) => {
+        if (param.time) {
+          const data = param.seriesData.get(candleSeries);
+          if (data) {
+            setOhlcData({
+              open: data.open?.toFixed(2) || 0,
+              high: data.high?.toFixed(2) || 0,
+              low: data.low?.toFixed(2) || 0,
+              close: data.close?.toFixed(2) || 0,
+              time: formatTimeForIST(param.time),
             });
           }
-        }, 100);
-      };
+        }
+      }, 16); // ~60fps
 
-      window.addEventListener("resize", handleResize);
+      chart.subscribeCrosshairMove(throttledCrosshairMove);
+
+      // Debounced resize handler
+      const debouncedResize = debounce(() => {
+        if (chartContainerRef.current && chartRef.current) {
+          chartRef.current.applyOptions({
+            width: chartContainerRef.current.clientWidth,
+            height: window.innerHeight - 180,
+          });
+        }
+      }, 100);
+
+      window.addEventListener("resize", debouncedResize);
 
       console.log("✅ Chart initialized successfully");
 
       return () => {
         console.log("🧹 Cleaning up chart...");
-        clearTimeout(crosshairTimeout);
-        clearTimeout(resizeTimeout);
-        window.removeEventListener("resize", handleResize);
+        window.removeEventListener("resize", debouncedResize);
 
+        // Cleanup connections
         if (evtSourceRef.current) {
           evtSourceRef.current.close();
           evtSourceRef.current = null;
         }
-        if (wsRef.current) {
-          wsRef.current.close();
-          wsRef.current = null;
-        }
 
+        // Cleanup chart
         if (chartRef.current) {
           chartRef.current.remove();
           chartRef.current = null;
           candleSeriesRef.current = null;
         }
 
-        isConnectingRef.current = false;
-        messageQueueRef.current = [];
-        processingRef.current = false;
+        // Clear support/resistance lines
+        supportResistanceLinesRef.current.clear();
       };
     } catch (error) {
       console.error("❌ Error initializing chart:", error);
       dispatch(setConnectionStatus("error"));
     }
-  }, []);
+  }, []); // Empty dependency array for initialization
 
-  // Memoized symbols loading
+  // Optimized symbols loading
   const loadSymbols = useCallback(async () => {
     try {
       const response = await fetch("http://localhost:3000/symbol");
@@ -489,23 +525,19 @@ const TradingChart = React.memo(() => {
     }
   }, [symbols.length, loadSymbols]);
 
-  // Optimized data fetching with caching
+  // Optimized data fetching
   useEffect(() => {
     if (!currentSymbol?.sym_id || !candleSeriesRef.current) return;
 
     console.log("🔄 Symbol or timeframe changed, fetching new data...");
 
+    // Cleanup existing connections
     if (evtSourceRef.current) {
       evtSourceRef.current.close();
       evtSourceRef.current = null;
     }
-    if (wsRef.current) {
-      wsRef.current.close();
-      wsRef.current = null;
-    }
-    isConnectingRef.current = false;
 
-    const fetchHistoricalAndConnect = async () => {
+    const fetchHistoricalData = async () => {
       dispatch(setConnectionStatus("loading"));
 
       const toDate = new Date();
@@ -544,6 +576,7 @@ const TradingChart = React.memo(() => {
 
         evtSourceRef.current.onerror = (error) => {
           console.log("❌ SSE connection error:", error);
+          dispatch(setConnectionStatus("error"));
         };
 
         evtSourceRef.current.onmessage = async (event) => {
@@ -556,7 +589,7 @@ const TradingChart = React.memo(() => {
                 obj.data.candles.length
               );
 
-              // Batch process candles for better performance
+              // Optimized batch processing
               const formattedData = obj.data.candles.map((candle) => {
                 const [timestamp, open, high, low, close] = candle;
                 const utcTimestamp = Math.floor(
@@ -574,7 +607,6 @@ const TradingChart = React.memo(() => {
               });
 
               if (candleSeriesRef.current && formattedData.length > 0) {
-                // Use setData for better performance with large datasets
                 candleSeriesRef.current.setData(formattedData);
 
                 const lastCandle = formattedData[formattedData.length - 1];
@@ -586,14 +618,13 @@ const TradingChart = React.memo(() => {
                   time: formatTimeForIST(lastCandle.time),
                 });
 
-                dispatch(setChartData(formattedData));
+                // Update live price from last candle
+                setLivePrice(lastCandle.close);
 
-                console.log(
-                  "📈 Historical data loaded, connecting WebSocket..."
-                );
-                setTimeout(() => {
-                  connectWebSocket();
-                }, 500);
+                dispatch(setChartData(formattedData));
+                dispatch(setConnectionStatus("connected"));
+
+                console.log("📈 Historical data loaded successfully");
               }
             }
           } catch (error) {
@@ -606,14 +637,15 @@ const TradingChart = React.memo(() => {
       }
     };
 
-    const timeoutId = setTimeout(fetchHistoricalAndConnect, 200);
+    // Reduced timeout for faster response
+    const timeoutId = setTimeout(fetchHistoricalData, 50);
 
     return () => {
       clearTimeout(timeoutId);
     };
-  }, [currentSymbol?.sym_id, timeframe, connectWebSocket, dispatch]);
+  }, [currentSymbol?.sym_id, timeframe, dispatch]);
 
-  // Memoized custom timeframe handler
+  // Custom timeframe handler
   const handleCustomTimeframe = useCallback(() => {
     if (customInterval && parseInt(customInterval) > 0) {
       dispatch(setTimeframe(customInterval));
@@ -662,7 +694,7 @@ const TradingChart = React.memo(() => {
     <div
       className={`h-screen font-sans flex flex-col relative ${themeClasses.container}`}
     >
-      {/* OHLC Display - Top Left Corner */}
+      {/* OHLC Display */}
       <div
         className={`absolute top-20 left-4 z-10 rounded-lg p-3 shadow-lg border ${themeClasses.ohlcBox}`}
       >
@@ -752,6 +784,73 @@ const TradingChart = React.memo(() => {
             IST: {ohlcData.time}
           </div>
         )}
+
+        {/* Support/Resistance Info */}
+        {supportResistanceLevels && (daily || weekly) && (
+          <div
+            className={`text-xs mt-2 border-t pt-1 ${
+              theme === "dark"
+                ? "text-gray-500 border-gray-600"
+                : "text-gray-500 border-gray-300"
+            }`}
+          >
+            <div className="text-xs font-medium mb-1">S/R Levels:</div>
+            <div className="grid grid-cols-2 gap-x-2 text-xs">
+              {daily && (
+                <>
+                  {supportResistanceLevels.support_1 && (
+                    <div
+                      className={`text-${
+                        theme === "dark" ? "blue-400" : "blue-600"
+                      }`}
+                    >
+                      S1:{" "}
+                      {parseFloat(supportResistanceLevels.support_1).toFixed(2)}
+                    </div>
+                  )}
+                  {supportResistanceLevels.resistance_1 && (
+                    <div
+                      className={`text-${
+                        theme === "dark" ? "yellow-400" : "orange-600"
+                      }`}
+                    >
+                      R1:{" "}
+                      {parseFloat(supportResistanceLevels.resistance_1).toFixed(
+                        2
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
+              {weekly && (
+                <>
+                  {supportResistanceLevels.support_2 && (
+                    <div
+                      className={`text-${
+                        theme === "dark" ? "blue-400" : "blue-600"
+                      }`}
+                    >
+                      S2:{" "}
+                      {parseFloat(supportResistanceLevels.support_2).toFixed(2)}
+                    </div>
+                  )}
+                  {supportResistanceLevels.resistance_2 && (
+                    <div
+                      className={`text-${
+                        theme === "dark" ? "yellow-400" : "orange-600"
+                      }`}
+                    >
+                      R2:{" "}
+                      {parseFloat(supportResistanceLevels.resistance_2).toFixed(
+                        2
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Custom Timeframe Modal */}
@@ -778,7 +877,7 @@ const TradingChart = React.memo(() => {
             <div className="flex gap-2">
               <button
                 onClick={handleCustomTimeframe}
-                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors"
               >
                 Apply
               </button>
@@ -787,7 +886,7 @@ const TradingChart = React.memo(() => {
                   setShowCustomTimeframe(false);
                   setCustomInterval("");
                 }}
-                className={`px-4 py-2 rounded ${
+                className={`px-4 py-2 rounded transition-colors ${
                   theme === "dark"
                     ? "bg-gray-600 text-white hover:bg-gray-700"
                     : "bg-gray-300 text-gray-700 hover:bg-gray-400"
@@ -845,48 +944,48 @@ const TradingChart = React.memo(() => {
 
         {/* Support/Resistance Toggle Controls */}
         <div className="flex items-center gap-6">
-          {/* Daily Toggle */}
           <label className="flex items-center gap-3 cursor-pointer">
             <span
               className={`text-sm font-medium ${
                 theme === "dark" ? "text-gray-200" : "text-gray-800"
               }`}
             >
-              Daily
+              Daily ({daily ? "ON" : "OFF"})
             </span>
             <div className="relative">
               <input
                 type="checkbox"
                 checked={daily}
-                onChange={(e) => dispatch(setDaily(e.target.checked))}
+                onChange={(e) => {
+                  console.log("Daily toggle changed:", e.target.checked);
+                  dispatch(setDaily(e.target.checked));
+                }}
                 className="sr-only peer"
               />
-              <div
-                className={`w-11 h-6 bg-gray-300 peer-checked:bg-blue-600 rounded-full peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500 transition duration-300`}
-              ></div>
+              <div className="w-11 h-6 bg-gray-300 peer-checked:bg-blue-600 rounded-full peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500 transition duration-300"></div>
               <div className="absolute top-0.5 left-0.5 bg-white w-5 h-5 rounded-full transition-transform duration-300 peer-checked:translate-x-5"></div>
             </div>
           </label>
 
-          {/* Weekly Toggle */}
           <label className="flex items-center gap-3 cursor-pointer">
             <span
               className={`text-sm font-medium ${
                 theme === "dark" ? "text-gray-200" : "text-gray-800"
               }`}
             >
-              Weekly
+              Weekly ({weekly ? "ON" : "OFF"})
             </span>
             <div className="relative">
               <input
                 type="checkbox"
                 checked={weekly}
-                onChange={(e) => dispatch(setWeekly(e.target.checked))}
+                onChange={(e) => {
+                  console.log("Weekly toggle changed:", e.target.checked);
+                  dispatch(setWeekly(e.target.checked));
+                }}
                 className="sr-only peer"
               />
-              <div
-                className={`w-11 h-6 bg-gray-300 peer-checked:bg-green-600 rounded-full peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-green-500 transition duration-300`}
-              ></div>
+              <div className="w-11 h-6 bg-gray-300 peer-checked:bg-green-600 rounded-full peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-green-500 transition duration-300"></div>
               <div className="absolute top-0.5 left-0.5 bg-white w-5 h-5 rounded-full transition-transform duration-300 peer-checked:translate-x-5"></div>
             </div>
           </label>

@@ -139,7 +139,7 @@ limiter = Limiter(
     app=app,
     storage_uri="memory://",
     strategy="fixed-window",
-    default_limits=["60 per minute"],
+    default_limits=["100 per minute"],
 )
 
 # Register blueprints
@@ -372,7 +372,7 @@ def get_option_chain():
 # **PROTECTED ENDPOINTS**
 @app.route("/api/live-data", methods=["GET"], strict_slashes=False)
 @token_required
-@limiter.limit("100 per minute")
+@limiter.limit("500 per minute")
 def live_data(current_user):
     symbol = request.args.get("sid") or request.args.get("symbol")
     exp = request.args.get("exp_sid") or request.args.get("expiry")
