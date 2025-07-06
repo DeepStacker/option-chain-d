@@ -41,6 +41,7 @@ CORS(
     app,
     origins=[
         "https://main.dtruazmd8dsaa.amplifyapp.com",
+        "https://service-mgmt-6k27.onrender.com",
         "https://stockify-oc.vercel.app",
         "http://localhost:3000",
         "http://localhost:5173",
