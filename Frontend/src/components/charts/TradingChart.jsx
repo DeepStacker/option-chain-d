@@ -15,6 +15,7 @@ import {
   appendLiveCandle,
   setDaily,
   setWeekly,
+  setAvg,
 } from "../../context/chartSlice";
 import {
   createChart,
@@ -123,6 +124,37 @@ const computeLevels = (oc, price, isCommodity) => {
     resistance_1_2: pick(above, (l) => 2)?.reversal,
     resistance_2_1: pick(above, (l) => 1)?.wkly_reversal,
     resistance_2_2: pick(above, (l) => 2)?.wkly_reversal,
+
+    // New averaged levels
+    support_avg:
+      ((pick(below, (l) => l.length - 1)?.reversal ?? 0) +
+        (pick(below, (l) => l.length - 1)?.wkly_reversal ?? 0)) /
+      2,
+
+    support_1_1_avg:
+      ((pick(below, (l) => l.length - 2)?.reversal ?? 0) +
+        (pick(below, (l) => l.length - 2)?.wkly_reversal ?? 0)) /
+      2,
+
+    support_1_2_avg:
+      ((pick(below, (l) => l.length - 3)?.reversal ?? 0) +
+        (pick(below, (l) => l.length - 3)?.wkly_reversal ?? 0)) /
+      2,
+
+    resistance_avg:
+      ((pick(above, (l) => 0)?.reversal ?? 0) +
+        (pick(above, (l) => 0)?.wkly_reversal ?? 0)) /
+      2,
+
+    resistance_1_1_avg:
+      ((pick(above, (l) => 1)?.reversal ?? 0) +
+        (pick(above, (l) => 1)?.wkly_reversal ?? 0)) /
+      2,
+
+    resistance_1_2_avg:
+      ((pick(above, (l) => 2)?.reversal ?? 0) +
+        (pick(above, (l) => 2)?.wkly_reversal ?? 0)) /
+      2,
   };
 
   console.log("✅ Computed levels:", levels);
@@ -235,7 +267,7 @@ const TradingChart = React.memo(() => {
   const [livePrice, setLivePrice] = useState(null);
 
   // Redux state
-  const { symbols, currentSymbol, timeframe, connectionStatus, daily, weekly } =
+  const { symbols, currentSymbol, timeframe, connectionStatus, daily, weekly, avg } =
     useSelector((state) => state.chart);
   const { sid, exp_sid } = useSelector((state) => state.data);
 
@@ -256,11 +288,7 @@ const TradingChart = React.memo(() => {
       { value: "15", label: "15min" },
       { value: "30", label: "30min" },
       { value: "60", label: "1H" },
-      { value: "120", label: "2H" },
-      { value: "240", label: "4H" },
       { value: "D", label: "Daily" },
-      { value: "W", label: "Weekly" },
-      { value: "M", label: "Monthly" },
     ],
     []
   );
@@ -298,7 +326,7 @@ const TradingChart = React.memo(() => {
       supportResistanceLinesRef.current.clear();
 
       // Helper function for line config generation
-      const getLineConfigs = (daily, weekly, themeColors) => {
+      const getLineConfigs = (daily, weekly, avg, themeColors) => {
         const dailyLines = [
           {
             key: "support_1",
@@ -332,6 +360,38 @@ const TradingChart = React.memo(() => {
           },
         ];
 
+        const weeklyLinesAvg = [
+          {
+            key: "support_avg",
+            title: "S2",
+            color: themeColors.nearersupportColor,
+          },
+          {
+            key: "support_1_1_avg",
+            title: "S2.1",
+            color: themeColors.supportColor,
+          },
+          {
+            key: "support_1_2_avg",
+            title: "S2.2",
+            color: themeColors.supportColor,
+          },
+          {
+            key: "resistance_avg",
+            title: "R2",
+            color: themeColors.nearerresistanceColor,
+          },
+          {
+            key: "resistance_1_1_avg",
+            title: "R2.1",
+            color: themeColors.resistanceColor,
+          },
+          {
+            key: "resistance_1_2_avg",
+            title: "R2.2",
+            color: themeColors.resistanceColor,
+          },
+        ];
         const weeklyLines = [
           {
             key: "support_2",
@@ -365,10 +425,10 @@ const TradingChart = React.memo(() => {
           },
         ];
 
-        return [...(daily ? dailyLines : []), ...(weekly ? weeklyLines : [])];
+        return [...(daily ? dailyLines : []), ...(weekly ? weeklyLines : []), ...(avg ? weeklyLinesAvg : [])];
       };
 
-      const lineConfigs = getLineConfigs(daily, weekly, themeColors);
+      const lineConfigs = getLineConfigs(daily, weekly, avg, themeColors);
       console.log(
         `🔧 Total line configurations to create: ${lineConfigs.length}`
       );
@@ -386,7 +446,14 @@ const TradingChart = React.memo(() => {
           try {
             // Determine dynamic styling
             const isSupport = config.key.includes("support");
-            const isMajor = ["support_1", "support_2", "resistance_1", "resistance_2"].includes(config.key);
+            const isMajor = [
+              "support_1",
+              "support_2",
+              "resistance_1",
+              "resistance_2",
+              "support_avg",
+              "resistance_avg",
+            ].includes(config.key);
             const baseColor = config.color;
             const colorWithAlpha =
               baseColor.length === 7 ? `${baseColor}CC` : baseColor; // Add 80% opacity
@@ -425,7 +492,7 @@ const TradingChart = React.memo(() => {
         `🎨 Successfully created ${createdCount} support/resistance lines`
       );
     },
-    [daily, weekly, themeColors.supportColor, themeColors.resistanceColor]
+    [daily, weekly, avg, themeColors.supportColor, themeColors.resistanceColor]
   );
 
   // Chart theme updates
@@ -454,6 +521,7 @@ const TradingChart = React.memo(() => {
   }, [
     daily,
     weekly,
+    avg,
     drawSupportResistanceLines,
     supportResistanceLevels,
     connectionStatus,
@@ -723,6 +791,13 @@ const TradingChart = React.memo(() => {
     },
     [dispatch]
   );
+  const handleAvgToggle = useCallback(
+    (checked) => {
+      console.log("📊 Average toggle clicked:", checked);
+      dispatch(setAvg(checked));
+    },
+    [dispatch]
+  );
 
   // Custom timeframe handler
   const handleCustomTimeframe = useCallback(() => {
@@ -958,6 +1033,26 @@ const TradingChart = React.memo(() => {
                 type="checkbox"
                 checked={weekly}
                 onChange={(e) => handleWeeklyToggle(e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="w-11 h-6 bg-gray-300 peer-checked:bg-green-600 rounded-full peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-green-500 transition duration-300"></div>
+              <div className="absolute top-0.5 left-0.5 bg-white w-5 h-5 rounded-full transition-transform duration-300 peer-checked:translate-x-5"></div>
+            </div>
+          </label>
+
+          <label className="flex items-center gap-3 cursor-pointer">
+            <span
+              className={`text-sm font-medium ${
+                theme === "dark" ? "text-gray-200" : "text-gray-800"
+              }`}
+            >
+              TrueAvg ({avg ? "ON" : "OFF"})
+            </span>
+            <div className="relative">
+              <input
+                type="checkbox"
+                checked={avg}
+                onChange={(e) => handleAvgToggle(e.target.checked)}
                 className="sr-only peer"
               />
               <div className="w-11 h-6 bg-gray-300 peer-checked:bg-green-600 rounded-full peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-green-500 transition duration-300"></div>

@@ -146,7 +146,7 @@ class BSMCalculator:
     ):
         try:
             S = round(float(S), 4)
-            T_days = max(float(T_days), 0.01)
+            T_days = float(T_days)
             sigma_call = float(sigma_call) / 100
             sigma_put = float(sigma_put) / 100
             curr_call_price = round(float(curr_call_price), 4)

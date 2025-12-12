@@ -6,8 +6,9 @@ const initialState = {
   timeframe: "5",
   chartData: [],
   connectionStatus: "disconnected",
-  weekly: true,
+  weekly: false,
   daily: false,
+  avg: true,
 };
 
 const chartSlice = createSlice({
@@ -22,6 +23,9 @@ const chartSlice = createSlice({
     },
     setDaily: (state, action) => {
       state.daily = action.payload; // expect true/false directly
+    },
+    setAvg: (state, action) => {
+      state.avg = action.payload; // expect true/false directly
     },
     setCurrentSymbol: (state, action) => {
       state.currentSymbol = action.payload;
@@ -56,6 +60,7 @@ export const {
   setSymbols,
   setDaily,
   setWeekly,
+  setAvg,
   setCurrentSymbol,
   setTimeframe,
   setChartData,

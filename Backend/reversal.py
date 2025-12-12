@@ -50,7 +50,7 @@ def liquidity_adjustment(oi, avg_oi, low_liq=0.5, high_liq=2.0):
 
 def reversal_calculator(option_chain, exp):
     try:
-        T = max(get_time_diff_in_days(int(exp)), 0.01)
+        T = get_time_diff_in_days(int(exp))
         
         data = Utils.get_greeks(option_chain=option_chain, T=T)
         

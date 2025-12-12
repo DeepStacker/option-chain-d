@@ -707,3 +707,284 @@ def advanced_reversal_point(
     }
 
     return reversal_point, final_confidence, analysis
+
+
+# from math import tanh, fabs
+
+
+# def compute_reversal_features_per_strike(
+#     K,
+#     ce_delta,
+#     pe_delta,
+#     ce_gamma,
+#     pe_gamma,
+#     ce_vega,
+#     pe_vega,
+#     ce_vanna,
+#     pe_vanna,
+#     ce_vomma,
+#     pe_vomma,
+#     ce_charm,
+#     pe_charm,
+#     ce_color,
+#     pe_color,
+#     ce_speed,
+#     pe_speed,
+# ):
+#     net_delta = ce_delta + pe_delta
+#     net_gamma = ce_gamma + pe_gamma
+#     net_vega = ce_vega + pe_vega
+#     net_vanna = ce_vanna + pe_vanna
+#     net_vomma = ce_vomma + pe_vomma
+#     net_charm = ce_charm + pe_charm
+#     net_color = ce_color + pe_color
+#     net_speed = ce_speed + pe_speed
+
+#     vanna_gamma = net_vanna * net_gamma
+#     vomma_vanna_ratio = net_vomma / max(abs(net_vanna), 1e-5)
+#     charm_color_sum = fabs(net_charm) + fabs(net_color)
+#     speed_gamma_ratio = net_speed / max(abs(net_gamma), 1e-5)
+
+#     # Volatility-consistent scoring (institutional-style risk filters)
+#     composite_score = (
+#         0.25 * fabs(net_delta)
+#         + 0.30 * fabs(net_gamma)
+#         + 0.20 * fabs(net_vanna)
+#         + 0.15 * fabs(net_charm)
+#         + 0.10 * fabs(net_vomma)
+#     )
+
+#     return {
+#         "strike": K,
+#         "net_delta": net_delta,
+#         "net_gamma": net_gamma,
+#         "net_vega": net_vega,
+#         "net_vanna": net_vanna,
+#         "net_vomma": net_vomma,
+#         "net_charm": net_charm,
+#         "net_color": net_color,
+#         "vanna_gamma": vanna_gamma,
+#         "vomma_vanna_ratio": vomma_vanna_ratio,
+#         "charm_color_sum": charm_color_sum,
+#         "speed_gamma_ratio": speed_gamma_ratio,
+#         "composite_score": composite_score,
+#     }
+
+
+# def advanced_reversal_point(
+#     K,
+#     spot_price,
+#     T_days,
+#     current_iv,
+#     iv_chng,
+#     ce_delta,
+#     pe_delta,
+#     ce_gamma,
+#     pe_gamma,
+#     ce_vega,
+#     pe_vega,
+#     ce_theta,
+#     pe_theta,
+#     ce_rho,
+#     pe_rho,
+#     ce_vomma,
+#     pe_vomma,
+#     ce_vanna,
+#     pe_vanna,
+#     ce_charm,
+#     pe_charm,
+#     ce_speed,
+#     pe_speed,
+#     ce_zomma,
+#     pe_zomma,
+#     ce_color,
+#     pe_color,
+#     ce_ultima,
+#     pe_ultima,
+#     curr_call_price,
+#     curr_put_price,
+#     call_price,
+#     put_price,
+#     S_chng=1,
+#     instrument_type="IDX",
+#     vol_chng=0.01,
+#     time_chng=1 / 365,
+# ):
+#     # Net Greeks
+#     net_delta = ce_delta + pe_delta
+#     net_gamma = ce_gamma + pe_gamma
+#     net_vega = ce_vega + pe_vega
+#     net_theta = ce_theta + pe_theta
+#     net_rho = ce_rho + pe_rho
+
+#     net_vomma = ce_vomma + pe_vomma
+#     net_vanna = ce_vanna + pe_vanna
+#     net_charm = ce_charm + pe_charm
+#     net_speed = ce_speed + pe_speed
+#     net_zomma = ce_zomma + pe_zomma
+#     net_color = ce_color + pe_color
+#     net_ultima = ce_ultima + pe_ultima
+
+#     # Realistic Price Discrepancy Signal (normalized)
+#     price_discrepancy = (curr_call_price - call_price) + (curr_put_price - put_price)
+#     price_discrepancy_pct = price_discrepancy / max(
+#         curr_call_price + curr_put_price, 1e-3
+#     )
+
+#     # Dynamic Volatility Reaction (more adaptive to current IV)
+#     implied_vol_response = iv_chng if current_iv < 20 else iv_chng * 1.5
+
+#     # First-order contribution
+#     delta_effect = net_delta * S_chng
+#     gamma_effect = 0.5 * net_gamma * (S_chng**2)
+#     vega_effect = net_vega * implied_vol_response
+#     theta_effect = net_theta * time_chng
+#     rho_effect = net_rho * 0.001
+
+#     # Second-order
+#     vomma_effect = 0.5 * net_vomma * (implied_vol_response**2)
+#     vanna_effect = net_vanna * S_chng * implied_vol_response
+#     charm_effect = net_charm * time_chng
+
+#     # Third-order
+#     speed_effect = (1 / 6) * net_speed * (S_chng**3)
+#     zomma_effect = net_zomma * S_chng * implied_vol_response
+#     color_effect = net_color * time_chng
+#     ultima_effect = (1 / 6) * net_ultima * (implied_vol_response**3)
+
+#     # Time sensitivity weights (realistic mapping)
+#     if T_days * 365 <= 5:
+#         w1, w2, w3 = 0.3, 0.45, 0.25
+#         vol_mult = 1.5
+#     elif T_days <= 15:
+#         w1, w2, w3 = 0.45, 0.4, 0.15
+#         vol_mult = 1.3
+#     elif T_days <= 30:
+#         w1, w2, w3 = 0.6, 0.3, 0.1
+#         vol_mult = 1.1
+#     else:
+#         w1, w2, w3 = 0.7, 0.25, 0.05
+#         vol_mult = 1.0
+
+#     # Vol sensitivity
+#     if current_iv > 30:
+#         vega_boost = 1.3
+#         vomma_boost = 1.5
+#         ultima_boost = 1.3
+#     elif current_iv < 12:
+#         vega_boost = 0.8
+#         vomma_boost = 0.7
+#         ultima_boost = 0.6
+#     else:
+#         vega_boost = vomma_boost = ultima_boost = 1.0
+
+#     first_order_total = (
+#         delta_effect
+#         + gamma_effect
+#         + (vega_effect * vega_boost)
+#         + theta_effect
+#         + rho_effect
+#     )
+
+#     second_order_total = (
+#         (vomma_effect * vomma_boost) + vanna_effect + charm_effect
+#     ) * vol_mult
+
+#     third_order_total = (
+#         speed_effect + zomma_effect + color_effect + (ultima_effect * ultima_boost)
+#     ) * (vol_mult**1.5)
+
+#     total_greek_adjustment = (
+#         first_order_total * w1 + second_order_total * w2 + third_order_total * w3
+#     )
+
+#     # Bounded, noise-resistant adjustment
+#     if instrument_type.upper() == "IDX":
+#         max_adj = min(100, K * current_iv * 0.04 / 100)
+#     else:
+#         max_adj = min(30, K * current_iv * 0.06 / 100)
+
+#     bounded_adj = tanh(total_greek_adjustment / max(max_adj, 1e-4)) * max_adj
+#     reversal_point = round(K + bounded_adj, 2)
+
+#     # Higher-order influence metric
+#     greek_mags = [
+#         abs(net_delta),
+#         abs(net_gamma),
+#         abs(net_vega),
+#         abs(net_theta),
+#         abs(net_vomma),
+#         abs(net_vanna),
+#         abs(net_charm),
+#         abs(net_speed),
+#         abs(net_zomma),
+#         abs(net_color),
+#         abs(net_ultima),
+#     ]
+#     ho_ratio = sum(greek_mags[4:]) / max(sum(greek_mags[:4]), 1e-4)
+
+#     base_conf = 60 + min(30, ho_ratio * 20)
+#     final_conf = round(min(95, base_conf + (T_days * 365 * current_iv / 10) * 0.1))
+
+#     return (
+#         reversal_point,
+#         final_conf,
+#         {
+#             "reversal_point": reversal_point,
+#             "confidence_score": final_conf,
+#             "greek_breakdown": {
+#                 "first_order": {
+#                     "delta": delta_effect,
+#                     "gamma": gamma_effect,
+#                     "vega": vega_effect,
+#                     "theta": theta_effect,
+#                     "rho": rho_effect,
+#                     "total": first_order_total,
+#                 },
+#                 "second_order": {
+#                     "vomma": vomma_effect,
+#                     "vanna": vanna_effect,
+#                     "charm": charm_effect,
+#                     "total": second_order_total,
+#                 },
+#                 "third_order": {
+#                     "speed": speed_effect,
+#                     "zomma": zomma_effect,
+#                     "color": color_effect,
+#                     "ultima": ultima_effect,
+#                     "total": third_order_total,
+#                 },
+#             },
+#             "market_factors": {
+#                 "price_discrepancy": price_discrepancy,
+#                 "price_discrepancy_pct": price_discrepancy_pct,
+#                 "volatility_regime": (
+#                     "high"
+#                     if current_iv > 30
+#                     else "low" if current_iv < 12 else "normal"
+#                 ),
+#                 "max_adjustment_bound": max_adj,
+#             },
+#             "weights_applied": {"w1": w1, "w2": w2, "w3": w3},
+#             "higher_order_significance": ho_ratio,
+#             "reversal_feature": compute_reversal_features_per_strike(
+#                 K,
+#                 ce_delta,
+#                 pe_delta,
+#                 ce_gamma,
+#                 pe_gamma,
+#                 ce_vega,
+#                 pe_vega,
+#                 ce_vanna,
+#                 pe_vanna,
+#                 ce_vomma,
+#                 pe_vomma,
+#                 ce_charm,
+#                 pe_charm,
+#                 ce_color,
+#                 pe_color,
+#                 ce_speed,
+#                 pe_speed,
+#             ),
+#         },
+#     )
