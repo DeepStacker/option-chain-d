@@ -75,4 +75,3 @@ alembic==1.14.0
 SQLAlchemy==2.0.36
 firebase-admin==6.3.0
 
-pandas_ta
