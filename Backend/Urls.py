@@ -13,7 +13,7 @@ class Urls:
         "accept": "application/json, text/plain, */*",
         "accept-encoding": "gzip, deflate, br, zstd",
         "accept-language": "en-US,en;q=0.7",
-        "auth": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJpc3MiOiJkaGFuIiwiZW50aXR5X2lkIjoiNzIwOTY4MzY5OSIsImV4cCI6MTcyOTY2NDExOH0.FW9TPQpbz6zeFLcHn3_eVOXzxHi_rqm9DtpubtdKbLEaujwkcXZPc6tu_JP6pWS448u6vRPoRDXSmC2i1viQaw",
+        "auth": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJpc3MiOiJkaGFuIiwiZXhwIjoxNzY1NjEwOTYwLCJjbGllbnRfaWQiOiIxMTAwMjExMTIwIn0.1r3SZvih9FKxzt6VgFdWcvruYtOZDqRPMkvy2AMFAAIYvdUN2DU-9bqrcHd0ijRK_XNC1gwtgSdJg7mU7TRDIw",
         "content-type": "application/json",
         "origin": "https://web.dhan.co",
         "referer": "https://web.dhan.co/",
