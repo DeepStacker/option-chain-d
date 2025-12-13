@@ -49,6 +49,13 @@ const useSocket = (onDataReceived, options = {}) => {
     }
   };
 
+  // Use ref for callback to prevent effect re-triggering when callback identity changes
+  const onDataReceivedRef = useRef(onDataReceived);
+  
+  useEffect(() => {
+    onDataReceivedRef.current = onDataReceived;
+  }, [onDataReceived]);
+
   const connect = useCallback(() => {
     try {
       // Clear any existing connection
@@ -109,7 +116,9 @@ const useSocket = (onDataReceived, options = {}) => {
             // Live data - pass to callback
             if (error) setError(null); // Clear error if we start receiving data
             console.log('📡 Passing live data to callback');
-            onDataReceived(data);
+            if (onDataReceivedRef.current) {
+                onDataReceivedRef.current(data);
+            }
           }
         } catch (err) {
           console.error('Error processing WebSocket message:', err);
@@ -152,7 +161,7 @@ const useSocket = (onDataReceived, options = {}) => {
       console.error('Error creating WebSocket:', err);
       setError(err.message);
     }
-  }, [socketUrl, onDataReceived, autoReconnect, reconnectInterval, maxReconnectAttempts]);
+  }, [socketUrl, autoReconnect, reconnectInterval, maxReconnectAttempts]);
 
   // Disconnect function
   const disconnect = useCallback(() => {

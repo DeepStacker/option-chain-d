@@ -137,7 +137,7 @@ export const selectAppState = createSelector(
         selectIsHighlighting,
         selectData,
         selectExp,
-        selectDataSymbol,
+        selectSid, // Fixed: was selectDataSymbol which returned undefined
         selectExpDateRaw,
         selectIsOc,
         selectIsStreaming,

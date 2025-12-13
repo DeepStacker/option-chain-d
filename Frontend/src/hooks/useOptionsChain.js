@@ -97,18 +97,17 @@ export const useOptionsChain = () => {
         dispatch(setConnectionMethod(wsConnected ? 'websocket' : 'api'));
     }, [wsConnected, subscription, dispatch]);
 
-    // Fetch expiry dates when symbol changes
-    useEffect(() => {
-        if (symbol) {
-            dispatch(fetchExpiryDate(symbol));
-        }
-    }, [symbol, dispatch]);
+    // Note: Expiry and initial data fetching is now handled by setSidAndFetchData thunk
+    // from OptionControls.jsx when user changes symbol
 
     // WebSocket subscription - ONLY subscribe when we have valid symbol AND expiry
     useEffect(() => {
-        if (!useWebSocket || isPaused || !wsConnected) return;
+        // Early return conditions - do NOT unsubscribe here, just wait
+        if (!useWebSocket || isPaused || !wsConnected) {
+            return;
+        }
 
-        // Don't subscribe until we have valid expiry
+        // Don't subscribe until we have valid expiry - wait but don't unsub
         if (!symbol || !isExpiryValid) {
             console.log('⏳ Waiting for valid expiry before WebSocket subscription');
             return;
@@ -121,7 +120,7 @@ export const useOptionsChain = () => {
             return; // Already subscribed, no action needed
         }
 
-        // If we had a previous subscription, unsubscribe first
+        // If we had a previous subscription AND we have a new valid one, switch
         if (currentSubscriptionRef.current) {
             console.log('📡 Unsubscribing from:', currentSubscriptionRef.current);
             unsubscribe();
@@ -132,23 +131,30 @@ export const useOptionsChain = () => {
         subscribe(symbol, String(expiry));
         currentSubscriptionRef.current = newKey;
 
+        // No cleanup here - cleanup only on unmount
+    }, [wsConnected, symbol, expiry, isExpiryValid, isPaused, useWebSocket, subscribe, unsubscribe]);
+
+    // Cleanup on unmount only
+    useEffect(() => {
         return () => {
-            // Cleanup on unmount
             if (currentSubscriptionRef.current) {
+                console.log('📡 Cleanup: Unsubscribing on unmount');
                 unsubscribe();
                 currentSubscriptionRef.current = null;
             }
         };
-    }, [wsConnected, symbol, expiry, isExpiryValid, isPaused, useWebSocket, subscribe, unsubscribe]);
+    }, [unsubscribe]);
 
     // REST API fetch function (fallback or initial load)
+    // Backend auto-fetches expiry if not provided
     const fetchData = useCallback(async () => {
-        if (!symbol || !isExpiryValid || isPaused) return;
+        if (!symbol || isPaused) return;
 
-        const fetchKey = `${symbol}:${expiry}`;
+        const fetchKey = `${symbol}:${expiry || 'auto'}`;
 
         try {
-            await dispatch(fetchLiveData({ symbol, expiry: String(expiry) })).unwrap();
+            // Pass expiry if available, otherwise backend will auto-fetch nearest
+            await dispatch(fetchLiveData({ symbol, expiry: expiry ? String(expiry) : null })).unwrap();
             setLastUpdated(new Date());
             lastFetchedKeyRef.current = fetchKey;
             if (isInitialLoad) {
@@ -160,40 +166,43 @@ export const useOptionsChain = () => {
                 setIsInitialLoad(false);
             }
         }
-    }, [symbol, expiry, isExpiryValid, isPaused, dispatch, isInitialLoad]);
+    }, [symbol, expiry, isPaused, dispatch, isInitialLoad]);
 
-    // Initial fetch - do one REST fetch for immediate data when symbol+expiry is ready
+    // Fetch data when expiry changes (user manually changed expiry)
+    const prevExpiryRef = useRef(expiry);
+
     useEffect(() => {
         if (!symbol || !isExpiryValid) return;
 
-        const currentKey = `${symbol}:${expiry}`;
-
-        // Only fetch if we haven't fetched this combination yet
-        if (lastFetchedKeyRef.current !== currentKey) {
-            console.log('📥 Fetching initial data for:', currentKey);
+        // Only fetch if expiry actually changed (not initial)
+        if (prevExpiryRef.current !== null && prevExpiryRef.current !== expiry) {
+            console.log('📥 Expiry changed, fetching data for:', symbol, expiry);
             fetchData();
         }
+        prevExpiryRef.current = expiry;
     }, [symbol, expiry, isExpiryValid, fetchData]);
 
     // Polling fallback - only if WebSocket is not connected or not subscribed OR if there's an error
     useEffect(() => {
-        // Skip polling if WebSocket is connected and streaming AND NO ERROR
-        // We trust the connection if it's open and error-free (don't wait for subscription confirmation to stop polling)
-        console.log('📊 Polling Check:', { wsConnected, useWebSocket, wsError, subscription });
-        if (wsConnected && useWebSocket && !wsError) {
-            if (pollTimerRef.current) {
-                clearInterval(pollTimerRef.current);
-                pollTimerRef.current = null;
-            }
+        // Always clear existing interval first
+        if (pollTimerRef.current) {
+            clearInterval(pollTimerRef.current);
+            pollTimerRef.current = null;
+        }
+
+        // Skip polling if WebSocket is connected AND subscribed AND NO ERROR
+        if (wsConnected && subscription && useWebSocket && !wsError) {
+            console.log('📡 WebSocket active, polling disabled');
+            return;
+        }
+
+        // Stop polling if we have a specific "Not Found" error 
+        if (data?.error && (data.error.includes("404") || data.error.includes("Invalid"))) {
             return;
         }
 
         // Use polling as fallback
-        if (isPaused || !symbol || !isExpiryValid || isInitialLoad) {
-            if (pollTimerRef.current) {
-                clearInterval(pollTimerRef.current);
-                pollTimerRef.current = null;
-            }
+        if (isPaused || !symbol) {
             return;
         }
 
@@ -203,9 +212,10 @@ export const useOptionsChain = () => {
         return () => {
             if (pollTimerRef.current) {
                 clearInterval(pollTimerRef.current);
+                pollTimerRef.current = null;
             }
         };
-    }, [fetchData, refreshInterval, isPaused, symbol, isExpiryValid, isInitialLoad, wsConnected, subscription, useWebSocket, wsError]);
+    }, [fetchData, refreshInterval, isPaused, symbol, wsConnected, subscription, useWebSocket, wsError, data?.error]);
 
     // Manual refresh handler
     const handleRefresh = useCallback(() => {

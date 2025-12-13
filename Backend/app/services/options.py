@@ -89,7 +89,7 @@ class OptionsService:
         Returns:
             Complete option chain data with Greeks, reversal, trading signals
         """
-        # Fetch raw option chain
+        # Fetch raw option chain (dhan_client auto-fetches expiry if None)
         chain_data = await self.dhan.get_option_chain(symbol, expiry)
         
         if not chain_data or "oc" not in chain_data:
@@ -98,8 +98,11 @@ class OptionsService:
         spot = chain_data.get("spot", {}).get("ltp", 0)
         spot_change = chain_data.get("spot", {}).get("change", 0)
         
+        # Get expiry from chain_data if it was auto-fetched (expiry might be None)
+        actual_expiry = expiry or chain_data.get("expiry") or chain_data.get("exp_sid")
+        
         # Calculate time to expiry using IST market hours
-        T_days = self._calculate_days_to_expiry_ist(int(expiry))
+        T_days = self._calculate_days_to_expiry_ist(int(actual_expiry)) if actual_expiry else 0
         T_years = max(T_days, 0.001) / 365
         
         # Get instrument type (IDX, EQ, COM)

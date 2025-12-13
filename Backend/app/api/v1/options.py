@@ -82,17 +82,18 @@ async def get_option_chain(
 @router.get("/live")
 async def get_live_data(
     symbol: str = Query(..., alias="sid"),
-    expiry: str = Query(..., alias="exp_sid"),
+    expiry: str = Query(default=None, alias="exp_sid"),  # Made optional - backend auto-fetches if missing
     current_user: CurrentUser = None,
     service: OptionsService = Depends(get_options_service),
 ):
     """
     Get live option chain data (REST endpoint).
     Compatible with legacy API.
+    If expiry is not provided, the backend will auto-fetch the nearest expiry.
     """
     data = await service.get_live_data(
         symbol=symbol.upper(),
-        expiry=expiry,
+        expiry=expiry,  # Can be None - service handles fallback
         include_greeks=True,
         include_reversal=True
     )

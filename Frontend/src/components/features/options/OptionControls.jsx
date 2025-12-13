@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { selectSid, selectSelectedExpiry, selectExpiryList } from '../../../context/selectors';
-import { setSid, setExp_sid } from '../../../context/dataSlice';
+import { setSidAndFetchData, setExp_sid } from '../../../context/dataSlice';
 
 /**
  * Compact Option Controls - Symbol and Expiry selection only
@@ -16,11 +16,12 @@ const OptionControls = memo(() => {
     const displaySymbol = sid || 'NIFTY';
 
     const handleSymbolChange = (e) => {
-        dispatch(setSid(e.target.value));
+        // Use the thunk that handles the entire flow: setSid -> fetchExpiry -> setExpiry -> fetchData
+        dispatch(setSidAndFetchData({ newSid: e.target.value }));
     };
 
     const handleExpiryChange = (e) => {
-        dispatch(setExp_sid(e.target.value));
+        dispatch(setExp_sid(Number(e.target.value)));
     };
 
     const formatExpiryDate = (timestamp) => {
@@ -44,7 +45,7 @@ const OptionControls = memo(() => {
 
             {/* Expiry */}
             <select
-                value={expiry}
+                value={expiry || ""}
                 onChange={handleExpiryChange}
                 className="px-2 py-1 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
             >

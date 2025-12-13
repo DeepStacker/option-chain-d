@@ -22,6 +22,9 @@ from app.utils.data_processing import (
 
 logger = logging.getLogger(__name__)
 
+# Global shared client for connection pooling
+_shared_client: Optional[httpx.AsyncClient] = None
+
 
 class DhanClient:
     """
@@ -71,13 +74,16 @@ class DhanClient:
     
     async def _get_client(self) -> httpx.AsyncClient:
         """Get or create HTTP client with connection pooling for high concurrency"""
-        if self._client is None or self._client.is_closed:
+        global _shared_client
+        
+        if _shared_client is None or _shared_client.is_closed:
             headers = dict(self.DEFAULT_HEADERS)
-            # Add auth token if available
+            # Add auth token if available (Note: Auth token is usually static from settings)
             if self.auth_token:
                 headers["auth"] = self.auth_token
             
-            self._client = httpx.AsyncClient(
+            logger.info("Initializing new global HTTP client pool")
+            _shared_client = httpx.AsyncClient(
                 timeout=self.timeout,
                 headers=headers,
                 limits=httpx.Limits(
@@ -86,12 +92,20 @@ class DhanClient:
                     keepalive_expiry=30
                 ),
             )
+        
+        self._client = _shared_client
         return self._client
     
     async def close(self):
-        """Close the HTTP client"""
-        if self._client and not self._client.is_closed:
-            await self._client.aclose()
+        """
+        Close the HTTP client. 
+        Only use this if you explicitly want to tear down the shared pool (e.g. on auth error).
+        """
+        global _shared_client
+        if self._client and self._client == _shared_client:
+            if not self._client.is_closed:
+                await self._client.aclose()
+            _shared_client = None
             self._client = None
     
     def _get_segment(self, symbol: str) -> int:
@@ -264,8 +278,18 @@ class DhanClient:
         seg = self._get_segment(symbol)
         sid = self._get_symbol_id(symbol)
 
-        expiry = (await self.get_expiry_dates(symbol))[0]
-        logger.info(f"DEBUG: Expiry: {expiry}")
+        # Ensure expiry is an integer (timestamp)
+        if expiry and str(expiry).lower() not in ('null', 'none', ''):
+            try:
+                expiry = int(expiry)
+            except ValueError:
+                # If conversion fails, let it fall through or fallback
+                pass
+
+        if not expiry:
+            expiry = (await self.get_expiry_dates(symbol))[0]
+        
+        logger.info(f"DEBUG: Expiry: {expiry} (Type: {type(expiry)})")
         
         payload = {
             "Data": {
@@ -283,7 +307,10 @@ class DhanClient:
             cache_ttl=settings.REDIS_OPTIONS_CACHE_TTL
         )
         
-        return self._transform_option_chain(data, symbol)
+        result = self._transform_option_chain(data, symbol)
+        # Include the resolved expiry in response (important when auto-fetched)
+        result["expiry"] = expiry
+        return result
     
     async def get_spot_data(self, symbol: str) -> Dict[str, Any]:
         """Get spot/index data"""

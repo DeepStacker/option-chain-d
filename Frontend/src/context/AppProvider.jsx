@@ -72,14 +72,29 @@ export const AppProvider = ({ children }) => {
     }
   }, [token]);
 
-  // Initialize data when symbol changes - only when auth is complete
+  // Initialize data on first mount when auth is complete
+  // This handles the INITIAL load only - subsequent symbol changes are handled by OptionControls
+  const initialLoadDoneRef = useRef(false);
+  
   useEffect(() => {
-    if (!authLoading && isAuthenticated && isOc && symbol) {
-      dispatch(setSidAndFetchData(symbol));
+    console.log('🔍 AppProvider effect check:', { 
+      authLoading, 
+      isAuthenticated, 
+      isOc, 
+      symbol, 
+      initialLoadDone: initialLoadDoneRef.current 
+    });
+    
+    if (!authLoading && isAuthenticated && isOc && symbol && !initialLoadDoneRef.current) {
+      console.log('🚀 Initial data load for:', symbol);
+      initialLoadDoneRef.current = true;
+      dispatch(setSidAndFetchData({ newSid: symbol }));
     }
   }, [dispatch, symbol, isAuthenticated, authLoading, isOc]);
 
   // Fetch expiry dates when the symbol changes and user is authenticated
+  // Fetch expiry dates when the symbol changes - REMOVED (Handled locally)
+  /*
   const fetchExpiryDates = useCallback(() => {
     if (!authLoading && symbol && isAuthenticated && isOc) {
       dispatch(fetchExpiryDate({ sid: symbol, exp }));
@@ -89,13 +104,17 @@ export const AppProvider = ({ children }) => {
   useEffect(() => {
     fetchExpiryDates();
   }, [fetchExpiryDates]);
+  */
 
   // Fetch live data when expiry changes
+  // Fetch live data when expiry changes - REMOVED (Handled locally)
+  /*
   useEffect(() => {
     if (!authLoading && isAuthenticated && isOc && symbol && exp_sid) {
       dispatch(fetchLiveData({ sid: symbol, exp_sid }));
     }
   }, [dispatch, symbol, exp_sid, isAuthenticated, authLoading, isOc]);
+  */
 
   // Update expiry when expiry list changes - fixed dependency array
   useEffect(() => {

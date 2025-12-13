@@ -39,6 +39,128 @@ const createRequestKey = (action, params = {}) => {
   return `${action}_${JSON.stringify(params)}`;
 };
 
+/**
+ * Normalize backend data (from REST or WS) to unified Frontend Redux state shape
+ * Ensures consistent keys for Spot, Futures, and Option Chain
+ */
+const normalizeBackendData = (raw) => {
+  if (!raw) return null;
+
+  // Transform oc data to match frontend expected field names
+  const transformedOc = {};
+  if (raw.oc) {
+    Object.entries(raw.oc).forEach(([strikeKey, strikeData]) => {
+      // Normalize strike key to number for consistent access
+      const numericKey = parseFloat(strikeKey);
+
+      // Helper to transform leg (CE/PE)
+      const transformLeg = (leg, type) => ({
+        ltp: leg?.ltp || 0,
+        atp: leg?.atp || 0,
+        pc: leg?.pc || 0,
+        volume: leg?.volume || leg?.vol || 0,
+        vol: leg?.vol || leg?.volume || 0,
+        pVol: leg?.pVol || 0,
+        // OI fields - standardize on uppercase OI for display, lowercase for logic if needed
+        OI: leg?.OI || leg?.oi || 0,
+        oi: leg?.OI || leg?.oi || 0,
+        oichng: leg?.oichng || leg?.oi_change || 0,
+        oi_change: leg?.oichng || leg?.oi_change || 0,
+        p_oi: leg?.p_oi || 0,
+        oiperchnge: leg?.oiperchnge || 0,
+        // IV & Greeks
+        iv: leg?.iv || 0,
+        optgeeks: leg?.optgeeks || {},
+        delta: leg?.optgeeks?.delta || 0,
+        gamma: leg?.optgeeks?.gamma || 0,
+        theta: leg?.optgeeks?.theta || 0,
+        vega: leg?.optgeeks?.vega || 0,
+        // Price change
+        p_chng: leg?.p_chng || leg?.change || 0,
+        p_pchng: leg?.p_pchng || 0,
+        // Bid/Ask
+        bid: leg?.bid || 0,
+        ask: leg?.ask || 0,
+        bid_qty: leg?.bid_qty || 0,
+        ask_qty: leg?.ask_qty || 0,
+        // Build-up signals
+        btyp: leg?.btyp || "NT",
+        BuiltupName: leg?.BuiltupName || "NEUTRAL",
+        mness: leg?.mness || "",
+        // Symbol info
+        sym: leg?.sym || "",
+        sid: leg?.sid || 0,
+        disp_sym: leg?.disp_sym || "",
+        otype: leg?.otype || type,
+      });
+
+      transformedOc[numericKey] = {
+        strike: strikeData.strike || numericKey,
+        strike_price: strikeData.strike_price || numericKey,
+        ce: transformLeg(strikeData.ce, "CE"),
+        pe: transformLeg(strikeData.pe, "PE"),
+        // Reversal data
+        reversal: strikeData.reversal || 0,
+        wkly_reversal: strikeData.wkly_reversal || 0,
+        fut_reversal: strikeData.fut_reversal || 0,
+        // Support/Resistance
+        rs: strikeData.rs || 0,
+        rr: strikeData.rr || 0,
+        ss: strikeData.ss || 0,
+        sr_diff: strikeData.sr_diff || 0,
+        // Time value
+        ce_tv: strikeData.ce_tv || 0,
+        pe_tv: strikeData.pe_tv || 0,
+        // Signals
+        pcr: strikeData.pcr || 0,
+        trading_signals: strikeData.trading_signals || {},
+        market_regimes: strikeData.market_regimes || {},
+        price_range: strikeData.price_range || {},
+      };
+    });
+  }
+
+  // Construct the unified state shape
+  return {
+    options: {
+      data: {
+        oc: transformedOc,
+        sltp: raw.spot?.ltp || raw.sltp || 0,
+        schng: raw.spot?.change || raw.schng || 0,
+        sperchng: raw.spot?.change_percent || raw.sperchng || 0,
+        u_id: raw.u_id || 0,
+        fl: raw.future || raw.fl || {},
+        atmiv: raw.atmiv || 0,
+        atmiv_change: raw.atmiv_change || 0,
+        atm_strike: raw.atm_strike || 0,
+        symbol: raw.symbol,
+        expiry: raw.expiry,
+        max_pain_strike: raw.max_pain_strike || 0,
+        dte: raw.dte || raw.days_to_expiry || 0,
+        lot_size: raw.lot_size || 75,
+        total_ce_oi: raw.total_ce_oi || 0,
+        total_pe_oi: raw.total_pe_oi || 0,
+        pcr: raw.pcr || 0,
+        expiry_list: raw.expiry_list || [],
+      }
+    },
+    spot: {
+      data: {
+        Ltp: raw.spot?.ltp || 0,
+        Change: raw.spot?.change || 0,
+        ChangePercent: raw.spot?.change_percent || 0,
+        ltp: raw.spot?.ltp || 0,
+        change: raw.spot?.change || 0,
+        change_percent: raw.spot?.change_percent || 0,
+      }
+    },
+    fut: {
+      data: raw.future || raw.fut?.data || {} // Corrected: Flat structure for Futures
+    }
+  };
+};
+
+
 // Thunks
 export const fetchExpiryDate = createAsyncThunk(
   "data/fetchExpiryDate",
@@ -173,10 +295,16 @@ export const setSidAndFetchData = createAsyncThunk(
           fetchExpiryDate({ sid: newSid })
         ).unwrap();
 
-        if (!expiryResponse?.length)
+        // Handle different response formats from backend
+        // Backend returns: {success, data: {symbol, expiry_dates: [...]}}
+        const expiryDates = Array.isArray(expiryResponse)
+          ? expiryResponse
+          : expiryResponse?.data?.expiry_dates || expiryResponse?.expiry_dates || [];
+
+        if (!expiryDates?.length)
           throw new Error("No expiry dates available");
 
-        const latestExpiry = getLatestExpiry(expiryResponse);
+        const latestExpiry = getLatestExpiry(expiryDates);
         if (!latestExpiry) throw new Error("No valid expiry date found");
 
         dispatch(setExp_sid(latestExpiry));
@@ -206,7 +334,7 @@ export const dataSlice = createSlice({
   initialState: {
     data: {},
     expDate: [],
-    exp_sid: 1419013800,
+    exp_sid: null,
     sid: "NIFTY", // Ensure sid has an initial value
     isOc: true,
     error: null,
@@ -221,14 +349,13 @@ export const dataSlice = createSlice({
     },
     setSid: (state, action) => {
       state.sid = action.payload;
+      state.exp_sid = null; // Clear expiry to prevent race condition with old expiry
+      state.data = {}; // Optional: Clear old data to avoid UI confusion
     },
     setIsOc: (state, action) => {
       state.isOc = action.payload;
     },
     updateLiveData: (state, action) => {
-      // Transform WebSocket data into same structure as REST API response
-      // WebSocket sends: { oc: {...}, spot: {...}, fut: {...}, atm_strike: ..., pcr: ..., etc }
-      // Selectors expect: state.data.options.data.oc, state.data.spot.data, etc
       const raw = action.payload;
 
       if (!raw || !raw.oc) {
@@ -236,44 +363,15 @@ export const dataSlice = createSlice({
         return;
       }
 
-      state.data = {
-        options: {
-          data: {
-            oc: raw.oc,
-            sltp: raw.spot?.ltp || raw.sltp || 0,
-            schng: raw.spot?.change || raw.schng || 0,
-            sperchng: raw.spot?.change_percent || raw.sperchng || 0,
-            u_id: raw.u_id || 0,
-            fl: raw.future || raw.fl || {},
-            atmiv: raw.atmiv || 0,
-            atmiv_change: raw.atmiv_change || 0,
-            atm_strike: raw.atm_strike || 0,
-            symbol: raw.symbol,
-            expiry: raw.expiry,
-            max_pain_strike: raw.max_pain_strike || 0,
-            dte: raw.dte || raw.days_to_expiry || 0,
-            lot_size: raw.lot_size || 75,
-            total_ce_oi: raw.total_ce_oi || 0,
-            total_pe_oi: raw.total_pe_oi || 0,
-            pcr: raw.pcr || 0,
-            expiry_list: raw.expiry_list || state.data?.options?.data?.expiry_list || [],
-          }
-        },
-        spot: {
-          data: {
-            Ltp: raw.spot?.ltp || 0,
-            Change: raw.spot?.change || 0,
-            ChangePercent: raw.spot?.change_percent || 0,
-            ltp: raw.spot?.ltp || 0,
-            change: raw.spot?.change || 0,
-            change_percent: raw.spot?.change_percent || 0,
-          }
-        },
-        fut: {
-          data: raw.future || raw.fut?.data || {}
-        }
-      };
+      // Use the unified normalizer
+      const normalized = normalizeBackendData(raw);
 
+      // Preserve existing expiry list if not present in update
+      if (normalized && state.data?.options?.data?.expiry_list && (!normalized.options.data.expiry_list || normalized.options.data.expiry_list.length === 0)) {
+        normalized.options.data.expiry_list = state.data.options.data.expiry_list;
+      }
+
+      state.data = normalized;
       state.connectionMethod = 'websocket';
     },
     setStreamingState: (state, action) => {
@@ -310,168 +408,16 @@ export const dataSlice = createSlice({
         state.connectionMethod = "api";
       })
       .addCase(fetchLiveData.fulfilled, (state, action) => {
-        // Normalize backend response to match expected frontend structure
-        // Backend now returns corrected field names from Dhan API
+        // Normalize backend response using the same helper as WebSocket
         const raw = action.payload;
 
-        // Transform oc data to match frontend expected field names
-        const transformedOc = {};
-        if (raw.oc) {
-          Object.entries(raw.oc).forEach(([strikeKey, strikeData]) => {
-            // Normalize strike key to number for consistent access
-            const numericKey = parseFloat(strikeKey);
+        // Use the unified normalizer
+        const normalized = normalizeBackendData(raw);
 
-            // Transform CE data - backend now provides correct field names
-            const ce = strikeData?.ce || {};
-            const transformedCe = {
-              ltp: ce.ltp || 0,
-              atp: ce.atp || 0,  // Average traded price
-              pc: ce.pc || 0,   // Previous close
-              volume: ce.volume || ce.vol || 0,
-              vol: ce.vol || ce.volume || 0,
-              pVol: ce.pVol || 0,  // Previous volume
-              // OI fields - backend now provides uppercase OI
-              OI: ce.OI || ce.oi || 0,
-              oi: ce.OI || ce.oi || 0,
-              oichng: ce.oichng || ce.oi_change || 0,
-              oi_change: ce.oichng || ce.oi_change || 0,
-              p_oi: ce.p_oi || 0,  // Previous OI
-              oiperchnge: ce.oiperchnge || 0,
-              // IV & Greeks
-              iv: ce.iv || 0,
-              optgeeks: ce.optgeeks || {},
-              delta: ce.optgeeks?.delta || 0,
-              gamma: ce.optgeeks?.gamma || 0,
-              theta: ce.optgeeks?.theta || 0,
-              vega: ce.optgeeks?.vega || 0,
-              // Price change - backend now provides p_chng
-              p_chng: ce.p_chng || ce.change || 0,
-              p_pchng: ce.p_pchng || 0,
-              // Bid/Ask
-              bid: ce.bid || 0,
-              ask: ce.ask || 0,
-              bid_qty: ce.bid_qty || 0,
-              ask_qty: ce.ask_qty || 0,
-              // Build-up signals - NEW from Dhan
-              btyp: ce.btyp || "NT",  // LB, SB, SC, LC, NT
-              BuiltupName: ce.BuiltupName || "NEUTRAL",
-              mness: ce.mness || "",  // I = ITM, O = OTM
-              // Symbol info
-              sym: ce.sym || "",
-              sid: ce.sid || 0,
-              disp_sym: ce.disp_sym || "",
-              otype: ce.otype || "CE",
-            };
+        // For REST, specifically ensure futures Data logic handles cases where backend might send list vs single
+        // The normalizer expects 'future' key which works for standard backend response.
 
-            // Transform PE data - same structure as CE
-            const pe = strikeData?.pe || {};
-            const transformedPe = {
-              ltp: pe.ltp || 0,
-              atp: pe.atp || 0,
-              pc: pe.pc || 0,
-              volume: pe.volume || pe.vol || 0,
-              vol: pe.vol || pe.volume || 0,
-              pVol: pe.pVol || 0,
-              // OI fields
-              OI: pe.OI || pe.oi || 0,
-              oi: pe.OI || pe.oi || 0,
-              oichng: pe.oichng || pe.oi_change || 0,
-              oi_change: pe.oichng || pe.oi_change || 0,
-              p_oi: pe.p_oi || 0,
-              oiperchnge: pe.oiperchnge || 0,
-              // IV & Greeks
-              iv: pe.iv || 0,
-              optgeeks: pe.optgeeks || {},
-              delta: pe.optgeeks?.delta || 0,
-              gamma: pe.optgeeks?.gamma || 0,
-              theta: pe.optgeeks?.theta || 0,
-              vega: pe.optgeeks?.vega || 0,
-              // Price change
-              p_chng: pe.p_chng || pe.change || 0,
-              p_pchng: pe.p_pchng || 0,
-              // Bid/Ask
-              bid: pe.bid || 0,
-              ask: pe.ask || 0,
-              bid_qty: pe.bid_qty || 0,
-              ask_qty: pe.ask_qty || 0,
-              // Build-up signals
-              btyp: pe.btyp || "NT",
-              BuiltupName: pe.BuiltupName || "NEUTRAL",
-              mness: pe.mness || "",
-              // Symbol info
-              sym: pe.sym || "",
-              sid: pe.sid || 0,
-              disp_sym: pe.disp_sym || "",
-              otype: pe.otype || "PE",
-            };
-
-            transformedOc[numericKey] = {
-              strike: strikeData.strike || numericKey,
-              strike_price: strikeData.strike_price || numericKey,
-              ce: transformedCe,
-              pe: transformedPe,
-              // Reversal data
-              reversal: strikeData.reversal || 0,
-              wkly_reversal: strikeData.wkly_reversal || 0,
-              fut_reversal: strikeData.fut_reversal || 0,
-              // Support/Resistance
-              rs: strikeData.rs || 0,
-              rr: strikeData.rr || 0,
-              ss: strikeData.ss || 0,
-              sr_diff: strikeData.sr_diff || 0,
-              // Time value
-              ce_tv: strikeData.ce_tv || 0,
-              pe_tv: strikeData.pe_tv || 0,
-              // Signals
-              pcr: strikeData.pcr || 0,
-              trading_signals: strikeData.trading_signals || {},
-              market_regimes: strikeData.market_regimes || {},
-              price_range: strikeData.price_range || {},
-            };
-          });
-        }
-
-        state.data = {
-          options: {
-            data: {
-              oc: transformedOc,
-              sltp: raw.spot?.ltp || 0,
-              schng: raw.spot?.change || 0,
-              sperchng: raw.spot?.change_percent || 0,
-              u_id: raw.u_id || 0,
-              fl: raw.future || {},
-              atmiv: raw.atmiv || 0,
-              atmiv_change: raw.atmiv_change || 0,
-              atm_strike: raw.atm_strike || 0,
-              symbol: raw.symbol,
-              expiry: raw.expiry,
-              // New fields from backend
-              max_pain_strike: raw.max_pain_strike || 0,
-              dte: raw.dte || raw.days_to_expiry || 0,
-              lot_size: raw.lot_size || 75,
-              total_ce_oi: raw.total_ce_oi || 0,
-              total_pe_oi: raw.total_pe_oi || 0,
-              pcr: raw.pcr || 0,
-              expiry_list: raw.expiry_list || [],
-            }
-          },
-          spot: {
-            data: {
-              Ltp: raw.spot?.ltp || 0,
-              Change: raw.spot?.change || 0,
-              ChangePercent: raw.spot?.change_percent || 0,
-              ltp: raw.spot?.ltp || 0,
-              change: raw.spot?.change || 0,
-              change_percent: raw.spot?.change_percent || 0,
-            }
-          },
-          fut: {
-            data: {
-              flst: raw.future || {},
-              explist: raw.expiry_list || (raw.expiry ? [raw.expiry] : [])
-            }
-          }
-        };
+        state.data = normalized;
         state.loading = false;
       })
       .addCase(fetchLiveData.rejected, (state, action) => {
