@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     APP_NAME: str = "Stockify Trading Platform"
     APP_VERSION: str = "2.0.0"
     APP_ENV: str = Field(default="development", description="development, staging, production")
-    DEBUG: bool = Field(default=True, description="Debug mode")
+    DEBUG: bool = Field(default=False, description="Debug mode - set to True in .env for development")
     
     # ═══════════════════════════════════════════════════════════════════
     # Server Settings

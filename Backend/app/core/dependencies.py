@@ -21,10 +21,7 @@ async def get_token_from_header(
 ) -> str:
     """Extract Bearer token from Authorization header"""
     if not authorization:
-        print("DEBUG: Missing authorization header in request", flush=True)
         raise UnauthorizedException("Missing authorization header")
-    
-    print(f"DEBUG: Received Authorization header: {authorization[:15]}...", flush=True)
     
     parts = authorization.split()
     if len(parts) != 2 or parts[0].lower() != "bearer":

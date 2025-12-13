@@ -70,7 +70,6 @@ class DhanClient:
         self.cache = cache
         self.auth_token = auth_token
         self._client: Optional[httpx.AsyncClient] = None
-        print(f"DEBUG: DhanClient Initialized. Futures Endpoint: {settings.DHAN_FUTURES_ENDPOINT}", flush=True)
     
     async def _get_client(self) -> httpx.AsyncClient:
         """Get or create HTTP client with connection pooling for high concurrency"""
@@ -166,9 +165,6 @@ class DhanClient:
             client = await self._get_client()
             
             try:
-                print(f"DEBUG: Request to {url}", flush=True)
-                print(f"DEBUG: Headers: {client.headers}", flush=True)
-                print(f"DEBUG: Payload: {payload}", flush=True)
                 response = await client.post(url, json=payload)
                 response.raise_for_status()
                 data = response.json()
@@ -236,9 +232,6 @@ class DhanClient:
             }
         }
         
-        logger.info(f"DEBUG: Fetching expiry for {symbol} (ID: {sid}) from {settings.DHAN_FUTURES_ENDPOINT}")
-        # logger.info(f"DEBUG: Payload: {payload}")
-        
         try:
             data = await self._request(
                 settings.DHAN_FUTURES_ENDPOINT, # Use Futures endpoint for expiry list
@@ -246,8 +239,6 @@ class DhanClient:
                 use_cache=True,
                 cache_ttl=settings.REDIS_EXPIRY_CACHE_TTL
             )
-
-            logger.info(f"DEBUG: Response: {data}")
             
             int_exp_list = []
             explst = list(data.get("data",{}).get("opsum",{}).keys())
@@ -289,8 +280,6 @@ class DhanClient:
         if not expiry:
             expiry = (await self.get_expiry_dates(symbol))[0]
         
-        logger.info(f"DEBUG: Expiry: {expiry} (Type: {type(expiry)})")
-        
         payload = {
             "Data": {
                 "Seg": seg,
@@ -299,7 +288,6 @@ class DhanClient:
             }
         }
         
-        logger.info(f"DEBUG: Payload: {payload}")
         data = await self._request(
             settings.DHAN_OPTIONS_CHAIN_ENDPOINT,
             payload,

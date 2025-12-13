@@ -33,7 +33,7 @@ export const selectIsLiveDataLoading = (state) => state.data.isLiveDataLoading;
 // Expiry & Symbol
 export const selectExpDates = (state) => state.data.expDate || EMPTY_ARRAY;
 export const selectSelectedExpiry = (state) => state.data.exp_sid;
-export const selectSelectedSymbol = (state) => state.config.sym || 'NIFTY';
+export const selectSelectedSymbol = (state) => state.data.sid || 'NIFTY';
 
 // ============================================
 // Auth Slice Selectors

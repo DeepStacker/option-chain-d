@@ -78,8 +78,7 @@ def verify_firebase_token(token: str) -> Optional[Dict[str, Any]]:
         logger.warning(f"Invalid Firebase token: {e}. Token: {token[:10]}...")
         return None
     except Exception as e:
-        print(f"DEBUG: Error verifying Firebase token: {e}", flush=True)
-        print(f"DEBUG: is_development={settings.is_development}", flush=True)
+        logger.warning(f"Error verifying Firebase token: {e}")
         # In development, fallback to mock user on failure
         if settings.is_development:
             logger.warning("DEV MODE: Bypassing token verification failure")
@@ -91,8 +90,6 @@ def verify_firebase_token(token: str) -> Optional[Dict[str, Any]]:
                 "picture": None,
             }
             
-        import traceback
-        traceback.print_exc()
         logger.error(f"Error verifying Firebase token: {e}. Token: {token[:10]}...", exc_info=True)
         return None
 
