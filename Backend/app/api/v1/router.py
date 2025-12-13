@@ -3,7 +3,7 @@ API v1 Router - Aggregates all API endpoints
 """
 from fastapi import APIRouter
 
-from app.api.v1 import auth, users, options, admin, health, analytics
+from app.api.v1 import auth, users, options, admin, health, analytics, charts
 
 api_router = APIRouter()
 
@@ -41,5 +41,11 @@ api_router.include_router(
     admin.router,
     prefix="/admin",
     tags=["Admin"]
+)
+
+api_router.include_router(
+    charts.router,
+    prefix="/charts",
+    tags=["Charts"]
 )
 

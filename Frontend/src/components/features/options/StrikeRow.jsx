@@ -348,7 +348,8 @@ const StrikeRow = memo(({ data, strike, atmStrike, spotPrice, onCellClick, onStr
   const [hoveredGreeks, setHoveredGreeks] = useState(null);
   const [showStrikePopup, setShowStrikePopup] = useState(false);
 
-  const isATM = Math.abs(strike - atmStrike) < 50;
+  // ATM Calculation: Strict equality (with epsilon for floats) to highlight ONLY the exact ATM strike
+  const isATM = Math.abs(strike - atmStrike) < 0.01;
   const isITM_CE = ce.mness === 'I';
   const isITM_PE = pe.mness === 'I';
   const showITM = settings.highlightITM;
@@ -387,8 +388,8 @@ const StrikeRow = memo(({ data, strike, atmStrike, spotPrice, onCellClick, onStr
   // Compact padding for smaller row height - but keep readable font
   const cellPadding = isCompact ? 'py-1 px-1.5' : 'p-2';
   const fontSize = 'text-sm'; // Always readable font size
-  // ITM background - more visible yellow
-  const itmBg = (isITM) => showITM && isITM ? 'bg-yellow-100 dark:bg-yellow-900/30' : '';
+  // ITM background - subtle tint
+  const itmBg = (isITM) => showITM && isITM ? 'bg-yellow-50/50 dark:bg-yellow-900/10' : '';
   // Cell class builder - highlight takes priority over ITM
   const cellClass = (isITM, highlight = '') => {
     const bgClass = highlight || itmBg(isITM); // Percentage highlight overrides ITM

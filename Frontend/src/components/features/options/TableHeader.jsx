@@ -34,15 +34,15 @@ const TableHeader = memo(() => {
             <tr>
                 {/* CALLS */}
                 {/* CALLS (Red/Resistance) */}
-                <th colSpan={ceColspan} className={`${basePadding} text-center text-red-600 dark:text-red-400 font-bold text-base border-b-2 border-red-300 dark:border-red-600 bg-red-50/50 dark:bg-red-900/10`}>
-                    📈 CALLS (CE)
+                <th colSpan={ceColspan} className={`${basePadding} text-center font-bold text-base border-b border-rose-200 dark:border-rose-900/50 bg-white dark:bg-slate-900 group`}>
+                    <span className="text-rose-600 dark:text-rose-400">CALLS</span> <span className="text-gray-400 text-xs font-normal ml-1">(Resistance)</span>
                 </th>
                 {/* STRIKE */}
-                <th className={`${basePadding} bg-gray-100 dark:bg-gray-800 border-b-2 border-gray-300 dark:border-gray-600`}></th>
+                <th className={`${basePadding} bg-gray-50 dark:bg-slate-800 border-b border-gray-200 dark:border-gray-700`}></th>
                 {/* PUTS */}
                 {/* PUTS (Green/Support) */}
-                <th colSpan={peColspan} className={`${basePadding} text-center text-green-600 dark:text-green-400 font-bold text-base border-b-2 border-green-300 dark:border-green-600 bg-green-50/50 dark:bg-green-900/10`}>
-                    📉 PUTS (PE)
+                <th colSpan={peColspan} className={`${basePadding} text-center font-bold text-base border-b border-emerald-200 dark:border-emerald-900/50 bg-white dark:bg-slate-900 group`}>
+                    <span className="text-emerald-600 dark:text-emerald-400">PUTS</span> <span className="text-gray-400 text-xs font-normal ml-1">(Support)</span>
                 </th>
             </tr>
             <tr className="bg-gray-100 dark:bg-gray-800/50">

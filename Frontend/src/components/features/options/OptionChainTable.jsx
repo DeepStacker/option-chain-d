@@ -23,7 +23,7 @@ import { Spinner, Button, Card } from '../../common';
 /**
  * Main Option Chain Table Component
  */
-const OptionChainTable = () => {
+const OptionChainTable = ({ showControls = true }) => {
     const {
         spotData,
         futuresData,
@@ -81,7 +81,6 @@ const OptionChainTable = () => {
     }, [selectStrike]);
 
     // Derived values from fullData - computed before any early returns
-    // (simple property access doesn't need useMemo - it's already cheap)
     const pcr = fullData?.pcr;
     const maxPain = fullData?.max_pain_strike;
     const spotPrice = spotData?.ltp;
@@ -97,18 +96,20 @@ const OptionChainTable = () => {
 
     return (
         <div className="w-full space-y-1">
-            {/* Single Compact Controls + Metrics Row */}
-            <div className="flex flex-wrap items-center gap-2">
-                <OptionControls />
-                <SpotBar
-                    spotData={spotData}
-                    futuresData={futuresData}
-                    pcr={pcr}
-                    maxPain={maxPain}
-                />
-                <div className="flex-1" />
-                <SettingsButton />
-            </div>
+            {/* Controls row - only show if showControls is true */}
+            {showControls && (
+                <div className="flex flex-wrap items-center gap-2">
+                    <OptionControls />
+                    <SpotBar
+                        spotData={spotData}
+                        futuresData={futuresData}
+                        pcr={pcr}
+                        maxPain={maxPain}
+                    />
+                    <div className="flex-1" />
+                    <SettingsButton />
+                </div>
+            )}
 
             {/* Table Container - Maximum Height */}
             <Card className="overflow-hidden" padding="none">

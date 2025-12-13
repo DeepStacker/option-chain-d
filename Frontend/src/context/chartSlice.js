@@ -7,8 +7,8 @@ const initialState = {
   chartData: [],
   connectionStatus: "disconnected",
   weekly: false,
-  daily: false,
-  avg: true,
+  daily: true,
+  avg: false,
 };
 
 const chartSlice = createSlice({

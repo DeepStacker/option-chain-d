@@ -1,19 +1,32 @@
 
+import { useState } from 'react';
 import { useSelector } from 'react-redux';
 import { Helmet } from 'react-helmet-async';
 import OptionChainTable from '../components/features/options/OptionChainTable';
+import TradingChart from '../components/charts/TradingChart';
+import OptionControls from '../components/features/options/OptionControls';
+import SpotBar from '../components/features/options/SpotBar';
+import { SettingsButton } from '../components/features/options/TableSettingsModal';
 import { selectIsAuthenticated } from '../context/selectors';
 import { ColumnConfigProvider } from '../context/ColumnConfigContext';
 import { TableSettingsProvider } from '../context/TableSettingsContext';
-import { Button } from '../components/common';
+import { Button, Card } from '../components/common';
 import { useNavigate } from 'react-router-dom';
+import useOptionsChain from '../hooks/useOptionsChain';
 
 /**
- * Option Chain Page - Full screen table view
+ * Option Chain Page - Table view with integrated chart toggle
  */
 const OptionChain = () => {
   const isAuthenticated = useSelector(selectIsAuthenticated);
   const navigate = useNavigate();
+  const [showChart, setShowChart] = useState(false);
+  const theme = useSelector((state) => state.theme.theme);
+  
+  // Get spot/futures data for SpotBar when in chart mode
+  const { spotData, futuresData, data: fullData } = useOptionsChain();
+  const pcr = fullData?.pcr;
+  const maxPain = fullData?.max_pain_strike;
 
   if (!isAuthenticated) {
     return (
@@ -28,14 +41,39 @@ const OptionChain = () => {
   return (
     <>
       <Helmet>
-        <title>Option Chain | Stockify</title>
+        <title>{showChart ? 'Chart' : 'Option Chain'} | Stockify</title>
         <meta name="description" content="Real-time NSE Option Chain with advanced Greeks and analysis" />
       </Helmet>
 
       <ColumnConfigProvider>
         <TableSettingsProvider>
-          <div className="w-full px-2 py-2">
-            <OptionChainTable />
+          <div className="w-full px-2 py-2 space-y-1">
+            
+            {/* Always visible control bar */}
+            <div className="flex flex-wrap items-center gap-2">
+              <OptionControls 
+                showChart={showChart} 
+                onToggleChart={() => setShowChart(!showChart)} 
+              />
+              {/* SpotBar always visible for price context */}
+              <SpotBar
+                spotData={spotData}
+                futuresData={futuresData}
+                pcr={pcr}
+                maxPain={maxPain}
+              />
+              <div className="flex-1" />
+              {!showChart && <SettingsButton />}
+            </div>
+
+            {/* Conditional view: Chart or Table */}
+            {showChart ? (
+              <Card className="overflow-hidden" padding="none">
+                <TradingChart embedded={true} />
+              </Card>
+            ) : (
+              <OptionChainTable showControls={false} />
+            )}
           </div>
         </TableSettingsProvider>
       </ColumnConfigProvider>
@@ -44,6 +82,3 @@ const OptionChain = () => {
 };
 
 export default OptionChain;
-
-
-

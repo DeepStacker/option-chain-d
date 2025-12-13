@@ -33,29 +33,30 @@ const getITMDepth = (strike, atmStrike, side) => {
  * More saturated colors for better visibility
  */
 const getHighlightColor = (pct, rank, side, itmDepth) => {
-    // Special case: > 100% for 3+ ITM strikes
-    if (pct > 100 && itmDepth >= 3) {
-        return 'bg-blue-300 dark:bg-blue-800/70';
+    // Special case: > 100% (High Saturation Blue)
+    if (pct > 100) {
+        return 'bg-blue-200 dark:bg-blue-800 text-blue-900 dark:text-blue-100 font-bold border border-blue-300 dark:border-blue-600';
     }
 
-    // Rank 1 (100%) - Most saturated
+    // Rank 1 (Highest) - Rose/Emerald (Strong)
     if (rank === 1) {
         return side === 'ce'
-            ? 'bg-red-300 dark:bg-red-800/60'
-            : 'bg-green-300 dark:bg-green-800/60';
+            ? 'bg-rose-200 dark:bg-rose-800 text-rose-950 dark:text-white font-bold border border-rose-300 dark:border-rose-600 shadow-sm'
+            : 'bg-emerald-200 dark:bg-emerald-800 text-emerald-950 dark:text-white font-bold border border-emerald-300 dark:border-emerald-600 shadow-sm';
     }
 
-    // Rank 2 - Orange for clear distinction from yellow
+    // Rank 2 - Yellow (Medium)
     if (rank === 2) {
-        return 'bg-orange-300 dark:bg-orange-800/60';
+        return 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-900 dark:text-yellow-100 font-semibold border border-yellow-200 dark:border-yellow-700/50';
     }
 
-    // Rank 3+ with >= 75% - Amber/Yellow
-    if (pct >= 75) {
-        return 'bg-amber-200 dark:bg-amber-900/50';
+    // Rank 3 - Very Light (Faint)
+    if (rank === 3) {
+        return side === 'ce'
+            ? 'bg-rose-50/50 dark:bg-rose-900/10 text-rose-700 dark:text-rose-300/70'
+            : 'bg-emerald-50/50 dark:bg-emerald-900/10 text-emerald-700 dark:text-emerald-300/70';
     }
 
-    // No highlight
     return '';
 };
 
