@@ -25,6 +25,17 @@ async def websocket_endpoint(websocket: WebSocket):
     Main WebSocket endpoint handler.
     Handles connection, subscription, and live data streaming.
     """
+    # Validate origin for WebSocket (CORS doesn't apply to WS upgrade)
+    origin = websocket.headers.get("origin", "")
+    allowed_origins = settings.CORS_ORIGINS
+    
+    # In development, allow all origins
+    if not settings.is_development:
+        if origin and origin not in allowed_origins:
+            logger.warning(f"WebSocket connection rejected from origin: {origin}")
+            await websocket.close(code=1008)  # Policy violation
+            return
+    
     client_id = str(uuid4())
     
     # Accept connection
@@ -131,6 +142,9 @@ async def stream_live_data(symbol: str, expiry: str):
     
     logger.info(f"Streaming started for {group_key}")
     
+    consecutive_errors = 0
+    MAX_CONSECUTIVE_ERRORS = 5
+    
     try:
         while True:
             # Check if there are still subscribers
@@ -149,20 +163,32 @@ async def stream_live_data(symbol: str, expiry: str):
                     include_reversal=True
                 )
                 
+                # Success - reset error counter
+                consecutive_errors = 0
+                
                 # Broadcast to all subscribers
                 await manager.broadcast_to_group(symbol, expiry, data)
                 
             except Exception as e:
-                logger.error(f"Error fetching data for {group_key}: {e}")
+                consecutive_errors += 1
+                logger.warning(f"Error streaming data (Attempt {consecutive_errors}/{MAX_CONSECUTIVE_ERRORS}): {e}")
                 
-                # Send error to clients
-                await manager.broadcast_to_group(
-                    symbol, expiry,
-                    {"type": "error", "message": str(e)}
-                )
+                # Only send error to clients if persistent failure
+                if consecutive_errors >= MAX_CONSECUTIVE_ERRORS:
+                    await manager.broadcast_to_group(
+                        symbol, expiry,
+                        {"type": "error", "message": f"Service Disruption: {str(e)}"}
+                    )
+                    # Reset counter to avoid spamming error every second? 
+                    # No, keep it high so we know it's still broken unless it succeeds.
+                    # But we don't want to spam the client. 
+                    # If we don't reset, it sends error every second after 5th. 
+                    # That is acceptable - the user needs to know it's broken.
             
             # Wait for next interval
             await asyncio.sleep(interval)
+            
+
             
     except asyncio.CancelledError:
         logger.info(f"Streaming cancelled for {group_key}")

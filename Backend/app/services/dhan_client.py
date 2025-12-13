@@ -144,10 +144,13 @@ class DhanClient:
                 return cached
         
         # Make request with retries
-        client = await self._get_client()
+        # Make request with retries
         last_error = None
         
         for attempt in range(self.retry_count):
+            # Ensure we have a valid client (recreates if closed)
+            client = await self._get_client()
+            
             try:
                 print(f"DEBUG: Request to {url}", flush=True)
                 print(f"DEBUG: Headers: {client.headers}", flush=True)
@@ -170,6 +173,13 @@ class DhanClient:
             except httpx.HTTPStatusError as e:
                 last_error = e
                 logger.warning(f"HTTP error {e.response.status_code} on attempt {attempt + 1}")
+                
+                # If 401 Unauthorized, reset client to clear any stale session/cookies
+                if e.response.status_code == 401:
+                    logger.warning("Received 401 Unauthorized - resetting HTTP client session")
+                    await self.close()
+                    # Continue to next attempt which will create a fresh client
+                    continue
                 
             except Exception as e:
                 last_error = e

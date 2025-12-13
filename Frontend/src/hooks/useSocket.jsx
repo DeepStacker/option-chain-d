@@ -14,9 +14,10 @@ const useSocket = (onDataReceived, options = {}) => {
   const [subscription, setSubscription] = useState(null);
 
   const {
+    enabled = true, // Set to false to disable auto-connection
     autoReconnect = true,
-    reconnectInterval = 3000,
-    maxReconnectAttempts = 10,
+    reconnectInterval = 5000,
+    maxReconnectAttempts = 3, // Reduced to avoid spam
     socketUrl = import.meta.env.VITE_WS_URL || import.meta.env.VITE_SOCKET_URL || 'ws://localhost:8000/ws/options',
   } = options;
 
@@ -58,13 +59,11 @@ const useSocket = (onDataReceived, options = {}) => {
       // Use the WebSocket URL (already includes /ws/options if using VITE_WS_URL)
       const wsUrl = socketUrl.includes('/ws/') ? socketUrl : `${socketUrl}/ws/options`;
 
-      // Get auth token if available
-      const token = localStorage.getItem('token') || localStorage.getItem('authToken');
-      const urlWithAuth = token ? `${wsUrl}?token=${token}` : wsUrl;
-
       console.log('🔌 Connecting to WebSocket:', wsUrl);
 
-      socketRef.current = new WebSocket(urlWithAuth);
+      // Connect without token in URL (long JWT tokens can cause issues in query params)
+      // Auth token can be sent as first message after connection if needed
+      socketRef.current = new WebSocket(wsUrl);
 
       // Connection opened
       socketRef.current.onopen = () => {
@@ -82,14 +81,22 @@ const useSocket = (onDataReceived, options = {}) => {
       // Listen for messages
       socketRef.current.onmessage = async (event) => {
         try {
+          // Debug: Log raw message type
+          console.log('📩 WebSocket raw message type:', typeof event.data, event.data instanceof Blob ? 'Blob' : event.data instanceof ArrayBuffer ? 'ArrayBuffer' : 'String');
+          
           const data = await decodeMessage(event.data);
+          
+          // Debug: Log decoded data
+          console.log('📦 WebSocket decoded data:', data?.type || 'live_data', data?.oc ? `(${Object.keys(data.oc).length} strikes)` : '');
 
           // Handle different message types
           if (data.type === 'connected') {
             console.log('✅ Connection confirmed, client_id:', data.client_id);
+            setError(null); // Clear error on successful connection
           } else if (data.type === 'subscribed') {
             console.log('✅ Subscribed to:', data.symbol, data.expiry);
             setSubscription({ symbol: data.symbol, expiry: data.expiry });
+            setError(null); // Clear error on successful subscription
           } else if (data.type === 'unsubscribed') {
             console.log('✅ Unsubscribed');
             setSubscription(null);
@@ -100,6 +107,8 @@ const useSocket = (onDataReceived, options = {}) => {
             setError(data.message);
           } else {
             // Live data - pass to callback
+            if (error) setError(null); // Clear error if we start receiving data
+            console.log('📡 Passing live data to callback');
             onDataReceived(data);
           }
         } catch (err) {
@@ -107,9 +116,9 @@ const useSocket = (onDataReceived, options = {}) => {
         }
       };
 
-      // Connection error
-      socketRef.current.onerror = (errorEvent) => {
-        console.error('❌ WebSocket Error:', errorEvent);
+      // Connection error - less verbose logging
+      socketRef.current.onerror = () => {
+        // Don't log full error object - too noisy
         setError('WebSocket connection error');
         setIsConnected(false);
       };
@@ -135,8 +144,8 @@ const useSocket = (onDataReceived, options = {}) => {
             connect();
           }, reconnectInterval);
         } else if (reconnectAttemptsRef.current >= maxReconnectAttempts) {
-          console.error('❌ Max reconnection attempts reached');
-          setError('Failed to connect after multiple attempts');
+          console.warn('⚠️ WebSocket unavailable, using REST polling');
+          setError('WebSocket unavailable - using polling');
         }
       };
     } catch (err) {
@@ -194,15 +203,19 @@ const useSocket = (onDataReceived, options = {}) => {
     return sendMessage({ type: 'unsubscribe' });
   }, [sendMessage]);
 
-  // Initial connection
+  // Initial connection - only connect if enabled
   useEffect(() => {
-    connect();
+    if (enabled) {
+      connect();
+    } else {
+      disconnect();
+    }
 
     // Cleanup on unmount
     return () => {
       disconnect();
     };
-  }, [connect, disconnect]);
+  }, [enabled, connect, disconnect]);
 
   // Return socket interface
   return {

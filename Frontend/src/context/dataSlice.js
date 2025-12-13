@@ -226,7 +226,55 @@ export const dataSlice = createSlice({
       state.isOc = action.payload;
     },
     updateLiveData: (state, action) => {
-      state.data = action.payload;
+      // Transform WebSocket data into same structure as REST API response
+      // WebSocket sends: { oc: {...}, spot: {...}, fut: {...}, atm_strike: ..., pcr: ..., etc }
+      // Selectors expect: state.data.options.data.oc, state.data.spot.data, etc
+      const raw = action.payload;
+
+      if (!raw || !raw.oc) {
+        console.warn('updateLiveData: Invalid data received', raw);
+        return;
+      }
+
+      state.data = {
+        options: {
+          data: {
+            oc: raw.oc,
+            sltp: raw.spot?.ltp || raw.sltp || 0,
+            schng: raw.spot?.change || raw.schng || 0,
+            sperchng: raw.spot?.change_percent || raw.sperchng || 0,
+            u_id: raw.u_id || 0,
+            fl: raw.future || raw.fl || {},
+            atmiv: raw.atmiv || 0,
+            atmiv_change: raw.atmiv_change || 0,
+            atm_strike: raw.atm_strike || 0,
+            symbol: raw.symbol,
+            expiry: raw.expiry,
+            max_pain_strike: raw.max_pain_strike || 0,
+            dte: raw.dte || raw.days_to_expiry || 0,
+            lot_size: raw.lot_size || 75,
+            total_ce_oi: raw.total_ce_oi || 0,
+            total_pe_oi: raw.total_pe_oi || 0,
+            pcr: raw.pcr || 0,
+            expiry_list: raw.expiry_list || state.data?.options?.data?.expiry_list || [],
+          }
+        },
+        spot: {
+          data: {
+            Ltp: raw.spot?.ltp || 0,
+            Change: raw.spot?.change || 0,
+            ChangePercent: raw.spot?.change_percent || 0,
+            ltp: raw.spot?.ltp || 0,
+            change: raw.spot?.change || 0,
+            change_percent: raw.spot?.change_percent || 0,
+          }
+        },
+        fut: {
+          data: raw.future || raw.fut?.data || {}
+        }
+      };
+
+      state.connectionMethod = 'websocket';
     },
     setStreamingState: (state, action) => {
       state.isStreaming = action.payload;

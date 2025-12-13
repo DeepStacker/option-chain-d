@@ -6,7 +6,7 @@ import logging
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -87,13 +87,26 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Add CORS middleware
+# CORS configuration - explicit origins for WebSocket support
+# Note: CORSMiddleware should NOT block WebSocket upgrades, but we add common origins
+development_origins = [
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "http://localhost:5174",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:5174",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+]
+cors_origins = list(set(development_origins + settings.CORS_ORIGINS)) if settings.is_development else settings.CORS_ORIGINS
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
-    allow_credentials=settings.CORS_ALLOW_CREDENTIALS,
-    allow_methods=settings.CORS_ALLOW_METHODS,
-    allow_headers=settings.CORS_ALLOW_HEADERS,
+    allow_origins=cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Add custom middleware
@@ -133,10 +146,14 @@ async def global_exception_handler(request: Request, exc: Exception):
 app.include_router(api_router, prefix="/api/v1")
 
 
-# WebSocket endpoint
+# WebSocket endpoint - defined directly without CORSMiddleware involvement
 @app.websocket("/ws/options")
-async def options_websocket(websocket):
-    """WebSocket endpoint for live options data"""
+async def options_websocket(websocket: WebSocket):
+    """
+    WebSocket endpoint for live options data.
+    WebSocket connections don't go through CORSMiddleware.
+    Origin validation is done in the handler if needed.
+    """
     await websocket_endpoint(websocket)
 
 

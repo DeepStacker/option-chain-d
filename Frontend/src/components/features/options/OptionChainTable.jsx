@@ -80,6 +80,12 @@ const OptionChainTable = () => {
         selectStrike(null);
     }, [selectStrike]);
 
+    // Derived values from fullData - computed before any early returns
+    // (simple property access doesn't need useMemo - it's already cheap)
+    const pcr = fullData?.pcr;
+    const maxPain = fullData?.max_pain_strike;
+    const spotPrice = spotData?.ltp;
+
     // Only show spinner on INITIAL load, not refreshes
     if (isInitialLoad && !hasData) {
         return (
@@ -88,9 +94,6 @@ const OptionChainTable = () => {
             </div>
         );
     }
-
-    const pcr = fullData?.pcr;
-    const maxPain = fullData?.max_pain_strike;
 
     return (
         <div className="w-full space-y-1">
@@ -126,7 +129,6 @@ const OptionChainTable = () => {
                             {sortedStrikes.map((strike) => {
                                 const strikeKey = strike.toString();
                                 const strikeData = rawData?.oc?.[strikeKey] || rawData?.oc?.[`${strike}.000000`] || {};
-                                const spotPrice = spotData?.ltp;
                                 
                                 return (
                                     <StrikeRow
