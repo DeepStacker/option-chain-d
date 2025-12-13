@@ -78,7 +78,7 @@ class Settings(BaseSettings):
         description="Redis connection URL"
     )
     REDIS_CACHE_TTL: int = Field(default=300, description="Default cache TTL in seconds")
-    REDIS_OPTIONS_CACHE_TTL: int = Field(default=5, description="Options data cache TTL")
+    REDIS_OPTIONS_CACHE_TTL: int = Field(default=2, description="Options data cache TTL (2s = ~500 requests/minute max to Dhan API)")
     REDIS_EXPIRY_CACHE_TTL: int = Field(default=3600, description="Expiry dates cache TTL")
     REDIS_CONFIG_CACHE_TTL: int = Field(default=3600, description="Config cache TTL")
     
@@ -98,9 +98,9 @@ class Settings(BaseSettings):
     DHAN_OPTIONS_CHAIN_ENDPOINT: str = Field(default="/optchain")
     DHAN_SPOT_ENDPOINT: str = Field(default="/rtscrdt")
     DHAN_FUTURES_ENDPOINT: str = Field(default="/futoptsum")
-    DHAN_API_TIMEOUT: int = Field(default=30, description="API timeout in seconds")
-    DHAN_API_RETRY_COUNT: int = Field(default=3)
-    DHAN_API_RETRY_DELAY: float = Field(default=1.0, description="Retry delay in seconds")
+    DHAN_API_TIMEOUT: int = Field(default=10, description="API timeout in seconds (reduced for faster failover)")
+    DHAN_API_RETRY_COUNT: int = Field(default=2, description="Fewer retries for faster response")
+    DHAN_API_RETRY_DELAY: float = Field(default=0.3, description="Retry delay in seconds (reduced for faster response)")
     DHAN_AUTH_TOKEN: Optional[str] = Field(default=None, description="Dhan API Auth Token")
     
     # ═══════════════════════════════════════════════════════════════════
@@ -113,8 +113,8 @@ class Settings(BaseSettings):
     # WebSocket Settings
     # ═══════════════════════════════════════════════════════════════════
     WS_HEARTBEAT_INTERVAL: int = Field(default=30)
-    WS_MAX_CONNECTIONS: int = Field(default=1000)
-    WS_BROADCAST_INTERVAL: float = Field(default=1.0, description="Live data broadcast interval")
+    WS_MAX_CONNECTIONS: int = Field(default=10000, description="Max WebSocket connections per server")
+    WS_BROADCAST_INTERVAL: float = Field(default=0.5, description="Live data broadcast interval (lower = faster updates)")
     
     # ═══════════════════════════════════════════════════════════════════
     # Trading Defaults

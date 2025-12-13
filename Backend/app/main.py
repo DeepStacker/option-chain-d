@@ -8,6 +8,7 @@ from typing import AsyncGenerator
 
 from fastapi import FastAPI, Request, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 
 from app.config.settings import settings
@@ -17,6 +18,7 @@ from app.core.security import init_firebase
 from app.core.middleware import (
     RequestLoggingMiddleware,
     SecurityHeadersMiddleware,
+    RateLimitMiddleware,
 )
 from app.core.exceptions import AppException
 from app.api.v1.router import api_router
@@ -112,6 +114,12 @@ app.add_middleware(
 # Add custom middleware
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(RequestLoggingMiddleware)
+
+# Add GZip compression for responses > 500 bytes (reduces bandwidth by 60-80%)
+app.add_middleware(GZipMiddleware, minimum_size=500)
+
+# Add rate limiting (100 requests/minute per IP - protects from abuse)
+app.add_middleware(RateLimitMiddleware, requests_per_minute=settings.RATE_LIMIT_PER_MINUTE)
 
 
 # Global exception handler
