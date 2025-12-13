@@ -31,8 +31,8 @@ import OptionChain from "./pages/OptionChain";
 import Analytics from "./pages/Analytics";
 import NotFound from "./pages/NotFound";
 import MainLayout from "./layouts/MainLayout";
-
-import AdminPanel from "./components/admin/AdminPanel";
+import TradingChart from "./components/charts/TradingChart";
+import Admin from "./pages/Admin";
 
 import { activateServices } from "./services/healthCheck";
 
@@ -112,14 +112,13 @@ function App() {
                     <Route path="/analytics" element={<Analytics />} />
                     <Route path="/position-sizing" element={<PositionSizing />} />
                     <Route path="/tca" element={<Tca />} />
-                    {/* <Route path="/charts" element={<TradingChart />} /> */}
+                    <Route path="/charts" element={<TradingChart />} />
+                    <Route path="/admin" element={<Admin />} />
                   </Route>
                 </Route>
                 {/* 404 Route */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
-              {/* Hidden Admin Panel - Only visible via secret key combo */}
-              <AdminPanel />
             </div>
           </Router>
         </PersistGate>

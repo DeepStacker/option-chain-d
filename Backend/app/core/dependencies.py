@@ -90,6 +90,11 @@ async def get_current_admin_user(
     current_user: Annotated[User, Depends(get_current_user)]
 ) -> User:
     """Get current user and verify admin role"""
+    # Development mode bypass - allow any authenticated user to access admin
+    from app.config.settings import settings
+    if settings.is_development:
+        return current_user
+    
     if current_user.role != UserRole.ADMIN:
         raise ForbiddenException("Admin access required")
     return current_user
