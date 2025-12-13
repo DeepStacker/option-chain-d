@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -6,20 +6,13 @@ import { signInWithGoogle } from "../../firebase/init";
 import { setUser } from "../../context/authSlice";
 import { toast } from "react-toastify";
 import {
-  ChartBarIcon,
   ShieldCheckIcon,
   BoltIcon,
-  ArrowTrendingUpIcon,
   ExclamationTriangleIcon,
-  CheckCircleIcon,
   ClockIcon,
   UserGroupIcon,
-  CurrencyDollarIcon,
   LockClosedIcon,
-  EyeIcon,
-  EyeSlashIcon,
   DevicePhoneMobileIcon,
-  KeyIcon,
   GlobeAltIcon,
 } from "@heroicons/react/24/outline";
 
@@ -120,6 +113,9 @@ const Login = () => {
         setLoginAttempts(0);
 
         const token = await user.getIdToken(true);
+        // Persist token for dataSlice.js to use
+        localStorage.setItem("authToken", token);
+
         const userData = {
           uid: user.uid,
           email: user.email,
@@ -154,8 +150,7 @@ const Login = () => {
       } else {
         const remainingAttempts = 5 - newAttempts;
         setError(
-          `${
-            error.message || "Authentication failed"
+          `${error.message || "Authentication failed"
           }. ${remainingAttempts} attempts remaining.`
         );
         toast.error(`Login failed. ${remainingAttempts} attempts remaining.`);
@@ -242,16 +237,14 @@ const Login = () => {
   if (!mounted || authLoading) {
     return (
       <div
-        className={`min-h-screen flex items-center justify-center ${
-          theme === "dark" ? "bg-gray-900" : "bg-gray-50"
-        }`}
+        className={`min-h-screen flex items-center justify-center ${theme === "dark" ? "bg-gray-900" : "bg-gray-50"
+          }`}
       >
         <div className="flex flex-col items-center space-y-4">
           <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500"></div>
           <p
-            className={`text-lg font-medium ${
-              theme === "dark" ? "text-gray-300" : "text-gray-600"
-            }`}
+            className={`text-lg font-medium ${theme === "dark" ? "text-gray-300" : "text-gray-600"
+              }`}
           >
             Initializing secure connection...
           </p>
@@ -262,11 +255,10 @@ const Login = () => {
 
   return (
     <div
-      className={`min-h-screen flex ${
-        theme === "dark"
+      className={`min-h-screen flex ${theme === "dark"
           ? "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900"
           : "bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-100"
-      } relative overflow-hidden`}
+        } relative overflow-hidden`}
     >
       {/* Security background elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -284,9 +276,8 @@ const Login = () => {
 
         {/* Professional grid pattern */}
         <div
-          className={`absolute inset-0 opacity-[0.015] ${
-            theme === "dark" ? "bg-white" : "bg-gray-900"
-          }`}
+          className={`absolute inset-0 opacity-[0.015] ${theme === "dark" ? "bg-white" : "bg-gray-900"
+            }`}
           style={{
             backgroundImage: `
             linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
@@ -303,9 +294,8 @@ const Login = () => {
           variants={containerVariants}
           initial="hidden"
           animate="visible"
-          className={`hidden lg:flex lg:w-1/2 flex-col justify-center px-12 xl:px-16 ${
-            theme === "dark" ? "text-white" : "text-gray-900"
-          }`}
+          className={`hidden lg:flex lg:w-1/2 flex-col justify-center px-12 xl:px-16 ${theme === "dark" ? "text-white" : "text-gray-900"
+            }`}
         >
           {/* Security Headline */}
           <motion.div variants={itemVariants} className="mb-10">
@@ -316,9 +306,8 @@ const Login = () => {
               </span>
             </h2>
             <p
-              className={`text-xl xl:text-2xl leading-relaxed ${
-                theme === "dark" ? "text-gray-300" : "text-gray-600"
-              }`}
+              className={`text-xl xl:text-2xl leading-relaxed ${theme === "dark" ? "text-gray-300" : "text-gray-600"
+                }`}
             >
               Enterprise-grade security with multi-layer authentication and
               real-time fraud protection.
@@ -337,20 +326,17 @@ const Login = () => {
                   className="flex items-start space-x-6"
                 >
                   <div
-                    className={`p-4 rounded-xl ${
-                      theme === "dark" ? "bg-gray-800/80" : "bg-white/80"
-                    } shadow-lg backdrop-blur-sm border ${
-                      theme === "dark" ? "border-gray-700" : "border-gray-200"
-                    }`}
+                    className={`p-4 rounded-xl ${theme === "dark" ? "bg-gray-800/80" : "bg-white/80"
+                      } shadow-lg backdrop-blur-sm border ${theme === "dark" ? "border-gray-700" : "border-gray-200"
+                      }`}
                   >
                     <Icon className="w-7 h-7 text-green-500" />
                   </div>
                   <div className="flex-1">
                     <h3 className="text-xl font-bold mb-2">{feature.title}</h3>
                     <p
-                      className={`text-base leading-relaxed mb-2 ${
-                        theme === "dark" ? "text-gray-400" : "text-gray-600"
-                      }`}
+                      className={`text-base leading-relaxed mb-2 ${theme === "dark" ? "text-gray-400" : "text-gray-600"
+                        }`}
                     >
                       {feature.description}
                     </p>
@@ -366,9 +352,8 @@ const Login = () => {
           {/* Compliance Logos */}
           <motion.div variants={itemVariants} className="mb-8">
             <p
-              className={`text-sm font-medium mb-4 ${
-                theme === "dark" ? "text-gray-400" : "text-gray-600"
-              }`}
+              className={`text-sm font-medium mb-4 ${theme === "dark" ? "text-gray-400" : "text-gray-600"
+                }`}
             >
               Trusted by regulators and certified by:
             </p>
@@ -376,23 +361,20 @@ const Login = () => {
               {complianceLogos.map((logo, index) => (
                 <div
                   key={index}
-                  className={`p-3 rounded-lg border text-center ${
-                    theme === "dark"
+                  className={`p-3 rounded-lg border text-center ${theme === "dark"
                       ? "bg-gray-800/50 border-gray-700"
                       : "bg-white/50 border-gray-200"
-                  }`}
+                    }`}
                 >
                   <div
-                    className={`text-sm font-bold ${
-                      theme === "dark" ? "text-white" : "text-gray-900"
-                    }`}
+                    className={`text-sm font-bold ${theme === "dark" ? "text-white" : "text-gray-900"
+                      }`}
                   >
                     {logo.name}
                   </div>
                   <div
-                    className={`text-xs ${
-                      theme === "dark" ? "text-gray-400" : "text-gray-600"
-                    }`}
+                    className={`text-xs ${theme === "dark" ? "text-gray-400" : "text-gray-600"
+                      }`}
                   >
                     {logo.description}
                   </div>
@@ -411,15 +393,13 @@ const Login = () => {
               return (
                 <div
                   key={index}
-                  className={`flex items-center space-x-3 p-3 rounded-lg ${
-                    theme === "dark" ? "bg-gray-800/50" : "bg-white/50"
-                  } backdrop-blur-sm`}
+                  className={`flex items-center space-x-3 p-3 rounded-lg ${theme === "dark" ? "bg-gray-800/50" : "bg-white/50"
+                    } backdrop-blur-sm`}
                 >
                   <Icon className={`w-5 h-5 ${indicator.color}`} />
                   <span
-                    className={`text-sm font-medium ${
-                      theme === "dark" ? "text-gray-300" : "text-gray-700"
-                    }`}
+                    className={`text-sm font-medium ${theme === "dark" ? "text-gray-300" : "text-gray-700"
+                      }`}
                   >
                     {indicator.text}
                   </span>
@@ -438,11 +418,10 @@ const Login = () => {
         >
           <motion.div
             variants={itemVariants}
-            className={`max-w-md w-full space-y-8 p-8 xl:p-10 rounded-2xl shadow-2xl border backdrop-blur-sm ${
-              theme === "dark"
+            className={`max-w-md w-full space-y-8 p-8 xl:p-10 rounded-2xl shadow-2xl border backdrop-blur-sm ${theme === "dark"
                 ? "bg-gray-800/90 border-gray-700"
                 : "bg-white/90 border-gray-200"
-            }`}
+              }`}
           >
             {/* Security Header */}
             <div className="text-center">
@@ -450,26 +429,23 @@ const Login = () => {
                 initial={{ scale: 0, rotate: -180 }}
                 animate={{ scale: 1, rotate: 0 }}
                 transition={{ delay: 0.5, type: "spring", stiffness: 200 }}
-                className={`mx-auto w-20 h-20 rounded-2xl flex items-center justify-center mb-8 ${
-                  theme === "dark"
+                className={`mx-auto w-20 h-20 rounded-2xl flex items-center justify-center mb-8 ${theme === "dark"
                     ? "bg-gradient-to-r from-green-600 to-green-700"
                     : "bg-gradient-to-r from-green-500 to-green-600"
-                } shadow-xl`}
+                  } shadow-xl`}
               >
                 <LockClosedIcon className="w-10 h-10 text-white" />
               </motion.div>
 
               <h2
-                className={`text-3xl xl:text-4xl font-bold mb-3 ${
-                  theme === "dark" ? "text-white" : "text-gray-900"
-                }`}
+                className={`text-3xl xl:text-4xl font-bold mb-3 ${theme === "dark" ? "text-white" : "text-gray-900"
+                  }`}
               >
                 Secure Login
               </h2>
               <p
-                className={`text-lg ${
-                  theme === "dark" ? "text-gray-400" : "text-gray-600"
-                }`}
+                className={`text-lg ${theme === "dark" ? "text-gray-400" : "text-gray-600"
+                  }`}
               >
                 Access your protected trading account
               </p>
@@ -477,17 +453,15 @@ const Login = () => {
 
             {/* Security Status */}
             <div
-              className={`flex items-center justify-center space-x-2 p-3 rounded-lg ${
-                theme === "dark"
+              className={`flex items-center justify-center space-x-2 p-3 rounded-lg ${theme === "dark"
                   ? "bg-green-900/30 border border-green-500/50"
                   : "bg-green-50 border border-green-200"
-              }`}
+                }`}
             >
               <GlobeAltIcon className="w-5 h-5 text-green-500" />
               <span
-                className={`text-sm font-medium ${
-                  theme === "dark" ? "text-green-300" : "text-green-700"
-                }`}
+                className={`text-sm font-medium ${theme === "dark" ? "text-green-300" : "text-green-700"
+                  }`}
               >
                 Connection secured with 256-bit SSL encryption
               </span>
@@ -500,20 +474,18 @@ const Login = () => {
                 <motion.div
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  className={`flex items-center p-3 rounded-lg border ${
-                    loginAttempts >= 3
+                  className={`flex items-center p-3 rounded-lg border ${loginAttempts >= 3
                       ? theme === "dark"
                         ? "bg-red-900/30 border-red-500/50 text-red-300"
                         : "bg-red-50 border-red-200 text-red-700"
                       : theme === "dark"
-                      ? "bg-yellow-900/30 border-yellow-500/50 text-yellow-300"
-                      : "bg-yellow-50 border-yellow-200 text-yellow-700"
-                  }`}
+                        ? "bg-yellow-900/30 border-yellow-500/50 text-yellow-300"
+                        : "bg-yellow-50 border-yellow-200 text-yellow-700"
+                    }`}
                 >
                   <ExclamationTriangleIcon
-                    className={`w-5 h-5 mr-2 ${
-                      loginAttempts >= 3 ? "text-red-500" : "text-yellow-500"
-                    }`}
+                    className={`w-5 h-5 mr-2 ${loginAttempts >= 3 ? "text-red-500" : "text-yellow-500"
+                      }`}
                   />
                   <span className="text-sm">
                     {5 - loginAttempts} login attempts remaining
@@ -526,11 +498,10 @@ const Login = () => {
                 <motion.div
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  className={`flex items-center p-4 rounded-lg border ${
-                    theme === "dark"
+                  className={`flex items-center p-4 rounded-lg border ${theme === "dark"
                       ? "bg-red-900/30 border-red-500/50 text-red-300"
                       : "bg-red-50 border-red-200 text-red-700"
-                  }`}
+                    }`}
                 >
                   <ClockIcon className="w-6 h-6 text-red-500 mr-3" />
                   <div>
@@ -552,13 +523,12 @@ const Login = () => {
                 whileTap={{ scale: isBlocked ? 1 : 0.98 }}
                 onClick={handleLogin}
                 disabled={loading || isBlocked}
-                className={`group relative w-full flex justify-center items-center py-4 xl:py-5 px-6 border border-transparent rounded-xl text-lg font-semibold transition-all duration-300 ${
-                  loading || isBlocked
+                className={`group relative w-full flex justify-center items-center py-4 xl:py-5 px-6 border border-transparent rounded-xl text-lg font-semibold transition-all duration-300 ${loading || isBlocked
                     ? "bg-gray-400 cursor-not-allowed"
                     : theme === "dark"
-                    ? "bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-xl hover:shadow-2xl"
-                    : "bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-xl hover:shadow-2xl"
-                } focus:outline-none focus:ring-4 focus:ring-blue-500/50`}
+                      ? "bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-xl hover:shadow-2xl"
+                      : "bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-xl hover:shadow-2xl"
+                  } focus:outline-none focus:ring-4 focus:ring-blue-500/50`}
               >
                 <motion.img
                   animate={{ rotate: loading ? 360 : 0 }}
@@ -599,11 +569,10 @@ const Login = () => {
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -20, scale: 0.95 }}
                     transition={{ duration: 0.3 }}
-                    className={`flex items-start p-4 rounded-xl border ${
-                      theme === "dark"
+                    className={`flex items-start p-4 rounded-xl border ${theme === "dark"
                         ? "bg-red-900/30 border-red-500/50 text-red-300"
                         : "bg-red-50 border-red-200 text-red-700"
-                    }`}
+                      }`}
                   >
                     <ExclamationTriangleIcon className="w-6 h-6 text-red-500 mr-3 flex-shrink-0 mt-0.5" />
                     <div>
@@ -616,14 +585,12 @@ const Login = () => {
 
               {/* Enhanced Security Notice */}
               <div
-                className={`text-center space-y-4 pt-4 border-t ${
-                  theme === "dark" ? "border-gray-700" : "border-gray-200"
-                }`}
+                className={`text-center space-y-4 pt-4 border-t ${theme === "dark" ? "border-gray-700" : "border-gray-200"
+                  }`}
               >
                 <div
-                  className={`flex items-center justify-center space-x-2 text-sm ${
-                    theme === "dark" ? "text-gray-400" : "text-gray-600"
-                  }`}
+                  className={`flex items-center justify-center space-x-2 text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-600"
+                    }`}
                 >
                   <ShieldCheckIcon className="w-5 h-5 text-green-500" />
                   <span>
@@ -632,9 +599,8 @@ const Login = () => {
                 </div>
 
                 <div
-                  className={`text-xs space-y-2 ${
-                    theme === "dark" ? "text-gray-500" : "text-gray-500"
-                  }`}
+                  className={`text-xs space-y-2 ${theme === "dark" ? "text-gray-500" : "text-gray-500"
+                    }`}
                 >
                   <p>
                     Your login is protected by enterprise-grade security

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSelector, useDispatch } from "react-redux";
 import { toast } from "react-toastify";
@@ -19,13 +19,12 @@ import {
   TrophyIcon,
   ArrowTrendingUpIcon,
   ExclamationTriangleIcon,
-  EyeIcon,
   KeyIcon,
   DevicePhoneMobileIcon,
 } from "@heroicons/react/24/outline";
 
 const Profile = () => {
-  const dispatch = useDispatch();
+  const _dispatch = useDispatch();
   const theme = useSelector((state) => state.theme?.theme || "light");
   const [activeTab, setActiveTab] = useState("profile");
   const [isEditing, setIsEditing] = useState(false);
@@ -55,7 +54,7 @@ const Profile = () => {
     push_notifications: false,
   });
 
-  const [securitySettings, setSecuritySettings] = useState({
+  const [securitySettings, _setSecuritySettings] = useState({
     twoFactorEnabled: false,
     loginAlerts: true,
     sessionTimeout: 30,
@@ -147,7 +146,7 @@ const Profile = () => {
 
     if (
       editedData.phone &&
-      !/^[\+]?[0-9\s\-\(\)]{10,}$/.test(editedData.phone)
+      !/^[+]?[0-9\s\-()]{10,}$/.test(editedData.phone)
     ) {
       newErrors.phone = "Please enter a valid phone number";
     }
@@ -173,7 +172,7 @@ const Profile = () => {
       setUserData(updatedUser);
       setIsEditing(false);
       toast.success("Profile updated successfully");
-    } catch (error) {
+    } catch (_error) {
       toast.error("Failed to update profile");
     } finally {
       setLoading(false);
@@ -498,7 +497,7 @@ const Profile = () => {
       className="space-y-6"
     >
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {Object.entries(profileData.stats).map(([key, value], index) => {
+        {Object.entries(profileData.stats).map(([key, value], _index) => {
           const statConfig = {
             totalTrades: {
               icon: ChartBarIcon,

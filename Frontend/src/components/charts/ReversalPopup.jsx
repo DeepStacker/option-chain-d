@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   XMarkIcon,
@@ -28,7 +28,7 @@ const ReversalPopup = ({ onClose }) => {
   const reversal = data?.options?.data?.oc || {};
 
   // Calculate strike differences and related strikes[1][2]
-  const { strikeDiff, upperStrike, lowerStrike } = useMemo(() => {
+  const { strikeDiff: _strikeDiff, upperStrike, lowerStrike } = useMemo(() => {
     const strikeDiffArray = Object.keys(reversal)
       .map(Number)
       .sort((a, b) => a - b);
@@ -84,8 +84,8 @@ const ReversalPopup = ({ onClose }) => {
             strike: strike,
             distance: spotPrice
               ? Math.abs(
-                  spotPrice - (reversal?.[upperStrike]?.wkly_reversal || 0)
-                )
+                spotPrice - (reversal?.[upperStrike]?.wkly_reversal || 0)
+              )
               : 0,
           },
           {
@@ -111,8 +111,8 @@ const ReversalPopup = ({ onClose }) => {
             strike: upperStrike,
             distance: spotPrice
               ? Math.abs(
-                  spotPrice - (reversal?.[upperStrike]?.fut_reversal || 0)
-                )
+                spotPrice - (reversal?.[upperStrike]?.fut_reversal || 0)
+              )
               : 0,
           },
           {
@@ -226,11 +226,10 @@ const ReversalPopup = ({ onClose }) => {
       >
         <motion.div
           variants={modalVariants}
-          className={`relative p-8 rounded-xl shadow-2xl ${
-            theme === "dark"
+          className={`relative p-8 rounded-xl shadow-2xl ${theme === "dark"
               ? "bg-gray-900 text-white"
               : "bg-white text-gray-900"
-          }`}
+            }`}
         >
           <div className="text-center">
             <InformationCircleIcon className="w-16 h-16 mx-auto mb-4 text-gray-400" />
@@ -264,19 +263,17 @@ const ReversalPopup = ({ onClose }) => {
     >
       <motion.div
         variants={modalVariants}
-        className={`relative w-full max-w-md mx-4 p-6 rounded-2xl shadow-2xl border ${
-          theme === "dark"
+        className={`relative w-full max-w-md mx-4 p-6 rounded-2xl shadow-2xl border ${theme === "dark"
             ? "bg-gray-900 text-white border-gray-700"
             : "bg-white text-gray-900 border-gray-200"
-        }`}
+          }`}
       >
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center space-x-3">
             <div
-              className={`p-2 rounded-lg ${
-                theme === "dark" ? "bg-blue-600" : "bg-blue-500"
-              }`}
+              className={`p-2 rounded-lg ${theme === "dark" ? "bg-blue-600" : "bg-blue-500"
+                }`}
             >
               <ChartBarIcon className="w-6 h-6 text-white" />
             </div>
@@ -285,9 +282,8 @@ const ReversalPopup = ({ onClose }) => {
                 Strike {strike}
               </h2>
               <p
-                className={`text-sm ${
-                  theme === "dark" ? "text-gray-400" : "text-gray-600"
-                }`}
+                className={`text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-600"
+                  }`}
               >
                 Reversal Analysis
               </p>
@@ -301,11 +297,10 @@ const ReversalPopup = ({ onClose }) => {
               onClick={handleCopyAll}
               onMouseEnter={() => setShowTooltip(true)}
               onMouseLeave={() => setShowTooltip(false)}
-              className={`p-2 rounded-lg transition-colors relative ${
-                theme === "dark"
+              className={`p-2 rounded-lg transition-colors relative ${theme === "dark"
                   ? "hover:bg-gray-700 text-gray-400"
                   : "hover:bg-gray-100 text-gray-600"
-              }`}
+                }`}
               title="Copy all levels"
             >
               <DocumentDuplicateIcon className="w-5 h-5" />
@@ -320,11 +315,10 @@ const ReversalPopup = ({ onClose }) => {
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
               onClick={onClose}
-              className={`p-2 rounded-lg transition-colors ${
-                theme === "dark"
+              className={`p-2 rounded-lg transition-colors ${theme === "dark"
                   ? "hover:bg-red-600 text-gray-400 hover:text-white"
                   : "hover:bg-red-500 text-gray-600 hover:text-white"
-              }`}
+                }`}
               aria-label="Close Popup"
             >
               <XMarkIcon className="w-5 h-5" />
@@ -335,9 +329,8 @@ const ReversalPopup = ({ onClose }) => {
         {/* Current Spot Price */}
         {spotPrice && (
           <div
-            className={`mb-4 p-3 rounded-lg ${
-              theme === "dark" ? "bg-gray-800" : "bg-gray-100"
-            }`}
+            className={`mb-4 p-3 rounded-lg ${theme === "dark" ? "bg-gray-800" : "bg-gray-100"
+              }`}
           >
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Current Spot:</span>
@@ -350,9 +343,8 @@ const ReversalPopup = ({ onClose }) => {
 
         {/* Section Tabs */}
         <div
-          className={`flex rounded-lg p-1 mb-6 ${
-            theme === "dark" ? "bg-gray-800" : "bg-gray-100"
-          }`}
+          className={`flex rounded-lg p-1 mb-6 ${theme === "dark" ? "bg-gray-800" : "bg-gray-100"
+            }`}
         >
           {Object.entries(sections).map(([key, section]) => {
             const Icon = section.icon;
@@ -362,15 +354,14 @@ const ReversalPopup = ({ onClose }) => {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => setActiveSection(key)}
-                className={`flex-1 flex items-center justify-center space-x-2 py-3 px-4 rounded-md transition-all duration-200 ${
-                  activeSection === key
+                className={`flex-1 flex items-center justify-center space-x-2 py-3 px-4 rounded-md transition-all duration-200 ${activeSection === key
                     ? theme === "dark"
                       ? "bg-blue-600 text-white shadow-lg"
                       : "bg-blue-500 text-white shadow-lg"
                     : theme === "dark"
-                    ? "text-gray-400 hover:text-white hover:bg-gray-700"
-                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-200"
-                }`}
+                      ? "text-gray-400 hover:text-white hover:bg-gray-700"
+                      : "text-gray-600 hover:text-gray-900 hover:bg-gray-200"
+                  }`}
               >
                 <Icon className="w-4 h-4" />
                 <span className="text-sm font-medium">{section.title}</span>
@@ -381,9 +372,8 @@ const ReversalPopup = ({ onClose }) => {
 
         {/* Section Description */}
         <div
-          className={`mb-4 text-center text-sm ${
-            theme === "dark" ? "text-gray-400" : "text-gray-600"
-          }`}
+          className={`mb-4 text-center text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-600"
+            }`}
         >
           {sections[activeSection].description}
         </div>
@@ -411,21 +401,19 @@ const ReversalPopup = ({ onClose }) => {
                 key={index}
                 variants={itemVariants}
                 whileHover="hover"
-                className={`flex items-center justify-between p-4 rounded-xl border-2 transition-all duration-200 ${
-                  isResistance
+                className={`flex items-center justify-between p-4 rounded-xl border-2 transition-all duration-200 ${isResistance
                     ? theme === "dark"
                       ? "border-red-500/30 bg-red-500/10 hover:bg-red-500/20"
                       : "border-red-200 bg-red-50 hover:bg-red-100"
                     : theme === "dark"
-                    ? "border-green-500/30 bg-green-500/10 hover:bg-green-500/20"
-                    : "border-green-200 bg-green-50 hover:bg-green-100"
-                }`}
+                      ? "border-green-500/30 bg-green-500/10 hover:bg-green-500/20"
+                      : "border-green-200 bg-green-50 hover:bg-green-100"
+                  }`}
               >
                 <div className="flex items-center space-x-3">
                   <div
-                    className={`p-2 rounded-lg ${
-                      isResistance ? "bg-red-500" : "bg-green-500"
-                    }`}
+                    className={`p-2 rounded-lg ${isResistance ? "bg-red-500" : "bg-green-500"
+                      }`}
                   >
                     {isResistance ? (
                       <ArrowUpIcon className="w-4 h-4 text-white" />
@@ -437,9 +425,8 @@ const ReversalPopup = ({ onClose }) => {
                   <div>
                     <div className="flex items-center space-x-2">
                       <span
-                        className={`text-sm font-medium ${
-                          isResistance ? "text-red-600" : "text-green-600"
-                        }`}
+                        className={`text-sm font-medium ${isResistance ? "text-red-600" : "text-green-600"
+                          }`}
                       >
                         {item.label}
                       </span>
@@ -458,9 +445,8 @@ const ReversalPopup = ({ onClose }) => {
                     </div>
                     {spotPrice && (
                       <div
-                        className={`text-xs ${
-                          theme === "dark" ? "text-gray-400" : "text-gray-600"
-                        }`}
+                        className={`text-xs ${theme === "dark" ? "text-gray-400" : "text-gray-600"
+                          }`}
                       >
                         {distanceFromSpot.toFixed(2)} points away
                       </div>
@@ -472,13 +458,12 @@ const ReversalPopup = ({ onClose }) => {
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.9 }}
                   onClick={() => handleCopy(item.value.toFixed(2), item.label)}
-                  className={`p-2 rounded-lg transition-colors ${
-                    copiedValue?.includes(item.label)
+                  className={`p-2 rounded-lg transition-colors ${copiedValue?.includes(item.label)
                       ? "bg-green-500 text-white"
                       : theme === "dark"
-                      ? "hover:bg-gray-700 text-gray-400"
-                      : "hover:bg-gray-200 text-gray-600"
-                  }`}
+                        ? "hover:bg-gray-700 text-gray-400"
+                        : "hover:bg-gray-200 text-gray-600"
+                    }`}
                   aria-label={`Copy ${item.label}`}
                 >
                   {copiedValue?.includes(item.label) ? (
@@ -499,9 +484,8 @@ const ReversalPopup = ({ onClose }) => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className={`mt-4 p-3 rounded-lg text-center ${
-                theme === "dark" ? "bg-green-600" : "bg-green-500"
-              } text-white`}
+              className={`mt-4 p-3 rounded-lg text-center ${theme === "dark" ? "bg-green-600" : "bg-green-500"
+                } text-white`}
             >
               <div className="flex items-center justify-center space-x-2">
                 <CheckIcon className="w-4 h-4" />
@@ -515,11 +499,10 @@ const ReversalPopup = ({ onClose }) => {
 
         {/* Footer */}
         <div
-          className={`mt-6 pt-4 border-t text-center text-xs ${
-            theme === "dark"
+          className={`mt-6 pt-4 border-t text-center text-xs ${theme === "dark"
               ? "border-gray-700 text-gray-400"
               : "border-gray-200 text-gray-500"
-          }`}
+            }`}
         >
           <p>Press ESC to close • Click outside to dismiss</p>
         </div>

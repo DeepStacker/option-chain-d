@@ -1,15 +1,14 @@
-import React, { useMemo } from 'react';
-import { FaRegHandPointRight, FaRegSadTear, FaSmile, FaChartLine } from 'react-icons/fa';
+import { useMemo } from 'react';
+import { FaChartLine } from 'react-icons/fa';
 import { useSelector } from 'react-redux';
 
-const PNL = ({ results }) => {
+const PNL = ({ pnl }) => {
     const theme = useSelector((state) => state.theme.theme);
 
-    const containerClasses = `p-4 rounded-3xl shadow-lg ${theme === 'dark' ? 'bg-gray-950 text-white' : 'bg-gray-100 text-black'}`;
     const iconSize = '1.5em';
 
     const content = useMemo(() => {
-        if (!results) {
+        if (!pnl) {
             return (
                 <div className="flex justify-center items-center h-full text-xl text-gray-600">
                     Generate results to view profit/loss chart and trades
@@ -19,9 +18,6 @@ const PNL = ({ results }) => {
 
         const {
             totalNetProfitLoss = 0,
-            daysInProfit = 0,
-            daysInLoss = 0,
-            daysInBreakEven = 0
         } = results;
 
         return (
@@ -53,7 +49,7 @@ const PNL = ({ results }) => {
                 </div> */}
             </div>
         );
-    }, [results, containerClasses]);
+    }, [pnl, theme]);
 
     return content;
 };

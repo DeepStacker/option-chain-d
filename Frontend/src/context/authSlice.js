@@ -1,10 +1,7 @@
 import axios from "axios";
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import {
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
   onAuthStateChanged,
-  signOut,
   onIdTokenChanged,
 } from "firebase/auth";
 import { auth } from "../firebase/init";
@@ -362,7 +359,24 @@ export const setupAuthListener = () => (dispatch) => {
             const token = await user.getIdToken();
             const expiry = Date.now() + 55 * 60 * 1000;
 
+            // Get API base URL
+            const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
+
+            // Verify token with backend to get full user data
+            let backendUser = null;
+            try {
+              const response = await axios.post(`${baseURL}/auth/verify`, {
+                id_token: token
+              });
+              backendUser = response.data?.user || response.data?.data?.user;
+              console.log("✅ Backend verification successful:", backendUser?.email);
+            } catch (backendError) {
+              console.warn("⚠️ Backend verification failed, using Firebase data only:", backendError.message);
+            }
+
+            // Combine Firebase and backend user data
             const userData = {
+              // Firebase fields
               uid: user.uid,
               email: user.email,
               displayName: user.displayName,
@@ -370,6 +384,18 @@ export const setupAuthListener = () => (dispatch) => {
               token: token,
               tokenExpiry: expiry,
               lastRefresh: new Date().toISOString(),
+              // Backend fields (if available)
+              ...(backendUser && {
+                id: backendUser.id,
+                username: backendUser.username,
+                full_name: backendUser.full_name,
+                role: backendUser.role,
+                is_premium: backendUser.is_premium,
+                is_active: backendUser.is_active,
+                is_email_verified: backendUser.is_email_verified,
+                subscription_expires: backendUser.subscription_expires,
+                login_provider: backendUser.login_provider,
+              }),
             };
 
             // Check if we already have this user stored

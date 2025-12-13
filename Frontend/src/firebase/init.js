@@ -18,7 +18,7 @@ const setAuthPersistence = async () => {
 
 setAuthPersistence();
 
-import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import { onAuthStateChanged, signInWithPopup } from 'firebase/auth';
 import { googleProvider } from './providers';
 
 const listenToAuthChanges = (callback) => {
@@ -31,8 +31,7 @@ const signInWithGoogle = async () => {
     // The signed-in user info.
     const user = result.user;
     // This gives you a Google Access Token. You can use it to access the Google API.
-    const credential = GoogleAuthProvider.credentialFromResult(result);
-    const token = credential.accessToken;
+    // const credential = GoogleAuthProvider.credentialFromResult(result);
     console.log("Google Sign-in successful:", user);
     return user;
   } catch (error) {

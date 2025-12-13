@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { FaRegHandPointRight, FaRegSadTear, FaSmile, FaChartLine } from 'react-icons/fa';
 import { useSelector } from 'react-redux';
 

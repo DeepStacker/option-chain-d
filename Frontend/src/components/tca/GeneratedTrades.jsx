@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useSelector } from 'react-redux';
 import { FaArrowUp, FaArrowDown, FaMinus, FaChevronDown, FaChevronUp } from 'react-icons/fa';
 

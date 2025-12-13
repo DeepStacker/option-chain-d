@@ -1,8 +1,30 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Bar, Pie, Radar, Line, Scatter } from 'react-chartjs-2';
-import { motion, AnimatePresence } from 'framer-motion';
-import * as tradingAnalytics from '../../utils/tradingAnalytics';
+
+import { useState, useMemo } from "react";
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler,
+} from "chart.js";
+import { Line } from "react-chartjs-2";
+import { motion } from "framer-motion";
 import * as mlPredictions from '../../utils/mlPredictions';
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler
+);
 
 const TradeAnalysis = ({ results, theme }) => {
     const [selectedMetric, setSelectedMetric] = useState('basic');

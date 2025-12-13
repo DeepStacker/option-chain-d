@@ -1,95 +1,67 @@
-import React, { useEffect } from 'react';
-import { motion } from 'framer-motion';
-import CompanyOverview from '../components/about/CompanyOverview';
-import RiskManagement from '../components/about/RiskManagement';
-import OurMission from '../components/about/OurMission';
-import TeamSection from '../components/about/TeamSection';
-import Statistics from '../components/about/Statistics';
+
 import { useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
+import { ChartBarIcon, ShieldCheckIcon, BoltIcon, UsersIcon } from '@heroicons/react/24/outline';
+import { Button, Card } from '../components/common';
 
-const AboutPage = () => {
+/**
+ * Minimal About Page
+ */
+const About = () => {
   const theme = useSelector((state) => state.theme.theme);
-  
-  useEffect(() => {
-    document.title = 'About DeepStrike';
-  }, []);
-  
+  const navigate = useNavigate();
+
+  const features = [
+    { icon: ChartBarIcon, title: 'Real-Time Data', desc: 'Live NSE option chain with instant updates' },
+    { icon: BoltIcon, title: 'Fast Analysis', desc: 'Greeks, IV, PCR calculated on-the-fly' },
+    { icon: ShieldCheckIcon, title: 'Secure', desc: 'Enterprise-grade security for your data' },
+    { icon: UsersIcon, title: 'For Traders', desc: 'Built by traders, for traders' },
+  ];
+
   return (
-    <div className={`w-full transition ${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-100'}`}>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.5 }}
-        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8"
-      >
-        {/* Hero Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className={`text-center mb-16 ${
-            theme === 'dark' ? 'text-white' : 'text-gray-800'
-          }`}
-        >
-          <h1 className={`text-5xl md:text-6xl font-bold mb-6 ${
-            theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
-          }`}>
-            About DeepStrike
+    <>
+      <Helmet>
+        <title>About | Stockify</title>
+      </Helmet>
+
+      <div className="container mx-auto px-4 py-12 max-w-5xl">
+        {/* Hero */}
+        <div className="text-center mb-12">
+          <h1 className={`text-4xl font-bold mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+            About Stockify
           </h1>
-          <p className="text-xl md:text-2xl max-w-3xl mx-auto">
-            Empowering traders with cutting-edge technology and real-time market insights
+          <p className={`text-lg max-w-2xl mx-auto ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+            Professional-grade option chain analysis platform for Indian markets.
+            Real-time data, advanced Greeks, and market insights in one place.
           </p>
-        </motion.div>
+        </div>
 
-        {/* Statistics Section */}
-        <Statistics />
+        {/* Features Grid */}
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+          {features.map((f, i) => (
+            <Card key={i} className="text-center">
+              <f.icon className="w-10 h-10 mx-auto text-blue-600 mb-4" />
+              <h3 className="font-semibold dark:text-white mb-2">{f.title}</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">{f.desc}</p>
+            </Card>
+          ))}
+        </div>
 
-        {/* Company Overview Section */}
-        <CompanyOverview />
-
-        {/* Our Mission Section */}
-        <OurMission />
-
-        {/* Risk Management Section */}
-        <RiskManagement />
-
-        {/* Team Section */}
-        <TeamSection />
-
-        {/* Call to Action */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className={`text-center mt-16 p-8 rounded-lg shadow-lg ${
-            theme === 'dark' ? 'bg-gray-800' : 'bg-white'
-          }`}
-        >
-          <h2 className={`text-3xl font-bold mb-4 ${
-            theme === 'dark' ? 'text-white' : 'text-gray-800'
-          }`}>
-            Ready to Start Trading?
-          </h2>
-          <p className={`text-lg mb-6 ${
-            theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
-          }`}>
-            Join our community of successful traders and take your trading to the next level.
-          </p>
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className={`px-8 py-3 rounded-lg text-white font-semibold ${
-              theme === 'dark'
-                ? 'bg-blue-600 hover:bg-blue-500'
-                : 'bg-blue-500 hover:bg-blue-600'
-            }`}
-          >
-            Get Started Now
-          </motion.button>
-        </motion.div>
-      </motion.div>
-    </div>
+        {/* CTA */}
+        <div className="text-center">
+          <Card className="inline-block px-12 py-8">
+            <h2 className={`text-2xl font-bold mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+              Ready to analyze?
+            </h2>
+            <Button onClick={() => navigate('/option-chain')}>
+              View Option Chain
+            </Button>
+          </Card>
+        </div>
+      </div>
+    </>
   );
 };
 
-export default AboutPage;
+export default About;

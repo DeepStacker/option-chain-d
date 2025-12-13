@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Line } from 'react-chartjs-2';
 import {
     Chart as ChartJS,
@@ -34,28 +34,28 @@ const DeltaPopup = ({ onClose }) => {
         }
     }, [data, activeSection]);
 
-    if (!data) return null;
-
     // Theme-specific colors
-    const themeColors = {
+    const themeColors = useMemo(() => ({
         background: theme === 'dark' ? 'bg-gray-800' : 'bg-teal-400',
         text: theme === 'dark' ? '#e0e0e0' : '#333',
         gridColor: theme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
-    };
+    }), [theme]);
 
     // Memoized formatted timestamps
     const shortTimeLabels = useMemo(
-        () =>
-            data.timestamp.map((ts) =>
+        () => {
+            if (!data?.timestamp) return [];
+            return data.timestamp.map((ts) =>
                 new Date(ts * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-            ),
-        [data.timestamp]
+            );
+        },
+        [data]
     );
 
     // Helper to create dataset
-    const createDataset = (label, data, color, hidden = false) => ({
+    const createDataset = useCallback((label, dataPoints, color, hidden = false) => ({
         label,
-        data,
+        data: dataPoints,
         borderColor: color,
         backgroundColor: color.replace('1)', '0.2)'),
         fill: false,
@@ -63,10 +63,11 @@ const DeltaPopup = ({ onClose }) => {
         borderWidth: 1,
         tension: 0.1,
         hidden,
-    });
+    }), []);
 
     // Memoized chart data based on the active section
     const chartData = useMemo(() => {
+        if (!data) return { labels: [], datasets: [] };
         return {
             labels: shortTimeLabels,
             datasets:
@@ -86,7 +87,7 @@ const DeltaPopup = ({ onClose }) => {
                         createDataset('PE VEGA', data.pe_vega, 'rgba(0, 255, 0, 1)', true),
                     ],
         };
-    }, [data, activeSection, shortTimeLabels]);
+    }, [data, activeSection, shortTimeLabels, createDataset]);
 
     // Memoized chart options
     const chartOptions = useMemo(() => {
@@ -128,6 +129,8 @@ const DeltaPopup = ({ onClose }) => {
             },
         };
     }, [themeColors]);
+
+    if (!data) return null;
 
     return (
         <div

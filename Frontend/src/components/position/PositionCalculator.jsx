@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 
 const PositionCalculator = ({ setCalculatedPosition, setAnalysisData }) => {
@@ -13,17 +13,12 @@ const PositionCalculator = ({ setCalculatedPosition, setAnalysisData }) => {
     
     // Advanced Options
     const [positionType, setPositionType] = useState('long');
-    const [marginRequired, setMarginRequired] = useState('');
     const [leverageUsed, setLeverageUsed] = useState('1');
-    const [maxPositionSize, setMaxPositionSize] = useState('');
     const [correlatedPositions, setCorrelatedPositions] = useState('0');
     const [marketVolatility, setMarketVolatility] = useState('medium');
     const [timeFrame, setTimeFrame] = useState('intraday');
-    
-    // Additional Risk Parameters
-    const [maxDrawdown, setMaxDrawdown] = useState('');
     const [portfolioHeatMap, setPortfolioHeatMap] = useState('0');
-    const [riskRewardRatio, setRiskRewardRatio] = useState('');
+
 
     // Show/Hide Advanced Options
     const [showAdvanced, setShowAdvanced] = useState(false);
@@ -63,7 +58,7 @@ const PositionCalculator = ({ setCalculatedPosition, setAnalysisData }) => {
             totalValue: positionSize * parseFloat(entryPrice),
             riskAmount,
             leveragedValue: positionSize * parseFloat(entryPrice) * parseFloat(leverageUsed),
-            marginUsed: marginRequired ? parseFloat(marginRequired) : 0
+            marginUsed: 0
         };
 
         const analysisData = {

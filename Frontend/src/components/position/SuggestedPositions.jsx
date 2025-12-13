@@ -1,4 +1,4 @@
-import React from 'react';
+
 
 const SuggestedPositions = ({ calculatedPosition, analysisData, theme }) => {
     // Calculate alternative position sizes

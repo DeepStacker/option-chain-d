@@ -1,5 +1,7 @@
-import React, { useEffect, useRef, useState } from 'react';
+
+import { useEffect, useRef, useState } from 'react';
 import { Chart, Filler } from 'chart.js';
+
 
 // Register the filler plugin
 Chart.register(Filler);

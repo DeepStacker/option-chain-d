@@ -1,4 +1,4 @@
-import React from 'react';
+
 
 // Google Icon
 export const GoogleIcon = ({ className }) => (

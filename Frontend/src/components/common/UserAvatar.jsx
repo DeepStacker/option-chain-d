@@ -1,4 +1,4 @@
-import React from 'react';
+
 
 const UserAvatar = ({ user, size = 'md', className = '' }) => {
   // Generate initials from name

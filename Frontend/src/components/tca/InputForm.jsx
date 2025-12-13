@@ -1,4 +1,4 @@
-import React from "react";
+
 import { useSelector, useDispatch } from "react-redux";
 import {
     setTradePerDay,
@@ -21,8 +21,6 @@ const InputForm = ({ handleGenerateClick }) => {
         riskReward,
         chancePercent,
         chargesPerTrade,
-        results,
-        profitLossChart,
     } = useSelector((state) => state.tca);
 
     return (

@@ -1,92 +1,26 @@
-import React, { createContext, useEffect, useCallback, useRef } from "react";
+import { useEffect, useCallback, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { createSelector } from "reselect";
+
 import {
   fetchExpiryDate,
   setExp_sid,
-  startLiveStream,
   stopLiveStream,
   setSidAndFetchData,
   fetchLiveData,
 } from "./dataSlice";
 import axios from "axios";
-import { toast } from "react-toastify";
+// import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { initializeAuth } from "./authSlice";
 import { tokenManager } from "./authSlice";
 
-// Create a context for app-wide state management
-export const AppContext = createContext();
+import { AppContext } from "./AppContext";
+import { selectAppState } from "./selectors";
 
-// Create memoized selectors
-const selectUser = (state) => state.auth.user;
-const selectToken = (state) => state.auth.token;
-const selectIsAuthenticated = (state) => state.auth.isAuthenticated;
-const selectAuthLoading = (state) => state.auth.authLoading;
-const selectTheme = (state) => state.theme.theme;
-const selectIsReversed = (state) => state.theme.isReversed;
-const selectIsHighlighting = (state) => state.theme.isHighlighting;
-const selectData = (state) => state.data.data;
-const selectExp = (state) => state.data.exp;
-const selectSymbol = (state) => state.data.symbol;
-const selectExpDate = (state) => state.data.expDate;
-const selectIsOc = (state) => state.data.isOc;
-const selectIsStreaming = (state) => state.data.isStreaming;
-const selectExp_sid = (state) => state.data.exp_sid;
 
-const selectAppState = createSelector(
-  [
-    selectUser,
-    selectToken,
-    selectIsAuthenticated,
-    selectAuthLoading,
-    selectTheme,
-    selectIsReversed,
-    selectIsHighlighting,
-    selectData,
-    selectExp,
-    selectSymbol,
-    selectExpDate,
-    selectIsOc,
-    selectIsStreaming,
-    selectExp_sid,
-  ],
-  (
-    user,
-    token,
-    isAuthenticated,
-    authLoading,
-    theme,
-    isReversed,
-    isHighlighting,
-    data,
-    exp,
-    symbol,
-    expDate,
-    isOc,
-    isStreaming,
-    exp_sid
-  ) => ({
-    user,
-    token,
-    isAuthenticated,
-    authLoading,
-    theme,
-    isReversed,
-    isHighlighting,
-    data,
-    exp,
-    symbol,
-    expDate,
-    isOc,
-    isStreaming,
-    exp_sid,
-  })
-);
 
 export const AppProvider = ({ children }) => {
   const dispatch = useDispatch();
-  const socketInitialized = useRef(false);
   const tokenCheckInterval = useRef(null);
 
   const {
@@ -173,36 +107,24 @@ export const AppProvider = ({ children }) => {
     }
   }, [dispatch, data?.fut?.data?.explist, isOc, authLoading, exp_sid]);
 
-  // Manage WebSocket streaming state with proper cleanup
+  // WebSocket streaming is now handled by individual components using useSocket hook
   useEffect(() => {
-    // Don't proceed if auth is still loading
+    // Cleanup any streaming state if component unmounts or auth changes
     if (authLoading) return;
 
     if (!isOc || !isAuthenticated) {
-      // Stop the live stream if Open Chain is disabled or user is not authenticated
-      if (isStreaming && socketInitialized.current) {
+      if (isStreaming) {
         dispatch(stopLiveStream());
-        socketInitialized.current = false;
       }
-      return;
-    }
-
-    if (!socketInitialized.current && isAuthenticated && symbol && exp_sid) {
-      // Initialize WebSocket only once and when authenticated with required data
-      socketInitialized.current = true;
-      dispatch(startLiveStream());
     }
 
     return () => {
-      if (socketInitialized.current && isStreaming) {
+      if (isStreaming) {
         dispatch(stopLiveStream());
-        socketInitialized.current = false;
       }
     };
   }, [
     dispatch,
-    symbol,
-    exp_sid,
     isOc,
     isAuthenticated,
     authLoading,

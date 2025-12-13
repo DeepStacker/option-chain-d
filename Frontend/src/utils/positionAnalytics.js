@@ -18,16 +18,16 @@ export const calculateOptimalPosition = (baseSize, marketConditions) => {
     } = marketConditions;
 
     let multiplier = 1;
-    
+
     // Adjust for volatility
     multiplier *= (2 - volatility);
-    
+
     // Adjust for trend alignment
     multiplier *= (1 + trend * 0.2);
-    
+
     // Adjust for liquidity
     multiplier *= liquidity;
-    
+
     // Reduce size for high correlation
     multiplier *= (1 - correlation * 0.3);
 
@@ -39,7 +39,7 @@ export const calculateRiskMetrics = (position, marketData) => {
     const {
         price,
         stopLoss,
-        target,
+        _target,
         volatility,
         volume
     } = marketData;
@@ -83,7 +83,7 @@ export const runMonteCarloSimulation = (position, marketData, iterations = 1000)
     for (let i = 0; i < iterations; i++) {
         let currentPrice = price;
         let days = 0;
-        
+
         while (currentPrice > stopLoss && currentPrice < target && days < 20) {
             // Random walk with drift
             const drift = (target - price) / (price * 100); // Slight bias towards target
@@ -107,7 +107,7 @@ const analyzeMonteCarloResults = (results) => {
     const wins = results.filter(r => r.outcome === 'win');
     const winRate = (wins.length / results.length) * 100;
     const avgDays = results.reduce((sum, r) => sum + r.days, 0) / results.length;
-    
+
     return {
         winProbability: winRate.toFixed(2),
         averageDaysToOutcome: avgDays.toFixed(1),
@@ -179,9 +179,9 @@ export const generateTradingSuggestions = (position, analysis, marketData) => {
 
 // Calculate optimal entry points
 export const calculateOptimalEntries = (position, marketData) => {
-    const { price, volatility, volume } = marketData;
+    const { price, volatility, volume: _volume } = marketData;
     const volatilityFactor = volatility === 'high' ? 0.02 : volatility === 'medium' ? 0.015 : 0.01;
-    
+
     return {
         conservative: {
             price: price * (1 - volatilityFactor),

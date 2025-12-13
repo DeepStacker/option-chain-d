@@ -1,43 +1,25 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
-import { io } from "socket.io-client";
-import { decode } from "@msgpack/msgpack";
 
 axios.defaults.withCredentials = true;
 
-let socket = null;
 const activeRequests = new Map();
 
 // Helpers
 const getAuthToken = () => localStorage.getItem("authToken");
 
 const handleApiError = (error) => {
+  if (error.response?.status === 401) {
+    localStorage.removeItem("authToken");
+    // Only reload if we have a token that was rejected
+    if (getAuthToken()) {
+      window.location.reload();
+    }
+    return "Session expired. Please login again.";
+  }
   if (error.response) return error.response.data?.message || "Server error";
   if (error.request) return "No response from server";
   return error.message || "An error occurred";
-};
-
-const createSocketConnection = (socketURL) => {
-  const token = getAuthToken();
-  if (!token) return null;
-
-  if (socket?.connected) return socket;
-
-  socket = io(socketURL, {
-    auth: { token },
-    transports: ["websocket"],
-    withCredentials: true,
-    reconnectionAttempts: 10,
-    reconnectionDelay: 1000,
-    timeout: 5000,
-  });
-
-  socket.on("connect", () => {});
-  socket.on("disconnect", (reason) => {});
-  socket.on("connect_error", (err) => {});
-  socket.on("error", (err) => {});
-
-  return socket;
 };
 
 const getLatestExpiry = (expiryArray) => {
@@ -71,9 +53,10 @@ export const fetchExpiryDate = createAsyncThunk(
       const {
         config: { baseURL },
       } = getState();
+
+      const symbol = params.sid || params.symbol || "NIFTY";
       const requestPromise = axios
-        .get(`${baseURL}/exp-date/`, {
-          params,
+        .get(`${baseURL}/options/expiry/${symbol}`, {
           headers: { Authorization: `Bearer ${token}` },
         })
         .then((response) => response.data);
@@ -92,7 +75,7 @@ export const fetchExpiryDate = createAsyncThunk(
 
 export const fetchLiveData = createAsyncThunk(
   "data/fetchLiveData",
-  async (_, { dispatch, getState, rejectWithValue }) => {
+  async (_, { getState, rejectWithValue }) => {
     const state = getState();
     const requestKey = createRequestKey("fetchLiveData", {
       sid: state.data.sid,
@@ -106,57 +89,20 @@ export const fetchLiveData = createAsyncThunk(
       if (!token) throw new Error("No auth token");
 
       const {
-        config: { baseURL, socketURL },
+        config: { baseURL },
         data: { sid, exp_sid },
       } = state;
       const params = { sid, exp_sid };
 
-      const requestPromise = (async () => {
-        const response = await axios.get(`${baseURL}/live-data/`, {
+      const requestPromise = axios
+        .get(`${baseURL}/options/live`, {
           params,
           headers: {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
-        });
-
-        const socketInstance = createSocketConnection(socketURL);
-        if (!socketInstance) throw new Error("Socket connection failed");
-
-        if (!socketInstance.connected) {
-          await new Promise((resolve, reject) => {
-            const timeout = setTimeout(
-              () => reject(new Error("Socket connection timeout")),
-              5000
-            );
-            socketInstance.once("connect", () => {
-              clearTimeout(timeout);
-              resolve();
-            });
-            socketInstance.once("connect_error", (error) => {
-              clearTimeout(timeout);
-              reject(error);
-            });
-          });
-        }
-
-        socketInstance.emit("stop_stream");
-        socketInstance.off("live_data");
-        socketInstance.emit("start_stream", params);
-
-        socketInstance.on("live_data", (binaryBuffer) => {
-          try {
-            const decoded = decode(new Uint8Array(binaryBuffer));
-            dispatch(updateLiveData(decoded));
-          } catch (e) {}
-        });
-
-        socketInstance.once("stream_started", () => {
-          dispatch(setStreamingState(true));
-        });
-
-        return response.data;
-      })();
+        })
+        .then((response) => response.data);
 
       activeRequests.set(requestKey, requestPromise);
       const result = await requestPromise;
@@ -170,73 +116,12 @@ export const fetchLiveData = createAsyncThunk(
   }
 );
 
+// Deprecated: Use fetchLiveData instead
 export const fetchLiveDataDirectSocket = createAsyncThunk(
   "data/fetchLiveDataDirectSocket",
-  async (_, { dispatch, getState, rejectWithValue }) => {
-    const state = getState();
-    const requestKey = createRequestKey("fetchLiveDataDirectSocket", {
-      sid: state.data.sid,
-      exp_sid: state.data.exp_sid,
-    });
-
-    if (activeRequests.has(requestKey)) return activeRequests.get(requestKey);
-
-    try {
-      const token = getAuthToken();
-      if (!token) throw new Error("No auth token");
-
-      const {
-        config: { socketURL },
-        data: { sid, exp_sid },
-      } = state;
-      const params = { sid, exp_sid };
-
-      const requestPromise = (async () => {
-        const socketInstance = createSocketConnection(socketURL);
-        if (!socketInstance) throw new Error("Socket connection failed");
-
-        await new Promise((resolve, reject) => {
-          const timeout = setTimeout(
-            () => reject(new Error("Socket connection timeout")),
-            5000
-          );
-          socketInstance.once("connect", () => {
-            clearTimeout(timeout);
-            resolve();
-          });
-          socketInstance.once("connect_error", (error) => {
-            clearTimeout(timeout);
-            reject(error);
-          });
-        });
-
-        socketInstance.emit("stop_stream");
-        socketInstance.off("live_data");
-        socketInstance.emit("start_stream", params);
-
-        socketInstance.on("live_data", (binaryBuffer) => {
-          try {
-            const decoded = decode(new Uint8Array(binaryBuffer));
-            dispatch(updateLiveData(decoded));
-          } catch (e) {}
-        });
-
-        socketInstance.once("stream_started", () => {
-          dispatch(setStreamingState(true));
-        });
-
-        return { success: true, params };
-      })();
-
-      activeRequests.set(requestKey, requestPromise);
-      const result = await requestPromise;
-      activeRequests.delete(requestKey);
-
-      return result;
-    } catch (err) {
-      activeRequests.delete(requestKey);
-      return rejectWithValue(handleApiError(err));
-    }
+  async (_, { dispatch }) => {
+    // Redirect to fetchLiveData for compatibility
+    return dispatch(fetchLiveData()).unwrap();
   }
 );
 
@@ -274,7 +159,7 @@ export const initializeLiveData = createAsyncThunk(
 
 export const setSidAndFetchData = createAsyncThunk(
   "data/setSidAndFetchData",
-  async ({ newSid, useDirectSocket = false }, { dispatch, getState }) => {
+  async ({ newSid, useDirectSocket = false }, { dispatch }) => {
     const requestKey = createRequestKey("setSidAndFetchData", {
       newSid,
       useDirectSocket,
@@ -313,50 +198,7 @@ export const setSidAndFetchData = createAsyncThunk(
   }
 );
 
-export const startLiveStream = createAsyncThunk(
-  "data/startLiveStream",
-  async (_, { getState, rejectWithValue }) => {
-    const state = getState();
-    const requestKey = createRequestKey("startLiveStream", {
-      sid: state.data.sid,
-      exp_sid: state.data.exp_sid,
-    });
 
-    if (activeRequests.has(requestKey)) return activeRequests.get(requestKey);
-
-    try {
-      const token = getAuthToken();
-      if (!token) throw new Error("No auth token");
-
-      const {
-        config: { socketURL },
-        data: { sid, exp_sid },
-      } = state;
-      const streamParams = { sid, exp_sid };
-
-      const requestPromise = (async () => {
-        if (!socket) socket = createSocketConnection(socketURL);
-        if (!socket) throw new Error("Failed to create socket connection");
-
-        if (!socket.connected) socket.connect();
-
-        socket.emit("stop_stream");
-        socket.emit("start_stream", streamParams);
-
-        return streamParams;
-      })();
-
-      activeRequests.set(requestKey, requestPromise);
-      const result = await requestPromise;
-      activeRequests.delete(requestKey);
-
-      return result;
-    } catch (err) {
-      activeRequests.delete(requestKey);
-      return rejectWithValue(err.message);
-    }
-  }
-);
 
 // Slice
 export const dataSlice = createSlice({
@@ -376,19 +218,9 @@ export const dataSlice = createSlice({
   reducers: {
     setExp_sid: (state, action) => {
       state.exp_sid = action.payload;
-      if (socket?.connected && state.isOc) {
-        const streamParams = { sid: state.sid, exp_sid: action.payload };
-        socket.emit("stop_stream");
-        socket.emit("start_stream", streamParams);
-      }
     },
     setSid: (state, action) => {
       state.sid = action.payload;
-      if (socket?.connected && state.isOc) {
-        const streamParams = { sid: action.payload, exp_sid: state.exp_sid };
-        socket.emit("stop_stream");
-        socket.emit("start_stream", streamParams);
-      }
     },
     setIsOc: (state, action) => {
       state.isOc = action.payload;
@@ -418,11 +250,6 @@ export const dataSlice = createSlice({
         const latestExpiry = getLatestExpiry(state.expDate);
         if (latestExpiry && latestExpiry !== state.exp_sid) {
           state.exp_sid = latestExpiry;
-          if (socket?.connected && state.isOc) {
-            const streamParams = { sid: state.sid, exp_sid: latestExpiry };
-            socket.emit("stop_stream");
-            socket.emit("start_stream", streamParams);
-          }
         }
       }
     },
@@ -435,7 +262,168 @@ export const dataSlice = createSlice({
         state.connectionMethod = "api";
       })
       .addCase(fetchLiveData.fulfilled, (state, action) => {
-        state.data = action.payload;
+        // Normalize backend response to match expected frontend structure
+        // Backend now returns corrected field names from Dhan API
+        const raw = action.payload;
+
+        // Transform oc data to match frontend expected field names
+        const transformedOc = {};
+        if (raw.oc) {
+          Object.entries(raw.oc).forEach(([strikeKey, strikeData]) => {
+            // Normalize strike key to number for consistent access
+            const numericKey = parseFloat(strikeKey);
+
+            // Transform CE data - backend now provides correct field names
+            const ce = strikeData?.ce || {};
+            const transformedCe = {
+              ltp: ce.ltp || 0,
+              atp: ce.atp || 0,  // Average traded price
+              pc: ce.pc || 0,   // Previous close
+              volume: ce.volume || ce.vol || 0,
+              vol: ce.vol || ce.volume || 0,
+              pVol: ce.pVol || 0,  // Previous volume
+              // OI fields - backend now provides uppercase OI
+              OI: ce.OI || ce.oi || 0,
+              oi: ce.OI || ce.oi || 0,
+              oichng: ce.oichng || ce.oi_change || 0,
+              oi_change: ce.oichng || ce.oi_change || 0,
+              p_oi: ce.p_oi || 0,  // Previous OI
+              oiperchnge: ce.oiperchnge || 0,
+              // IV & Greeks
+              iv: ce.iv || 0,
+              optgeeks: ce.optgeeks || {},
+              delta: ce.optgeeks?.delta || 0,
+              gamma: ce.optgeeks?.gamma || 0,
+              theta: ce.optgeeks?.theta || 0,
+              vega: ce.optgeeks?.vega || 0,
+              // Price change - backend now provides p_chng
+              p_chng: ce.p_chng || ce.change || 0,
+              p_pchng: ce.p_pchng || 0,
+              // Bid/Ask
+              bid: ce.bid || 0,
+              ask: ce.ask || 0,
+              bid_qty: ce.bid_qty || 0,
+              ask_qty: ce.ask_qty || 0,
+              // Build-up signals - NEW from Dhan
+              btyp: ce.btyp || "NT",  // LB, SB, SC, LC, NT
+              BuiltupName: ce.BuiltupName || "NEUTRAL",
+              mness: ce.mness || "",  // I = ITM, O = OTM
+              // Symbol info
+              sym: ce.sym || "",
+              sid: ce.sid || 0,
+              disp_sym: ce.disp_sym || "",
+              otype: ce.otype || "CE",
+            };
+
+            // Transform PE data - same structure as CE
+            const pe = strikeData?.pe || {};
+            const transformedPe = {
+              ltp: pe.ltp || 0,
+              atp: pe.atp || 0,
+              pc: pe.pc || 0,
+              volume: pe.volume || pe.vol || 0,
+              vol: pe.vol || pe.volume || 0,
+              pVol: pe.pVol || 0,
+              // OI fields
+              OI: pe.OI || pe.oi || 0,
+              oi: pe.OI || pe.oi || 0,
+              oichng: pe.oichng || pe.oi_change || 0,
+              oi_change: pe.oichng || pe.oi_change || 0,
+              p_oi: pe.p_oi || 0,
+              oiperchnge: pe.oiperchnge || 0,
+              // IV & Greeks
+              iv: pe.iv || 0,
+              optgeeks: pe.optgeeks || {},
+              delta: pe.optgeeks?.delta || 0,
+              gamma: pe.optgeeks?.gamma || 0,
+              theta: pe.optgeeks?.theta || 0,
+              vega: pe.optgeeks?.vega || 0,
+              // Price change
+              p_chng: pe.p_chng || pe.change || 0,
+              p_pchng: pe.p_pchng || 0,
+              // Bid/Ask
+              bid: pe.bid || 0,
+              ask: pe.ask || 0,
+              bid_qty: pe.bid_qty || 0,
+              ask_qty: pe.ask_qty || 0,
+              // Build-up signals
+              btyp: pe.btyp || "NT",
+              BuiltupName: pe.BuiltupName || "NEUTRAL",
+              mness: pe.mness || "",
+              // Symbol info
+              sym: pe.sym || "",
+              sid: pe.sid || 0,
+              disp_sym: pe.disp_sym || "",
+              otype: pe.otype || "PE",
+            };
+
+            transformedOc[numericKey] = {
+              strike: strikeData.strike || numericKey,
+              strike_price: strikeData.strike_price || numericKey,
+              ce: transformedCe,
+              pe: transformedPe,
+              // Reversal data
+              reversal: strikeData.reversal || 0,
+              wkly_reversal: strikeData.wkly_reversal || 0,
+              fut_reversal: strikeData.fut_reversal || 0,
+              // Support/Resistance
+              rs: strikeData.rs || 0,
+              rr: strikeData.rr || 0,
+              ss: strikeData.ss || 0,
+              sr_diff: strikeData.sr_diff || 0,
+              // Time value
+              ce_tv: strikeData.ce_tv || 0,
+              pe_tv: strikeData.pe_tv || 0,
+              // Signals
+              pcr: strikeData.pcr || 0,
+              trading_signals: strikeData.trading_signals || {},
+              market_regimes: strikeData.market_regimes || {},
+              price_range: strikeData.price_range || {},
+            };
+          });
+        }
+
+        state.data = {
+          options: {
+            data: {
+              oc: transformedOc,
+              sltp: raw.spot?.ltp || 0,
+              schng: raw.spot?.change || 0,
+              sperchng: raw.spot?.change_percent || 0,
+              u_id: raw.u_id || 0,
+              fl: raw.future || {},
+              atmiv: raw.atmiv || 0,
+              atmiv_change: raw.atmiv_change || 0,
+              atm_strike: raw.atm_strike || 0,
+              symbol: raw.symbol,
+              expiry: raw.expiry,
+              // New fields from backend
+              max_pain_strike: raw.max_pain_strike || 0,
+              dte: raw.dte || raw.days_to_expiry || 0,
+              lot_size: raw.lot_size || 75,
+              total_ce_oi: raw.total_ce_oi || 0,
+              total_pe_oi: raw.total_pe_oi || 0,
+              pcr: raw.pcr || 0,
+              expiry_list: raw.expiry_list || [],
+            }
+          },
+          spot: {
+            data: {
+              Ltp: raw.spot?.ltp || 0,
+              Change: raw.spot?.change || 0,
+              ChangePercent: raw.spot?.change_percent || 0,
+              ltp: raw.spot?.ltp || 0,
+              change: raw.spot?.change || 0,
+              change_percent: raw.spot?.change_percent || 0,
+            }
+          },
+          fut: {
+            data: {
+              flst: raw.future || {},
+              explist: raw.expiry_list || (raw.expiry ? [raw.expiry] : [])
+            }
+          }
+        };
         state.loading = false;
       })
       .addCase(fetchLiveData.rejected, (state, action) => {
@@ -473,9 +461,11 @@ export const dataSlice = createSlice({
         state.error = null;
       })
       .addCase(fetchExpiryDate.fulfilled, (state, action) => {
-        const expiryDates = Array.isArray(action.payload)
-          ? action.payload
-          : action.payload?.expiry_dates || [];
+        // Backend returns: {success, data: {symbol, expiry_dates: [...]}}
+        const payload = action.payload;
+        const expiryDates = Array.isArray(payload)
+          ? payload
+          : payload?.data?.expiry_dates || payload?.expiry_dates || [];
         state.expDate = expiryDates;
         if (expiryDates.length > 0) {
           const latestExpiry = getLatestExpiry(expiryDates);
@@ -485,17 +475,6 @@ export const dataSlice = createSlice({
       })
       .addCase(fetchExpiryDate.rejected, (state, action) => {
         state.error = action.payload || "Failed to fetch expiry dates";
-        state.loading = false;
-      })
-      .addCase(startLiveStream.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(startLiveStream.fulfilled, (state) => {
-        state.loading = false;
-      })
-      .addCase(startLiveStream.rejected, (state, action) => {
-        state.error = action.payload || "Failed to start stream";
         state.loading = false;
       });
   },
@@ -515,13 +494,8 @@ export const {
 } = dataSlice.actions;
 
 export const stopLiveStream = () => (dispatch) => {
-  if (socket) {
-    socket.emit("stop_stream");
-    socket.off("live_data");
-    socket.disconnect();
-    socket = null;
-    dispatch(setStreamingState(false));
-  }
+  // Socket cleanup now handled by useSocket hook
+  dispatch(setStreamingState(false));
 };
 
 export const clearActiveRequests = () => {

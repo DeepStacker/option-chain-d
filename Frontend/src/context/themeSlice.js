@@ -10,16 +10,20 @@ export const themeSlice = createSlice({
     isItmHighlighting: false,
   },
   reducers: {
+    setDarkTheme: (state) => {
+      state.theme = 'dark';
+      localStorage.setItem('theme', 'dark');
+    },
+    setLightTheme: (state) => {
+      state.theme = 'light';
+      localStorage.setItem('theme', 'light');
+    },
     toggleTheme: (state) => {
-      state.theme = state.theme === "dark" ? "light" : "dark";
+      const newTheme = state.theme === 'light' ? 'dark' : 'light';
+      state.theme = newTheme;
+      localStorage.setItem('theme', newTheme);
     },
-    setIsReversed: (state, action) => {
-      state.isReversed = state.isReversed === true ? false : true;
-    },
-    setIsHighlighting: (state, action) => {
-      state.isHighlighting = state.isHighlighting === true ? false : true;
-    },
-    setIsItmHighlighting: (state, action) => {
+    setIsItmHighlighting: (state) => {
       state.isItmHighlighting = state.isItmHighlighting === true ? false : true;
     },
   },

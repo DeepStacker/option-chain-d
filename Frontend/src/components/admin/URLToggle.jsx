@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+
+import { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { motion, AnimatePresence } from "framer-motion";
 import { setURLs } from "../../context/configSlice";
@@ -19,8 +20,8 @@ const productionURLs = {
 };
 
 const localURLs = {
-  baseURL: "http://127.0.0.1:10001/api",
-  socketURL: "http://127.0.0.1:10001",
+  baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api/v1",
+  socketURL: import.meta.env.VITE_SOCKET_URL || "ws://localhost:8000",
 };
 
 const URLToggle = () => {
@@ -59,9 +60,11 @@ const URLToggle = () => {
       setConnectionStatus((prev) => ({ ...prev, api: "error" }));
     }
 
-    // Check socket connection (simplified check)
-      try {
-      const response = await fetch(`${socketURL}/health`, {
+    // Check socket connection (using HTTP health check on same port)
+    try {
+      // Replace ws/wss with http/https for health check
+      const httpUrl = socketURL.replace(/^ws/, "http");
+      const response = await fetch(`${httpUrl}/`, {
         method: "GET",
         timeout: 5000,
       });
@@ -177,20 +180,18 @@ const URLToggle = () => {
         variants={containerVariants}
         initial="hidden"
         animate="visible"
-        className={`max-w-2xl mx-auto p-6 rounded-2xl shadow-xl border ${
-          theme === "dark"
-            ? "bg-gray-800 border-gray-700"
-            : "bg-white border-gray-200"
-        }`}
+        className={`max-w-2xl mx-auto p-6 rounded-2xl shadow-xl border ${theme === "dark"
+          ? "bg-gray-800 border-gray-700"
+          : "bg-white border-gray-200"
+          }`}
       >
         {/* Header */}
         <motion.div variants={itemVariants} className="flex items-center mb-6">
           <div
-            className={`p-3 rounded-xl mr-4 ${
-              isDev
-                ? "bg-orange-500/20 text-orange-500"
-                : "bg-green-500/20 text-green-500"
-            }`}
+            className={`p-3 rounded-xl mr-4 ${isDev
+              ? "bg-orange-500/20 text-orange-500"
+              : "bg-green-500/20 text-green-500"
+              }`}
           >
             {isDev ? (
               <ComputerDesktopIcon className="w-6 h-6" />
@@ -200,16 +201,14 @@ const URLToggle = () => {
           </div>
           <div>
             <h2
-              className={`text-2xl font-bold ${
-                theme === "dark" ? "text-white" : "text-gray-900"
-              }`}
+              className={`text-2xl font-bold ${theme === "dark" ? "text-white" : "text-gray-900"
+                }`}
             >
               Environment Configuration
             </h2>
             <p
-              className={`text-sm ${
-                theme === "dark" ? "text-gray-400" : "text-gray-600"
-              }`}
+              className={`text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-600"
+                }`}
             >
               Manage your trading platform environment settings[1][3]
             </p>
@@ -219,28 +218,25 @@ const URLToggle = () => {
         {/* Current Environment Status */}
         <motion.div variants={itemVariants} className="space-y-4 mb-6">
           <div
-            className={`p-4 rounded-xl border ${
-              isDev
-                ? theme === "dark"
-                  ? "bg-orange-900/20 border-orange-500/30"
-                  : "bg-orange-50 border-orange-200"
-                : theme === "dark"
+            className={`p-4 rounded-xl border ${isDev
+              ? theme === "dark"
+                ? "bg-orange-900/20 border-orange-500/30"
+                : "bg-orange-50 border-orange-200"
+              : theme === "dark"
                 ? "bg-green-900/20 border-green-500/30"
                 : "bg-green-50 border-green-200"
-            }`}
+              }`}
           >
             <div className="flex items-center justify-between mb-3">
               <span
-                className={`text-sm font-medium ${
-                  theme === "dark" ? "text-gray-300" : "text-gray-700"
-                }`}
+                className={`text-sm font-medium ${theme === "dark" ? "text-gray-300" : "text-gray-700"
+                  }`}
               >
                 Current Environment
               </span>
               <span
-                className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                  isDev ? "bg-orange-500 text-white" : "bg-green-500 text-white"
-                }`}
+                className={`px-3 py-1 rounded-full text-xs font-semibold ${isDev ? "bg-orange-500 text-white" : "bg-green-500 text-white"
+                  }`}
               >
                 {currentEnvLabel}
               </span>
@@ -252,9 +248,8 @@ const URLToggle = () => {
                 <div className="flex items-center space-x-2">
                   <ServerIcon className="w-4 h-4 text-gray-500" />
                   <span
-                    className={`text-sm ${
-                      theme === "dark" ? "text-gray-400" : "text-gray-600"
-                    }`}
+                    className={`text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-600"
+                      }`}
                   >
                     API Server
                   </span>
@@ -262,13 +257,12 @@ const URLToggle = () => {
                 <div className="flex items-center space-x-2">
                   {getStatusIcon(connectionStatus.api)}
                   <span
-                    className={`text-xs font-medium ${
-                      connectionStatus.api === "connected"
-                        ? "text-green-600"
-                        : connectionStatus.api === "error"
+                    className={`text-xs font-medium ${connectionStatus.api === "connected"
+                      ? "text-green-600"
+                      : connectionStatus.api === "error"
                         ? "text-red-600"
                         : "text-yellow-600"
-                    }`}
+                      }`}
                   >
                     {getStatusText(connectionStatus.api)}
                   </span>
@@ -279,9 +273,8 @@ const URLToggle = () => {
                 <div className="flex items-center space-x-2">
                   <WifiIcon className="w-4 h-4 text-gray-500" />
                   <span
-                    className={`text-sm ${
-                      theme === "dark" ? "text-gray-400" : "text-gray-600"
-                    }`}
+                    className={`text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-600"
+                      }`}
                   >
                     WebSocket
                   </span>
@@ -289,13 +282,12 @@ const URLToggle = () => {
                 <div className="flex items-center space-x-2">
                   {getStatusIcon(connectionStatus.socket)}
                   <span
-                    className={`text-xs font-medium ${
-                      connectionStatus.socket === "connected"
-                        ? "text-green-600"
-                        : connectionStatus.socket === "error"
+                    className={`text-xs font-medium ${connectionStatus.socket === "connected"
+                      ? "text-green-600"
+                      : connectionStatus.socket === "error"
                         ? "text-red-600"
                         : "text-yellow-600"
-                    }`}
+                      }`}
                   >
                     {getStatusText(connectionStatus.socket)}
                   </span>
@@ -306,27 +298,23 @@ const URLToggle = () => {
 
           {/* URL Details */}
           <div
-            className={`p-4 rounded-xl ${
-              theme === "dark" ? "bg-gray-700/50" : "bg-gray-50"
-            }`}
+            className={`p-4 rounded-xl ${theme === "dark" ? "bg-gray-700/50" : "bg-gray-50"
+              }`}
           >
             <div className="space-y-3">
               <div>
                 <label
-                  className={`text-xs font-medium ${
-                    theme === "dark" ? "text-gray-400" : "text-gray-600"
-                  }`}
+                  className={`text-xs font-medium ${theme === "dark" ? "text-gray-400" : "text-gray-600"
+                    }`}
                 >
                   API Base URL
                 </label>
                 <div
-                  className={`mt-1 p-2 rounded-lg font-mono text-sm ${
-                    theme === "dark"
-                      ? "bg-gray-800 text-gray-300"
-                      : "bg-white text-gray-700"
-                  } border ${
-                    theme === "dark" ? "border-gray-600" : "border-gray-200"
-                  }`}
+                  className={`mt-1 p-2 rounded-lg font-mono text-sm ${theme === "dark"
+                    ? "bg-gray-800 text-gray-300"
+                    : "bg-white text-gray-700"
+                    } border ${theme === "dark" ? "border-gray-600" : "border-gray-200"
+                    }`}
                 >
                   {baseURL}
                 </div>
@@ -334,20 +322,17 @@ const URLToggle = () => {
 
               <div>
                 <label
-                  className={`text-xs font-medium ${
-                    theme === "dark" ? "text-gray-400" : "text-gray-600"
-                  }`}
+                  className={`text-xs font-medium ${theme === "dark" ? "text-gray-400" : "text-gray-600"
+                    }`}
                 >
                   WebSocket URL
                 </label>
                 <div
-                  className={`mt-1 p-2 rounded-lg font-mono text-sm ${
-                    theme === "dark"
-                      ? "bg-gray-800 text-gray-300"
-                      : "bg-white text-gray-700"
-                  } border ${
-                    theme === "dark" ? "border-gray-600" : "border-gray-200"
-                  }`}
+                  className={`mt-1 p-2 rounded-lg font-mono text-sm ${theme === "dark"
+                    ? "bg-gray-800 text-gray-300"
+                    : "bg-white text-gray-700"
+                    } border ${theme === "dark" ? "border-gray-600" : "border-gray-200"
+                    }`}
                 >
                   {socketURL}
                 </div>
@@ -363,11 +348,10 @@ const URLToggle = () => {
         >
           <button
             onClick={checkConnectionStatus}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
-              theme === "dark"
-                ? "bg-gray-700 hover:bg-gray-600 text-gray-300"
-                : "bg-gray-100 hover:bg-gray-200 text-gray-700"
-            }`}
+            className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${theme === "dark"
+              ? "bg-gray-700 hover:bg-gray-600 text-gray-300"
+              : "bg-gray-100 hover:bg-gray-200 text-gray-700"
+              }`}
           >
             <ArrowPathIcon className="w-4 h-4" />
             <span className="text-sm">Refresh Status</span>
@@ -378,15 +362,13 @@ const URLToggle = () => {
             whileTap={{ scale: 0.95 }}
             onClick={handleToggleClick}
             disabled={isToggling}
-            className={`px-6 py-3 rounded-xl font-semibold text-white transition-all duration-200 ${
-              isDev
-                ? "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
-                : "bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700"
-            } ${
-              isToggling
+            className={`px-6 py-3 rounded-xl font-semibold text-white transition-all duration-200 ${isDev
+              ? "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
+              : "bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700"
+              } ${isToggling
                 ? "opacity-50 cursor-not-allowed"
                 : "shadow-lg hover:shadow-xl"
-            }`}
+              }`}
           >
             {isToggling ? (
               <div className="flex items-center space-x-2">
@@ -402,26 +384,23 @@ const URLToggle = () => {
         {/* Environment Info */}
         <motion.div
           variants={itemVariants}
-          className={`mt-6 p-4 rounded-xl ${
-            theme === "dark"
-              ? "bg-blue-900/20 border border-blue-500/30"
-              : "bg-blue-50 border border-blue-200"
-          }`}
+          className={`mt-6 p-4 rounded-xl ${theme === "dark"
+            ? "bg-blue-900/20 border border-blue-500/30"
+            : "bg-blue-50 border border-blue-200"
+            }`}
         >
           <div className="flex items-start space-x-3">
             <ExclamationTriangleIcon className="w-5 h-5 text-blue-500 mt-0.5 flex-shrink-0" />
             <div>
               <p
-                className={`text-sm font-medium ${
-                  theme === "dark" ? "text-blue-300" : "text-blue-800"
-                }`}
+                className={`text-sm font-medium ${theme === "dark" ? "text-blue-300" : "text-blue-800"
+                  }`}
               >
                 Environment Switch Notice
               </p>
               <p
-                className={`text-xs mt-1 ${
-                  theme === "dark" ? "text-blue-400" : "text-blue-700"
-                }`}
+                className={`text-xs mt-1 ${theme === "dark" ? "text-blue-400" : "text-blue-700"
+                  }`}
               >
                 Switching environments will change your API endpoints and may
                 affect real-time data connections. Make sure the target
@@ -449,33 +428,29 @@ const URLToggle = () => {
               animate="visible"
               exit="exit"
               onClick={(e) => e.stopPropagation()}
-              className={`w-full max-w-md p-6 rounded-2xl shadow-2xl ${
-                theme === "dark"
-                  ? "bg-gray-800 border border-gray-700"
-                  : "bg-white border border-gray-200"
-              }`}
+              className={`w-full max-w-md p-6 rounded-2xl shadow-2xl ${theme === "dark"
+                ? "bg-gray-800 border border-gray-700"
+                : "bg-white border border-gray-200"
+                }`}
             >
               <div className="text-center">
                 <div
-                  className={`mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-4 ${
-                    theme === "dark" ? "bg-yellow-900/20" : "bg-yellow-100"
-                  }`}
+                  className={`mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-4 ${theme === "dark" ? "bg-yellow-900/20" : "bg-yellow-100"
+                    }`}
                 >
                   <ExclamationTriangleIcon className="w-8 h-8 text-yellow-500" />
                 </div>
 
                 <h3
-                  className={`text-xl font-bold mb-2 ${
-                    theme === "dark" ? "text-white" : "text-gray-900"
-                  }`}
+                  className={`text-xl font-bold mb-2 ${theme === "dark" ? "text-white" : "text-gray-900"
+                    }`}
                 >
                   Confirm Environment Switch
                 </h3>
 
                 <p
-                  className={`mb-6 ${
-                    theme === "dark" ? "text-gray-400" : "text-gray-600"
-                  }`}
+                  className={`mb-6 ${theme === "dark" ? "text-gray-400" : "text-gray-600"
+                    }`}
                 >
                   Are you sure you want to switch to <strong>{nextEnv}</strong>{" "}
                   environment? This will change your API endpoints and may
@@ -487,11 +462,10 @@ const URLToggle = () => {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={cancelToggle}
-                    className={`flex-1 px-4 py-3 rounded-xl font-medium transition-colors ${
-                      theme === "dark"
-                        ? "bg-gray-700 hover:bg-gray-600 text-gray-300"
-                        : "bg-gray-100 hover:bg-gray-200 text-gray-700"
-                    }`}
+                    className={`flex-1 px-4 py-3 rounded-xl font-medium transition-colors ${theme === "dark"
+                      ? "bg-gray-700 hover:bg-gray-600 text-gray-300"
+                      : "bg-gray-100 hover:bg-gray-200 text-gray-700"
+                      }`}
                   >
                     Cancel
                   </motion.button>

@@ -1,11 +1,10 @@
-import React, { useState, useRef } from 'react';
+import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { motion, AnimatePresence } from 'framer-motion';
 import { updateUserProfile } from '../../context/authSlice';
 import { FiEdit2, FiCamera } from 'react-icons/fi';
 import { format } from 'date-fns';
-import { USER_API_URL } from '../../api/config';
-import axios from 'axios';
+
 
 const Profile = () => {
   const dispatch = useDispatch();

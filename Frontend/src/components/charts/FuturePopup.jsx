@@ -16,21 +16,20 @@ const FuturePopup = ({ onClose }) => {
     const theme = useSelector((state) => state.theme.theme);
     const [activeSection, setActiveSection] = useState('Future');
 
-    if (!data) return null;
-
     const themeColors = useMemo(() => ({
         background: theme === 'dark' ? 'bg-gray-800' : 'bg-teal-400',
         text: theme === 'dark' ? '#e0e0e0' : '#333',
         gridColor: theme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
     }), [theme]);
 
-    const formatTimestamps = (timestamps) =>
-        timestamps.map((ts) => new Date(ts * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
-    const shortTimeLabels = useMemo(() => formatTimestamps(data.timestamp), [data.timestamp]);
+    const shortTimeLabels = useMemo(() => {
+        if (!data?.timestamp) return [];
+        return data.timestamp.map((ts) => new Date(ts * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+    }, [data]);
 
-    const createDataset = useMemo(() => (label, data, color, axis, hidden = false) => ({
+    const createDataset = useMemo(() => (label, dataPoints, color, axis, hidden = false) => ({
         label,
-        data,
+        data: dataPoints,
         borderColor: color,
         backgroundColor: color.replace('1)', '0.2)'),
         fill: false,
@@ -41,16 +40,19 @@ const FuturePopup = ({ onClose }) => {
         yAxisID: axis, // Specify which y-axis to use
     }), []);
 
-    const chartData = useMemo(() => ({
-        labels: shortTimeLabels,
-        datasets: activeSection === 'Future'
-            ? [
-                createDataset('Future Ltp', data.ltp, 'rgba(18, 180, 255, 1)', 'y1'),
-                createDataset('Future OIChng', data.oichng, 'rgba(0, 255, 0, 1)', 'y', true),
-                createDataset('Future OI', data.oi, 'rgba(255, 0, 0, 1)', 'y'),
-            ]
-            : [],
-    }), [shortTimeLabels, activeSection, createDataset, data]);
+    const chartData = useMemo(() => {
+        if (!data) return { labels: [], datasets: [] };
+        return {
+            labels: shortTimeLabels,
+            datasets: activeSection === 'Future'
+                ? [
+                    createDataset('Future Ltp', data.ltp, 'rgba(18, 180, 255, 1)', 'y1'),
+                    createDataset('Future OIChng', data.oichng, 'rgba(0, 255, 0, 1)', 'y', true),
+                    createDataset('Future OI', data.oi, 'rgba(255, 0, 0, 1)', 'y'),
+                ]
+                : [],
+        };
+    }, [shortTimeLabels, activeSection, createDataset, data]);
 
     const chartOptions = useMemo(() => ({
         responsive: true,
@@ -112,6 +114,8 @@ const FuturePopup = ({ onClose }) => {
             },
         },
     }), [themeColors]);
+
+    if (!data) return null;
 
     return (
         <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 ${

@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -28,10 +28,12 @@ import ContactUs from "./pages/Contact";
 import Tca from "./pages/Tca";
 import PositionSizing from "./pages/PositionSizing";
 import OptionChain from "./pages/OptionChain";
+import Analytics from "./pages/Analytics";
 import NotFound from "./pages/NotFound";
 import MainLayout from "./layouts/MainLayout";
-import URLToggle from "./components/admin/URLToggle";
-import TradingChart from "./components/charts/TradingChart";
+
+import AdminPanel from "./components/admin/AdminPanel";
+
 import { activateServices } from "./services/healthCheck";
 
 function App() {
@@ -107,15 +109,17 @@ function App() {
                     <Route path="/dashboard" element={<Dashboard />} />
                     <Route path="/profile" element={<Profile />} />
                     <Route path="/option-chain" element={<OptionChain />} />
+                    <Route path="/analytics" element={<Analytics />} />
                     <Route path="/position-sizing" element={<PositionSizing />} />
                     <Route path="/tca" element={<Tca />} />
-                    <Route path="/admin" element={<URLToggle />} />
-                    <Route path="/charts" element={<TradingChart />} />
+                    {/* <Route path="/charts" element={<TradingChart />} /> */}
                   </Route>
                 </Route>
                 {/* 404 Route */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
+              {/* Hidden Admin Panel - Only visible via secret key combo */}
+              <AdminPanel />
             </div>
           </Router>
         </PersistGate>

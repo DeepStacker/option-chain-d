@@ -5,7 +5,6 @@ import zoomPlugin from 'chartjs-plugin-zoom';
 import { FaTimes } from 'react-icons/fa';
 import PropTypes from 'prop-types';
 import { useSelector } from 'react-redux';
-import { formatChartNumber } from '../../utils/utils';
 
 // Register Chart.js modules and plugins
 ChartJS.register(LineElement, PointElement, CategoryScale, LinearScale, Tooltip, Legend, Title, zoomPlugin);
@@ -79,7 +78,7 @@ const DeltaPopup = ({ onClose }) => {
           boxWidth: 10,
           boxHeight: 10,
         },
-        onHover: (event, legendItem) => {
+        onHover: (event, _legendItem) => {
           const label = event.native.target;
           label.style.cursor = 'pointer';
           label.style.fontSize = '16px';

@@ -6,7 +6,9 @@ import { AppWrapper } from "./context/AppProvider.jsx";
 import { Provider } from "react-redux";
 import { store } from "./context/store.js";
 
-createRoot(document.getElementById("root")).render(
+const rootElement = document.getElementById("root");
+
+createRoot(rootElement).render(
   <StrictMode>
     <Provider store={store}>
       <AppWrapper>

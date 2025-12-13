@@ -11,7 +11,7 @@ export const calculateSMA = (data, period) => {
 export const calculateEMA = (data, period) => {
     const k = 2 / (period + 1);
     let ema = [data[0]];
-    
+
     for (let i = 1; i < data.length; i++) {
         ema.push(data[i] * k + ema[i - 1] * (1 - k));
     }
@@ -25,7 +25,7 @@ export const calculateMACD = (data) => {
     const macd = ema12.map((val, i) => val - ema26[i]);
     const signal = calculateEMA(macd, 9);
     const histogram = macd.map((val, i) => val - signal[i]);
-    
+
     return { macd, signal, histogram };
 };
 
@@ -49,28 +49,28 @@ export const calculateBollingerBands = (data, period = 20, stdDev = 2) => {
 export const linearRegressionForecast = (data, forecastDays) => {
     const x = Array.from({ length: data.length }, (_, i) => i);
     const y = data;
-    
+
     const n = x.length;
     const sumX = x.reduce((a, b) => a + b, 0);
     const sumY = y.reduce((a, b) => a + b, 0);
     const sumXY = x.reduce((acc, xi, i) => acc + xi * y[i], 0);
     const sumX2 = x.reduce((acc, xi) => acc + xi * xi, 0);
-    
+
     const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
     const intercept = (sumY - slope * sumX) / n;
-    
+
     const forecast = Array.from({ length: forecastDays }, (_, i) => {
         const x = data.length + i;
         return slope * x + intercept;
     });
-    
+
     const confidence = 1 - Math.abs(
         data.reduce((acc, yi, i) => {
             const predicted = slope * i + intercept;
             return acc + Math.abs(yi - predicted) / yi;
         }, 0) / data.length
     );
-    
+
     return { forecast, confidence };
 };
 
@@ -78,12 +78,12 @@ export const linearRegressionForecast = (data, forecastDays) => {
 export const findSupportResistance = (data, sensitivity = 2) => {
     const levels = [];
     const prices = [...data];
-    
+
     for (let i = sensitivity; i < prices.length - sensitivity; i++) {
         const current = prices[i];
         const leftPrices = prices.slice(i - sensitivity, i);
         const rightPrices = prices.slice(i + 1, i + sensitivity + 1);
-        
+
         // Check for support
         if (leftPrices.every(p => p >= current) && rightPrices.every(p => p >= current)) {
             levels.push({ type: 'support', price: current, index: i });
@@ -93,7 +93,7 @@ export const findSupportResistance = (data, sensitivity = 2) => {
             levels.push({ type: 'resistance', price: current, index: i });
         }
     }
-    
+
     return levels;
 };
 
@@ -113,32 +113,32 @@ export const calculateFibonacciLevels = (high, low) => {
 // Pattern Recognition using Machine Learning
 export const recognizePatterns = (data, windowSize = 5) => {
     const patterns = [];
-    
+
     for (let i = windowSize; i < data.length; i++) {
         const window = data.slice(i - windowSize, i);
         const normalized = normalizeWindow(window);
-        
+
         // Head and Shoulders
         if (isHeadAndShoulders(normalized)) {
             patterns.push({ type: 'Head and Shoulders', index: i });
         }
-        
+
         // Double Top
         if (isDoubleTop(normalized)) {
             patterns.push({ type: 'Double Top', index: i });
         }
-        
+
         // Double Bottom
         if (isDoubleBottom(normalized)) {
             patterns.push({ type: 'Double Bottom', index: i });
         }
-        
+
         // Triangle
         if (isTriangle(normalized)) {
             patterns.push({ type: 'Triangle', index: i });
         }
     }
-    
+
     return patterns;
 };
 
@@ -166,7 +166,7 @@ const isDoubleBottom = (normalized) => {
 };
 
 const isTriangle = (normalized) => {
-    const [a, b, c, d, e] = normalized;
+    const [a, b, c, d] = normalized;
     const slope1 = (c - a) / 2;
     const slope2 = (d - b) / 2;
     return Math.abs(slope1 + slope2) < 0.1;

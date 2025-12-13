@@ -1,5 +1,6 @@
-import React, { useMemo, useEffect, useState, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useSelector, useDispatch } from "react-redux";
+import { setResults } from "../context/tcaSlice";
 import CryptoJS from "crypto-js";
 import { toast } from "react-toastify";
 import { motion, AnimatePresence } from "framer-motion";
@@ -21,16 +22,7 @@ import ChartSection from "../components/tca/ChartSection";
 import GeneratedTrades from "../components/tca/GeneratedTrades";
 import TradeAnalysis from "../components/tca/TradeAnalysis";
 
-import {
-  setTradePerDay,
-  setNdtpc,
-  setTradeAmount,
-  setRiskReward,
-  setChancePercent,
-  setChargesPerTrade,
-  setResults,
-  setProfitLossChart,
-} from "../context/tcaSlice";
+
 
 // Enhanced API service with better error handling
 class TCAAPIService {
@@ -354,7 +346,7 @@ const ProfitLossCalculator = () => {
                   value: `₹${keyMetrics.expectedReturn.toLocaleString()}`,
                   icon: CurrencyRupeeIcon,
                 },
-              ].map((metric, index) => {
+              ].map((metric) => {
                 const Icon = metric.icon;
                 return (
                   <div
@@ -533,8 +525,8 @@ const ProfitLossCalculator = () => {
                           theme === "dark" ? "text-gray-400" : "text-gray-600"
                         }`}
                       >
-                        Fill in your trading parameters and click "Generate
-                        Analysis" to view detailed results
+                       Run analysis to see AI-generated trade setups based on &quot;The
+                  Complete Audio&quot; strategy rules.
                       </p>
                     </div>
                   </div>
