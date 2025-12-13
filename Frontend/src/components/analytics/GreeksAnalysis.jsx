@@ -78,40 +78,52 @@ const GreeksAnalysis = () => {
 
     return (
         <div className="space-y-6">
-            {/* Net Greeks Summary */}
+            {/* Premium Net Greeks Summary */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl p-4 text-white">
-                    <div className="text-xs opacity-80 mb-1">Net Delta</div>
-                    <div className="text-2xl font-bold">{netGreeks.delta.toFixed(2)}</div>
-                    <div className="text-xs opacity-70">Direction exposure</div>
+                <div className="relative overflow-hidden bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl p-5 text-white shadow-lg shadow-emerald-500/25">
+                    <div className="absolute -right-4 -top-4 w-16 h-16 bg-white/10 rounded-full blur-xl" />
+                    <div className="relative">
+                        <div className="text-xs opacity-80 mb-1 font-medium">Net Delta</div>
+                        <div className="text-3xl font-bold">{netGreeks.delta.toFixed(2)}</div>
+                        <div className="text-xs opacity-70 mt-1">Direction exposure</div>
+                    </div>
                 </div>
-                <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-4 text-white">
-                    <div className="text-xs opacity-80 mb-1">Net Gamma</div>
-                    <div className="text-2xl font-bold">{netGreeks.gamma.toFixed(4)}</div>
-                    <div className="text-xs opacity-70">Acceleration</div>
+                <div className="relative overflow-hidden bg-gradient-to-br from-violet-500 to-purple-600 rounded-2xl p-5 text-white shadow-lg shadow-violet-500/25">
+                    <div className="absolute -right-4 -top-4 w-16 h-16 bg-white/10 rounded-full blur-xl" />
+                    <div className="relative">
+                        <div className="text-xs opacity-80 mb-1 font-medium">Net Gamma</div>
+                        <div className="text-3xl font-bold">{netGreeks.gamma.toFixed(4)}</div>
+                        <div className="text-xs opacity-70 mt-1">Acceleration</div>
+                    </div>
                 </div>
-                <div className="bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-xl p-4 text-white">
-                    <div className="text-xs opacity-80 mb-1">Net Theta</div>
-                    <div className="text-2xl font-bold">{netGreeks.theta.toFixed(2)}</div>
-                    <div className="text-xs opacity-70">Time decay</div>
+                <div className="relative overflow-hidden bg-gradient-to-br from-cyan-500 to-blue-600 rounded-2xl p-5 text-white shadow-lg shadow-cyan-500/25">
+                    <div className="absolute -right-4 -top-4 w-16 h-16 bg-white/10 rounded-full blur-xl" />
+                    <div className="relative">
+                        <div className="text-xs opacity-80 mb-1 font-medium">Net Theta</div>
+                        <div className="text-3xl font-bold">{netGreeks.theta.toFixed(2)}</div>
+                        <div className="text-xs opacity-70 mt-1">Time decay</div>
+                    </div>
                 </div>
-                <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-4 text-white">
-                    <div className="text-xs opacity-80 mb-1">Net Vega</div>
-                    <div className="text-2xl font-bold">{netGreeks.vega.toFixed(2)}</div>
-                    <div className="text-xs opacity-70">Volatility exposure</div>
+                <div className="relative overflow-hidden bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl p-5 text-white shadow-lg shadow-blue-500/25">
+                    <div className="absolute -right-4 -top-4 w-16 h-16 bg-white/10 rounded-full blur-xl" />
+                    <div className="relative">
+                        <div className="text-xs opacity-80 mb-1 font-medium">Net Vega</div>
+                        <div className="text-3xl font-bold">{netGreeks.vega.toFixed(2)}</div>
+                        <div className="text-xs opacity-70 mt-1">Volatility</div>
+                    </div>
                 </div>
             </div>
 
-            {/* Greek Selector */}
-            <div className="flex gap-2">
+            {/* Premium Greek Selector */}
+            <div className="flex gap-2 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl w-fit">
                 {['delta', 'gamma', 'theta', 'vega'].map(greek => (
                     <button
                         key={greek}
                         onClick={() => setSelectedGreek(greek)}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium capitalize transition-colors ${
+                        className={`px-5 py-2.5 rounded-lg text-sm font-bold capitalize transition-all ${
                             selectedGreek === greek 
-                                ? 'bg-blue-600 text-white' 
-                                : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600'
+                                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg' 
+                                : 'text-slate-600 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-700'
                         }`}
                     >
                         {greek}

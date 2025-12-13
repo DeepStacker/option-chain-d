@@ -3,6 +3,7 @@ import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import {
   onAuthStateChanged,
   onIdTokenChanged,
+  signOut,
 } from "firebase/auth";
 import { auth } from "../firebase/init";
 
@@ -203,6 +204,32 @@ export const refreshUserToken = createAsyncThunk(
   }
 );
 
+// Logout - signs out from Firebase and clears all auth data
+export const performLogout = createAsyncThunk(
+  "auth/performLogout",
+  async (_, { dispatch, rejectWithValue }) => {
+    try {
+      console.log("🚪 Performing logout...");
+
+      // Sign out from Firebase
+      await signOut(auth);
+      console.log("✅ Firebase sign out successful");
+
+      // Clear all local auth data
+      tokenManager.clearAllAuthData();
+      tokenManager.cleanup();
+
+      return { success: true };
+    } catch (error) {
+      console.error("❌ Logout error:", error);
+      // Still clear local data even if Firebase signout fails
+      tokenManager.clearAllAuthData();
+      tokenManager.cleanup();
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
 // Auth slice with enhanced state management
 const authSlice = createSlice({
   name: "auth",
@@ -325,6 +352,27 @@ const authSlice = createSlice({
         state.user = null;
         state.isAuthenticated = false;
         tokenManager.clearAllAuthData();
+      });
+
+    // Perform logout
+    builder
+      .addCase(performLogout.pending, (state) => {
+        state.loading = true;
+      })
+      .addCase(performLogout.fulfilled, (state) => {
+        state.user = null;
+        state.isAuthenticated = false;
+        state.loading = false;
+        state.error = null;
+        state.lastActivity = null;
+        state.tokenRefreshing = false;
+        state.authLoading = false;
+      })
+      .addCase(performLogout.rejected, (state, action) => {
+        state.user = null;
+        state.isAuthenticated = false;
+        state.loading = false;
+        state.error = action.payload;
       });
   },
 });

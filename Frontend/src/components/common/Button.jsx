@@ -57,6 +57,17 @@ const Button = ({
       hover:bg-blue-50 focus:ring-blue-500
       dark:border-blue-400 dark:text-blue-400 dark:hover:bg-blue-900/20
     `,
+        // Premium variants
+        premium: `
+      bg-gradient-to-r from-blue-600 to-indigo-600 text-white 
+      hover:from-blue-500 hover:to-indigo-500 hover:shadow-lg hover:shadow-blue-500/25
+      active:scale-[0.98] focus:ring-blue-500
+    `,
+        gradient: `
+      bg-gradient-to-r from-emerald-500 to-teal-600 text-white 
+      hover:from-emerald-400 hover:to-teal-500 hover:shadow-lg hover:shadow-emerald-500/25
+      active:scale-[0.98] focus:ring-emerald-500
+    `,
     };
 
     // Size classes

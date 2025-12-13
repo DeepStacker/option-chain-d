@@ -3,6 +3,7 @@ import { Outlet } from "react-router-dom";
 import { useSelector } from "react-redux";
 import Sidebar from "../components/layout/Sidebar";
 import Toast from "../components/common/Toast";
+import QuickSymbolSwitcher from "../components/common/QuickSymbolSwitcher";
 import { AnimatePresence, motion } from "framer-motion";
 import { SidebarProvider, useSidebar } from "../context/SidebarContext";
 
@@ -61,10 +62,10 @@ const MainContent = () => {
 
   return (
     <div
-      className={`min-h-screen relative ${
+      className={`min-h-screen relative bg-mesh-gradient transition-colors duration-500 ${
         theme === "dark"
-          ? "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white"
-          : "bg-gradient-to-br from-gray-50 via-white to-gray-100 text-gray-900"
+          ? "text-white"
+          : "text-gray-900"
       }`}
     >
       {/* Background Pattern */}
@@ -97,6 +98,9 @@ const MainContent = () => {
           </motion.div>
         </main>
       </motion.div>
+
+      {/* Quick Symbol Switcher */}
+      <QuickSymbolSwitcher />
 
       {/* Scroll Progress Indicator */}
       <motion.div

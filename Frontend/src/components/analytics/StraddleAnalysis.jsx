@@ -116,15 +116,15 @@ const StraddleAnalysis = () => {
 
     return (
         <div className="space-y-6">
-            {/* Strike Selector */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+            {/* Premium Strike Selector */}
+            <div className="glass rounded-2xl p-4 border border-slate-200/50 dark:border-slate-700/50">
                 <div className="flex items-center justify-between gap-4 flex-wrap">
                     <div className="flex items-center gap-3">
-                        <label className="text-sm font-medium">Strike:</label>
+                        <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Strike:</label>
                         <select
                             value={selectedStrike || atmStrike}
                             onChange={(e) => setSelectedStrike(Number(e.target.value))}
-                            className="px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm"
+                            className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm font-medium focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
                         >
                             {strikes.map(s => (
                                 <option key={s} value={s}>
@@ -133,35 +133,47 @@ const StraddleAnalysis = () => {
                             ))}
                         </select>
                     </div>
-                    <div className="flex items-center gap-2 text-sm text-gray-500">
-                        <ClockIcon className="w-4 h-4" />
-                        <span>{daysToExpiry} days to expiry</span>
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-purple-50 dark:bg-purple-900/30 rounded-xl">
+                        <ClockIcon className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                        <span className="text-sm font-semibold text-purple-700 dark:text-purple-300">{daysToExpiry} days to expiry</span>
                     </div>
                 </div>
             </div>
 
-            {/* Straddle Summary */}
+            {/* Premium Straddle Summary */}
             {straddleData && (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-4 text-white">
-                        <div className="text-xs opacity-80 mb-1">Straddle Price</div>
-                        <div className="text-2xl font-bold">₹{straddleData.straddlePrice.toFixed(2)}</div>
-                        <div className="text-xs opacity-70">CE + PE Premium</div>
+                    <div className="relative overflow-hidden bg-gradient-to-br from-violet-500 to-purple-600 rounded-2xl p-5 text-white shadow-lg shadow-violet-500/25">
+                        <div className="absolute -right-4 -top-4 w-16 h-16 bg-white/10 rounded-full blur-xl" />
+                        <div className="relative">
+                            <div className="text-xs opacity-80 mb-1 font-medium">Straddle Price</div>
+                            <div className="text-3xl font-bold">₹{straddleData.straddlePrice.toFixed(2)}</div>
+                            <div className="text-xs opacity-70 mt-1">CE + PE Premium</div>
+                        </div>
                     </div>
-                    <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-4 text-white">
-                        <div className="text-xs opacity-80 mb-1">Upper Breakeven</div>
-                        <div className="text-2xl font-bold">{straddleData.upperBE.toFixed(0)}</div>
-                        <div className="text-xs opacity-70">+{(straddleData.upperBE - spotPrice).toFixed(0)} from spot</div>
+                    <div className="relative overflow-hidden bg-gradient-to-br from-emerald-500 to-green-600 rounded-2xl p-5 text-white shadow-lg shadow-emerald-500/25">
+                        <div className="absolute -right-4 -top-4 w-16 h-16 bg-white/10 rounded-full blur-xl" />
+                        <div className="relative">
+                            <div className="text-xs opacity-80 mb-1 font-medium">Upper Breakeven</div>
+                            <div className="text-3xl font-bold">{straddleData.upperBE.toFixed(0)}</div>
+                            <div className="text-xs opacity-70 mt-1">+{(straddleData.upperBE - spotPrice).toFixed(0)} from spot</div>
+                        </div>
                     </div>
-                    <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-xl p-4 text-white">
-                        <div className="text-xs opacity-80 mb-1">Lower Breakeven</div>
-                        <div className="text-2xl font-bold">{straddleData.lowerBE.toFixed(0)}</div>
-                        <div className="text-xs opacity-70">{(straddleData.lowerBE - spotPrice).toFixed(0)} from spot</div>
+                    <div className="relative overflow-hidden bg-gradient-to-br from-rose-500 to-red-600 rounded-2xl p-5 text-white shadow-lg shadow-rose-500/25">
+                        <div className="absolute -right-4 -top-4 w-16 h-16 bg-white/10 rounded-full blur-xl" />
+                        <div className="relative">
+                            <div className="text-xs opacity-80 mb-1 font-medium">Lower Breakeven</div>
+                            <div className="text-3xl font-bold">{straddleData.lowerBE.toFixed(0)}</div>
+                            <div className="text-xs opacity-70 mt-1">{(straddleData.lowerBE - spotPrice).toFixed(0)} from spot</div>
+                        </div>
                     </div>
-                    <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-xl p-4 text-white">
-                        <div className="text-xs opacity-80 mb-1">Expected Move</div>
-                        <div className="text-2xl font-bold">±{straddleData.expectedMove.toFixed(2)}%</div>
-                        <div className="text-xs opacity-70">{straddleData.straddlePrice.toFixed(0)} pts range</div>
+                    <div className="relative overflow-hidden bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl p-5 text-white shadow-lg shadow-amber-500/25">
+                        <div className="absolute -right-4 -top-4 w-16 h-16 bg-white/10 rounded-full blur-xl" />
+                        <div className="relative">
+                            <div className="text-xs opacity-80 mb-1 font-medium">Expected Move</div>
+                            <div className="text-3xl font-bold">±{straddleData.expectedMove.toFixed(2)}%</div>
+                            <div className="text-xs opacity-70 mt-1">{straddleData.straddlePrice.toFixed(0)} pts range</div>
+                        </div>
                     </div>
                 </div>
             )}

@@ -18,7 +18,7 @@ const PositionSizing = () => {
             theme === "dark" ? "bg-gray-900 text-white" : "bg-gray-100 text-black"
         }`}>
             {/* Header Section */}
-            <div className="w-full p-4 flex flex-col md:flex-row justify-between items-center border-b border-gray-300">
+            <div className="w-full p-4 flex flex-col md:flex-row justify-between items-center border-b border-gray-300 dark:border-gray-700">
                 <h2 className="text-3xl font-bold text-center md:text-left">Position Sizing Calculator</h2>
             </div>
 

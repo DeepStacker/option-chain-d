@@ -1,8 +1,130 @@
-import { memo, useEffect } from 'react';
+import { memo, useEffect, useState, useRef } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { selectSid, selectSelectedExpiry, selectExpiryList } from '../../../context/selectors';
 import { setSidAndFetchData, setExp_sid } from '../../../context/dataSlice';
 import { setSymbols } from '../../../context/chartSlice';
+
+/**
+ * Premium Symbol Selector - Inline version for OptionControls
+ */
+const PremiumSymbolSelector = ({ symbols, currentSymbol, onSelect, theme }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const [search, setSearch] = useState('');
+    const containerRef = useRef(null);
+    const inputRef = useRef(null);
+
+    // Known indices
+    const INDICES = ['NIFTY', 'BANKNIFTY', 'FINNIFTY', 'MIDCPNIFTY', 'SENSEX', 'BANKEX', 'NIFTYNXT50'];
+
+    // Filter symbols
+    const filtered = symbols.filter(s => 
+        s.symbol.toLowerCase().includes(search.toLowerCase()) ||
+        (s.name || '').toLowerCase().includes(search.toLowerCase())
+    );
+
+    const indices = filtered.filter(s => INDICES.includes(s.symbol));
+    const equities = filtered.filter(s => !INDICES.includes(s.symbol));
+
+    // Close on outside click
+    useEffect(() => {
+        const handleClick = (e) => {
+            if (containerRef.current && !containerRef.current.contains(e.target)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClick);
+        return () => document.removeEventListener('mousedown', handleClick);
+    }, []);
+
+    useEffect(() => {
+        if (isOpen && inputRef.current) inputRef.current.focus();
+    }, [isOpen]);
+
+    const handleSelect = (s) => {
+        onSelect(s.symbol);
+        setIsOpen(false);
+        setSearch('');
+    };
+
+    const isDark = theme === 'dark';
+    const isIndex = INDICES.includes(currentSymbol);
+
+    return (
+        <div ref={containerRef} className="relative">
+            {/* Trigger */}
+            <button
+                onClick={() => setIsOpen(!isOpen)}
+                className={`
+                    flex items-center gap-2 px-4 py-2 rounded-xl border shadow-md
+                    font-bold text-sm transition-all duration-200 min-w-[140px]
+                    ${isDark 
+                        ? 'bg-gradient-to-r from-slate-800 to-slate-900 border-slate-600 text-white hover:border-slate-500' 
+                        : 'bg-gradient-to-r from-white to-gray-50 border-gray-200 text-gray-900 hover:border-gray-300'}
+                    ${isOpen ? 'ring-2 ring-emerald-500/50 shadow-lg' : ''}
+                `}
+            >
+                <span className="text-lg">{isIndex ? '📈' : '🏢'}</span>
+                <span className="tracking-wide">{currentSymbol || 'Select'}</span>
+                <svg className={`w-4 h-4 ml-auto transition-transform ${isOpen ? 'rotate-180' : ''} ${isDark ? 'text-gray-400' : 'text-gray-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+            </button>
+
+            {/* Dropdown */}
+            {isOpen && (
+                <div className={`absolute top-full left-0 mt-2 w-80 max-h-[70vh] rounded-xl border shadow-2xl z-50 overflow-hidden ${isDark ? 'bg-slate-900/98 border-slate-700 backdrop-blur-xl' : 'bg-white/98 border-gray-200 backdrop-blur-xl'}`}>
+                    {/* Search */}
+                    <div className={`p-3 border-b ${isDark ? 'border-slate-700' : 'border-gray-100'}`}>
+                        <div className="relative">
+                            <svg className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-gray-500' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                            <input
+                                ref={inputRef}
+                                type="text"
+                                placeholder="Search symbols..."
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                className={`w-full pl-10 pr-4 py-2.5 rounded-lg text-sm focus:outline-none focus:ring-2 ${isDark ? 'bg-slate-800 text-white placeholder-gray-500 focus:ring-emerald-500/50' : 'bg-gray-100 text-gray-900 placeholder-gray-400 focus:ring-emerald-400/50'}`}
+                            />
+                        </div>
+                    </div>
+
+                    {/* List */}
+                    <div className="overflow-y-auto max-h-80 p-2">
+                        {indices.length > 0 && (
+                            <div className="mb-3">
+                                <div className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>📊 Indices</div>
+                                {indices.map(s => (
+                                    <button key={s.symbol} onClick={() => handleSelect(s)}
+                                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all ${currentSymbol === s.symbol ? (isDark ? 'bg-emerald-600/20 text-emerald-400 font-bold' : 'bg-emerald-50 text-emerald-700 font-bold') : (isDark ? 'hover:bg-slate-700/50 text-gray-200' : 'hover:bg-gray-100 text-gray-800')}`}>
+                                        <span className="text-lg">📈</span>
+                                        <span className="font-semibold">{s.symbol}</span>
+                                        {currentSymbol === s.symbol && <svg className="w-4 h-4 ml-auto text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                        {equities.length > 0 && (
+                            <div>
+                                <div className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>🏢 Equities</div>
+                                {equities.map(s => (
+                                    <button key={s.symbol} onClick={() => handleSelect(s)}
+                                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all ${currentSymbol === s.symbol ? (isDark ? 'bg-emerald-600/20 text-emerald-400 font-bold' : 'bg-emerald-50 text-emerald-700 font-bold') : (isDark ? 'hover:bg-slate-700/50 text-gray-200' : 'hover:bg-gray-100 text-gray-800')}`}>
+                                        <span className="text-lg">🏢</span>
+                                        <span className="font-semibold">{s.symbol}</span>
+                                        {currentSymbol === s.symbol && <svg className="w-4 h-4 ml-auto text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                        {filtered.length === 0 && <div className={`text-center py-8 text-sm ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>No symbols found</div>}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
 
 /**
  * Compact Option Controls - Symbol, Expiry, and Chart Toggle
@@ -35,8 +157,8 @@ const OptionControls = memo(({ showChart, onToggleChart }) => {
         }
     }, [symbols.length, dispatch]);
 
-    const handleSymbolChange = (e) => {
-        dispatch(setSidAndFetchData({ newSid: e.target.value }));
+    const handleSymbolChange = (symbolValue) => {
+        dispatch(setSidAndFetchData({ newSid: symbolValue }));
     };
 
     const handleExpiryChange = (e) => {
@@ -50,38 +172,13 @@ const OptionControls = memo(({ showChart, onToggleChart }) => {
 
     return (
         <div className="flex items-center gap-3 p-1">
-            {/* Symbol - Pill Shape */}
-            <div className="relative group">
-                <select
-                    value={displaySymbol}
-                    onChange={handleSymbolChange}
-                    className={`
-                        appearance-none pl-4 pr-8 py-1.5 text-sm font-semibold rounded-full 
-                        border transition-all duration-200 cursor-pointer shadow-sm
-                        ${theme === 'dark'
-                            ? 'bg-gray-800 border-gray-700 text-gray-100 hover:border-gray-600 focus:ring-2 focus:ring-emerald-500/50'
-                            : 'bg-white border-gray-200 text-gray-800 hover:border-gray-300 focus:ring-2 focus:ring-emerald-500/50'
-                        }
-                    `}
-                >
-                    {symbols.length > 0 ? (
-                        symbols.map((s) => (
-                            <option key={s.symbol} value={s.symbol}>
-                                {s.symbol}
-                            </option>
-                        ))
-                    ) : (
-                        <>
-                            <option value="NIFTY">NIFTY</option>
-                            <option value="BANKNIFTY">BANKNIFTY</option>
-                            <option value="FINNIFTY">FINNIFTY</option>
-                        </>
-                    )}
-                </select>
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                </div>
-            </div>
+            {/* Premium Symbol Selector */}
+            <PremiumSymbolSelector
+                symbols={symbols.length > 0 ? symbols : [{ symbol: 'NIFTY' }, { symbol: 'BANKNIFTY' }, { symbol: 'FINNIFTY' }]}
+                currentSymbol={displaySymbol}
+                onSelect={handleSymbolChange}
+                theme={theme}
+            />
 
             {/* Expiry - hide in chart mode */}
             {!showChart && (

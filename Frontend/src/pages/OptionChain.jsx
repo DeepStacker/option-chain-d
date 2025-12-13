@@ -47,10 +47,10 @@ const OptionChain = () => {
 
       <ColumnConfigProvider>
         <TableSettingsProvider>
-          <div className="w-full px-2 py-2 space-y-1">
+          <div className="w-full px-2 py-2 space-y-2">
             
-            {/* Always visible control bar */}
-            <div className="flex flex-wrap items-center gap-2">
+            {/* Premium Control Bar */}
+            <div className="flex flex-wrap items-center gap-2 p-2 glass rounded-xl">
               <OptionControls 
                 showChart={showChart} 
                 onToggleChart={() => setShowChart(!showChart)} 
@@ -68,11 +68,13 @@ const OptionChain = () => {
 
             {/* Conditional view: Chart or Table */}
             {showChart ? (
-              <Card className="overflow-hidden" padding="none">
+              <Card variant="glass" className="overflow-hidden" padding="none">
                 <TradingChart embedded={true} />
               </Card>
             ) : (
-              <OptionChainTable showControls={false} />
+              <div className="glass-strong rounded-2xl overflow-hidden animate-fade-in">
+                <OptionChainTable showControls={false} />
+              </div>
             )}
           </div>
         </TableSettingsProvider>

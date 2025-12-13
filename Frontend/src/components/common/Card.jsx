@@ -54,6 +54,9 @@ const Card = ({
         outlined: 'bg-transparent border-2 border-gray-300 dark:border-gray-600',
         filled: 'bg-gray-100 dark:bg-gray-700',
         gradient: 'bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-800 dark:to-gray-900',
+        // Premium variants
+        glass: 'glass rounded-2xl',
+        premium: 'card-premium',
     };
 
     const classes = `

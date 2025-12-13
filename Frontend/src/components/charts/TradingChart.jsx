@@ -29,6 +29,7 @@ import {
   debounce,
   throttle,
 } from "../../utils/chartUtils";
+import SymbolSelector from "./SymbolSelector";
 
 const TradingChart = React.memo(({ embedded = false }) => {
   const dispatch = useDispatch();
@@ -648,11 +649,12 @@ const TradingChart = React.memo(({ embedded = false }) => {
       <div className={`flex flex-wrap gap-1 ${embedded ? 'p-1.5' : 'p-3'} border-b shadow-lg ${themeClasses.toolbar}`}>
         {/* ... Toolbar content same as before ... */}
         {!embedded && (
-          <select className={`px-3 py-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 ${themeClasses.select}`}
-            value={currentSymbol?.symbol || ""} onChange={(e) => { const newSymbol = symbols.find((s) => s.symbol === e.target.value); if (newSymbol) dispatch(setCurrentSymbol(newSymbol)); }}>
-            <option value="">Select Symbol</option>
-            {symbols.map((s) => <option key={s.symbol} value={s.symbol}>{s.name || s.symbol}</option>)}
-          </select>
+          <SymbolSelector
+            symbols={symbols}
+            currentSymbol={currentSymbol}
+            onSelect={(s) => dispatch(setCurrentSymbol(s))}
+            theme={theme}
+          />
         )}
 
         <div className="flex flex-wrap gap-1">

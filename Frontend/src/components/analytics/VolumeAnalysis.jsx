@@ -79,25 +79,40 @@ const VolumeAnalysis = () => {
 
     return (
         <div className="space-y-6">
-            {/* Summary Cards */}
+            {/* Premium Summary Cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-xl p-4 text-white">
-                    <div className="text-xs opacity-80 mb-1">Total Call Volume</div>
-                    <div className="text-2xl font-bold">{formatNumber(totals.ce)}</div>
-                </div>
-                <div className="bg-gradient-to-br from-pink-500 to-pink-600 rounded-xl p-4 text-white">
-                    <div className="text-xs opacity-80 mb-1">Total Put Volume</div>
-                    <div className="text-2xl font-bold">{formatNumber(totals.pe)}</div>
-                </div>
-                <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
-                    <div className="text-xs text-gray-500 mb-1">Volume Ratio (CE/PE)</div>
-                    <div className={`text-2xl font-bold ${totals.ratio > 1 ? 'text-green-600' : 'text-red-600'}`}>
-                        {totals.ratio.toFixed(2)}
+                <div className="relative overflow-hidden bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-2xl p-5 text-white shadow-lg shadow-cyan-500/25">
+                    <div className="absolute -right-4 -top-4 w-16 h-16 bg-white/10 rounded-full blur-xl" />
+                    <div className="relative">
+                        <div className="text-xs opacity-80 mb-1 font-medium">Total Call Volume</div>
+                        <div className="text-3xl font-bold">{formatNumber(totals.ce)}</div>
+                        <div className="text-xs opacity-70 mt-1">Contracts traded</div>
                     </div>
                 </div>
-                <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl p-4 text-white">
-                    <div className="text-xs opacity-80 mb-1">Active Strikes</div>
-                    <div className="text-2xl font-bold">{volumeData.length}</div>
+                <div className="relative overflow-hidden bg-gradient-to-br from-pink-500 to-rose-600 rounded-2xl p-5 text-white shadow-lg shadow-pink-500/25">
+                    <div className="absolute -right-4 -top-4 w-16 h-16 bg-white/10 rounded-full blur-xl" />
+                    <div className="relative">
+                        <div className="text-xs opacity-80 mb-1 font-medium">Total Put Volume</div>
+                        <div className="text-3xl font-bold">{formatNumber(totals.pe)}</div>
+                        <div className="text-xs opacity-70 mt-1">Contracts traded</div>
+                    </div>
+                </div>
+                <div className="glass rounded-2xl p-5 border border-slate-200 dark:border-slate-700">
+                    <div className="text-xs text-slate-500 mb-1 font-medium">Volume Ratio (CE/PE)</div>
+                    <div className={`text-3xl font-bold ${totals.ratio > 1 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                        {totals.ratio.toFixed(2)}
+                    </div>
+                    <div className={`text-xs mt-1 ${totals.ratio > 1 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                        {totals.ratio > 1 ? '↑ More calls' : '↓ More puts'}
+                    </div>
+                </div>
+                <div className="relative overflow-hidden bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl p-5 text-white shadow-lg shadow-amber-500/25">
+                    <div className="absolute -right-4 -top-4 w-16 h-16 bg-white/10 rounded-full blur-xl" />
+                    <div className="relative">
+                        <div className="text-xs opacity-80 mb-1 font-medium">Active Strikes</div>
+                        <div className="text-3xl font-bold">{volumeData.length}</div>
+                        <div className="text-xs opacity-70 mt-1">With volume</div>
+                    </div>
                 </div>
             </div>
 

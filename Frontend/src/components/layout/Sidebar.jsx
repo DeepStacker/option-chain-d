@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { motion, AnimatePresence } from "framer-motion";
 import { toggleTheme } from "../../context/themeSlice";
+import { performLogout } from "../../context/authSlice";
 import { useSidebar } from "../../context/SidebarContext";
 import {
   SunIcon,
@@ -38,11 +39,11 @@ const Sidebar = () => {
   
   const profileRef = useRef(null);
 
-  // Navigation items
+  // Navigation items - Core trading features only
   const navigationItems = [
     {
       name: "Dashboard",
-      path: "/",
+      path: "/dashboard",
       icon: HomeIcon,
       badge: null,
     },
@@ -56,24 +57,18 @@ const Sidebar = () => {
       name: "Analytics",
       path: "/analytics",
       icon: ChartBarIcon,
-      badge: "New",
+      badge: "Pro",
     },
     {
-      name: "Risk Simulator",
-      path: "/risk-analysis",
+      name: "Charts",
+      path: "/charts",
+      icon: ArrowTrendingUpIcon,
+      badge: null,
+    },
+    {
+      name: "Position Sizing",
+      path: "/position-sizing",
       icon: CalculatorIcon,
-      badge: null,
-    },
-    {
-      name: "About",
-      path: "/about",
-      icon: InformationCircleIcon,
-      badge: null,
-    },
-    {
-      name: "Contact",
-      path: "/contact",
-      icon: PhoneIcon,
       badge: null,
     },
   ];
@@ -288,7 +283,7 @@ const Sidebar = () => {
                     {[
                       { icon: UserCircleIcon, label: "Profile", action: () => navigate("/profile") },
                       { icon: CogIcon, label: "Settings", action: () => navigate("/settings") },
-                      { icon: ArrowRightOnRectangleIcon, label: "Logout", action: () => console.log("Logout") },
+                      { icon: ArrowRightOnRectangleIcon, label: "Logout", action: () => { dispatch(performLogout()); navigate("/"); } },
                     ].map((item, index) => (
                       <button
                         key={index}

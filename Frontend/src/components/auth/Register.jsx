@@ -1,121 +1,42 @@
 import { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { useNavigate } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
+import { useNavigate, Link } from "react-router-dom";
+import { motion } from "framer-motion";
 import { signInWithGoogle } from "../../firebase/init";
 import { setUser } from "../../context/authSlice";
 import { toast } from "react-toastify";
 import {
-  UserPlusIcon,
-  ShieldCheckIcon,
-  ExclamationTriangleIcon,
-  LockClosedIcon,
+  ArrowTrendingUpIcon,
   CheckCircleIcon,
-  ClockIcon,
-  BoltIcon,
-  GlobeAltIcon,
-  DevicePhoneMobileIcon,
+  RocketLaunchIcon,
 } from "@heroicons/react/24/outline";
 
 const Register = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [registrationAttempts, setRegistrationAttempts] = useState(0);
-  const [isBlocked, setIsBlocked] = useState(false);
-  const [blockTimeRemaining, setBlockTimeRemaining] = useState(0);
+  const [mounted, setMounted] = useState(false);
 
-  const { isAuthenticated, user, authLoading } = useSelector(
-    (state) => state.auth
-  );
+  const { isAuthenticated, user, authLoading } = useSelector((state) => state.auth);
   const theme = useSelector((state) => state.theme?.theme || "light");
-
-  // Security: Track registration attempts and implement rate limiting
-  useEffect(() => {
-    const attempts = parseInt(
-      localStorage.getItem("registrationAttempts") || "0"
-    );
-    const lastAttempt = parseInt(
-      localStorage.getItem("lastRegistrationAttempt") || "0"
-    );
-    const now = Date.now();
-
-    // Reset attempts after 30 minutes
-    if (now - lastAttempt > 30 * 60 * 1000) {
-      localStorage.removeItem("registrationAttempts");
-      localStorage.removeItem("lastRegistrationAttempt");
-      setRegistrationAttempts(0);
-    } else {
-      setRegistrationAttempts(attempts);
-      // Block after 3 failed attempts for registration
-      if (attempts >= 3) {
-        const blockTime = 10 * 60 * 1000; // 10 minutes
-        const timeLeft = blockTime - (now - lastAttempt);
-        if (timeLeft > 0) {
-          setIsBlocked(true);
-          setBlockTimeRemaining(Math.ceil(timeLeft / 1000));
-        }
-      }
-    }
-  }, []);
-
-  // Countdown timer for blocked state
-  useEffect(() => {
-    if (isBlocked && blockTimeRemaining > 0) {
-      const timer = setInterval(() => {
-        setBlockTimeRemaining((prev) => {
-          if (prev <= 1) {
-            setIsBlocked(false);
-            localStorage.removeItem("registrationAttempts");
-            localStorage.removeItem("lastRegistrationAttempt");
-            setRegistrationAttempts(0);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-      return () => clearInterval(timer);
-    }
-  }, [isBlocked, blockTimeRemaining]);
+  const isDark = theme === "dark";
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
   useEffect(() => {
-    if (!authLoading && isAuthenticated && user) {
-      const redirectPath =
-        localStorage.getItem("redirectAfterLogin") || "/dashboard";
-      localStorage.removeItem("redirectAfterLogin");
-      navigate(redirectPath);
+    if (!authLoading && isAuthenticated && user && mounted) {
+      navigate("/dashboard", { replace: true });
     }
-  }, [isAuthenticated, user, navigate, authLoading]);
+  }, [isAuthenticated, user, navigate, authLoading, mounted]);
 
   const handleGoogleRegister = async () => {
-    if (isBlocked) {
-      toast.error(
-        `Too many registration attempts. Please wait ${Math.ceil(
-          blockTimeRemaining / 60
-        )} minutes.`
-      );
-      return;
-    }
-
     try {
       setLoading(true);
-      setError("");
-
       const user = await signInWithGoogle();
       if (user) {
-        // Reset registration attempts on successful registration
-        localStorage.removeItem("registrationAttempts");
-        localStorage.removeItem("lastRegistrationAttempt");
-        setRegistrationAttempts(0);
-
         const token = await user.getIdToken(true);
-        // Persist token for dataSlice.js to use
         localStorage.setItem("authToken", token);
         const userData = {
           uid: user.uid,
@@ -125,453 +46,191 @@ const Register = () => {
           token,
         };
         dispatch(setUser(userData));
-        toast.success(
-          "Account created successfully. Welcome to DeepStrike Trading Platform."
-        );
+        toast.success("Account created! Welcome to DeepStrike 🚀");
         navigate("/dashboard");
       }
     } catch (error) {
       console.error("Registration Error:", error);
-
-      // Increment failed attempts
-      const newAttempts = registrationAttempts + 1;
-      setRegistrationAttempts(newAttempts);
-      localStorage.setItem("registrationAttempts", newAttempts.toString());
-      localStorage.setItem("lastRegistrationAttempt", Date.now().toString());
-
-      if (newAttempts >= 3) {
-        setIsBlocked(true);
-        setBlockTimeRemaining(10 * 60); // 10 minutes
-        toast.error(
-          "Registration temporarily blocked due to multiple failed attempts. Please try again in 10 minutes."
-        );
-      } else {
-        const remainingAttempts = 3 - newAttempts;
-        setError(
-          `${error.message || "Registration failed"
-          }. ${remainingAttempts} attempts remaining.`
-        );
-        toast.error(
-          `Registration failed. ${remainingAttempts} attempts remaining.`
-        );
-      }
+      toast.error("Registration failed. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  // Professional animation variants
-  const containerVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: 0.6,
-        staggerChildren: 0.1,
-        delayChildren: 0.2,
-      },
-    },
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 30, scale: 0.95 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      scale: 1,
-      transition: { duration: 0.5, ease: "easeOut" },
-    },
-  };
-
-  // Security features for display
-  const securityFeatures = [
-    {
-      icon: ShieldCheckIcon,
-      title: "Bank-Grade Security",
-      description: "256-bit SSL encryption and OAuth 2.0 authentication",
-    },
-    {
-      icon: LockClosedIcon,
-      title: "Data Protection",
-      description: "GDPR compliant with end-to-end encryption",
-    },
-    {
-      icon: DevicePhoneMobileIcon,
-      title: "Multi-Factor Authentication",
-      description: "Additional security layers for account protection",
-    },
+  const benefits = [
+    "Real-time NIFTY & BANKNIFTY data",
+    "Advanced Greeks analysis",
+    "PCR, Max Pain & IV indicators",
+    "Premium trading tools",
   ];
 
-  // Trust indicators
-  const trustIndicators = [
-    { icon: ShieldCheckIcon, text: "SEBI Registered", color: "text-green-500" },
-    { icon: LockClosedIcon, text: "SSL Secured", color: "text-blue-500" },
-    { icon: BoltIcon, text: "99.9% Uptime", color: "text-purple-500" },
-    {
-      icon: CheckCircleIcon,
-      text: "Verified Platform",
-      color: "text-green-500",
-    },
-  ];
-
-  if (!mounted) {
+  if (!mounted || authLoading) {
     return (
-      <div
-        className={`min-h-screen flex items-center justify-center ${theme === "dark" ? "bg-gray-900" : "bg-gray-50"
-          }`}
-      >
-        <div className="animate-pulse">
-          <div className="w-16 h-16 bg-blue-500 rounded-2xl"></div>
+      <div className={`min-h-screen flex items-center justify-center ${isDark ? 'bg-slate-950' : 'bg-slate-50'}`}>
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+          <p className={`text-lg font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+            Loading...
+          </p>
         </div>
       </div>
     );
   }
 
   return (
-    <div
-      className={`min-h-screen flex ${theme === "dark"
-          ? "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900"
-          : "bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-100"
-        } relative overflow-hidden`}
-    >
-      {/* Professional background pattern */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div
-          className={`absolute inset-0 opacity-[0.015] ${theme === "dark" ? "bg-white" : "bg-gray-900"
-            }`}
-          style={{
-            backgroundImage: `
-              linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
-              linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)
-            `,
-            backgroundSize: "60px 60px",
-          }}
+    <div className={`min-h-screen flex items-center justify-center relative overflow-hidden ${isDark ? 'bg-slate-950' : 'bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50'}`}>
+      {/* Animated Background */}
+      <div className="absolute inset-0 overflow-hidden">
+        <motion.div
+          animate={{ x: [0, -80, 0], y: [0, 50, 0] }}
+          transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+          className="absolute top-0 right-1/4 w-[600px] h-[600px] bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-full blur-3xl"
+        />
+        <motion.div
+          animate={{ x: [0, 100, 0], y: [0, -60, 0] }}
+          transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
+          className="absolute bottom-0 left-1/4 w-[500px] h-[500px] bg-gradient-to-r from-blue-500/20 to-cyan-500/20 rounded-full blur-3xl"
         />
       </div>
 
-      <div className="flex-1 flex relative z-10">
-        {/* Left Side - Security & Trust Features */}
+      {/* Main Content */}
+      <div className="relative z-10 flex flex-col lg:flex-row items-center gap-12 px-6 max-w-6xl mx-auto">
+        {/* Left: Brand & Benefits */}
         <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          animate="visible"
-          className={`hidden lg:flex lg:w-1/2 flex-col justify-center px-12 xl:px-16 ${theme === "dark" ? "text-white" : "text-gray-900"
-            }`}
+          initial={{ opacity: 0, x: -30 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.5 }}
+          className="flex-1 text-center lg:text-left"
         >
-          {/* Registration Benefits */}
-          <motion.div variants={itemVariants} className="mb-10">
-            <h2 className="text-4xl xl:text-5xl font-bold mb-6 leading-tight">
-              Join{" "}
-              <span className="bg-gradient-to-r from-blue-600 via-green-600 to-blue-800 bg-clip-text text-transparent">
-                Professional Traders
-              </span>
-            </h2>
-            <p
-              className={`text-xl xl:text-2xl leading-relaxed ${theme === "dark" ? "text-gray-300" : "text-gray-600"
-                }`}
-            >
-              Create your secure account and access institutional-grade trading
-              tools with enterprise security.
-            </p>
-          </motion.div>
+          {/* Logo */}
+          <div className="flex items-center justify-center lg:justify-start gap-3 mb-8">
+            <div className="w-14 h-14 bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl flex items-center justify-center shadow-lg shadow-purple-500/30">
+              <ArrowTrendingUpIcon className="w-8 h-8 text-white" />
+            </div>
+            <div>
+              <span className={`text-3xl font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>Deep</span>
+              <span className="text-3xl font-black bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Strike</span>
+            </div>
+          </div>
 
-          {/* Security Features */}
-          <motion.div variants={itemVariants} className="space-y-8 mb-12">
-            {securityFeatures.map((feature, index) => {
-              const Icon = feature.icon;
-              return (
-                <motion.div
-                  key={index}
-                  whileHover={{ x: 8, scale: 1.02 }}
-                  transition={{ duration: 0.2 }}
-                  className="flex items-start space-x-6"
-                >
-                  <div
-                    className={`p-4 rounded-xl ${theme === "dark" ? "bg-gray-800/80" : "bg-white/80"
-                      } shadow-lg backdrop-blur-sm border ${theme === "dark" ? "border-gray-700" : "border-gray-200"
-                      }`}
-                  >
-                    <Icon className="w-7 h-7 text-green-500" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-xl font-bold mb-2">{feature.title}</h3>
-                    <p
-                      className={`text-base leading-relaxed ${theme === "dark" ? "text-gray-400" : "text-gray-600"
-                        }`}
-                    >
-                      {feature.description}
-                    </p>
-                  </div>
-                </motion.div>
-              );
-            })}
-          </motion.div>
+          {/* Headline */}
+          <h1 className={`text-4xl lg:text-5xl font-black mb-4 leading-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+            Start Trading{' '}
+            <span className="bg-gradient-to-r from-purple-600 via-pink-600 to-rose-600 bg-clip-text text-transparent">
+              Smarter
+            </span>
+          </h1>
 
-          {/* Trust Indicators */}
-          <motion.div
-            variants={itemVariants}
-            className="grid grid-cols-2 gap-4"
-          >
-            {trustIndicators.map((indicator, index) => {
-              const Icon = indicator.icon;
-              return (
-                <div
-                  key={index}
-                  className={`flex items-center space-x-3 p-3 rounded-lg ${theme === "dark" ? "bg-gray-800/50" : "bg-white/50"
-                    } backdrop-blur-sm`}
-                >
-                  <Icon className={`w-5 h-5 ${indicator.color}`} />
-                  <span
-                    className={`text-sm font-medium ${theme === "dark" ? "text-gray-300" : "text-gray-700"
-                      }`}
-                  >
-                    {indicator.text}
-                  </span>
-                </div>
-              );
-            })}
-          </motion.div>
+          <p className={`text-lg lg:text-xl mb-8 max-w-md ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+            Create your free account and unlock professional-grade options analytics.
+          </p>
+
+          {/* Benefits */}
+          <div className="flex flex-col gap-3">
+            {benefits.map((benefit, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.2 + i * 0.1 }}
+                className={`flex items-center gap-3 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}
+              >
+                <CheckCircleIcon className="w-6 h-6 text-green-500 flex-shrink-0" />
+                <span className="font-medium">{benefit}</span>
+              </motion.div>
+            ))}
+          </div>
         </motion.div>
 
-        {/* Right Side - Registration Form */}
+        {/* Right: Register Card */}
         <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          animate="visible"
-          className="flex-1 flex items-center justify-center px-6 py-12"
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+          className="w-full max-w-md"
         >
-          <motion.div
-            variants={itemVariants}
-            className={`max-w-md w-full space-y-8 p-8 xl:p-10 rounded-2xl shadow-2xl border backdrop-blur-sm ${theme === "dark"
-                ? "bg-gray-800/90 border-gray-700"
-                : "bg-white/90 border-gray-200"
-              }`}
-          >
-            {/* Registration Header */}
-            <div className="text-center">
-              <motion.div
-                initial={{ scale: 0, rotate: -180 }}
-                animate={{ scale: 1, rotate: 0 }}
-                transition={{ delay: 0.3, type: "spring", stiffness: 200 }}
-                className={`mx-auto w-20 h-20 rounded-2xl flex items-center justify-center mb-8 ${theme === "dark"
-                    ? "bg-gradient-to-r from-green-600 to-green-700"
-                    : "bg-gradient-to-r from-green-500 to-green-600"
-                  } shadow-xl`}
-              >
-                <UserPlusIcon className="w-10 h-10 text-white" />
-              </motion.div>
-
-              <h2
-                className={`text-3xl xl:text-4xl font-bold mb-3 ${theme === "dark" ? "text-white" : "text-gray-900"
-                  }`}
-              >
+          <div className={`p-8 rounded-3xl shadow-2xl border backdrop-blur-sm ${
+            isDark 
+              ? 'bg-slate-900/80 border-slate-800' 
+              : 'bg-white/80 border-slate-200'
+          }`}>
+            {/* Card Header */}
+            <div className="text-center mb-8">
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl mb-4 shadow-lg shadow-purple-500/30">
+                <RocketLaunchIcon className="w-8 h-8 text-white" />
+              </div>
+              <h2 className={`text-2xl font-bold mb-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
                 Create Account
               </h2>
-              <p
-                className={`text-lg ${theme === "dark" ? "text-gray-400" : "text-gray-600"
-                  }`}
-              >
-                Join the secure trading platform
+              <p className={`${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                It's free and takes 10 seconds
               </p>
             </div>
 
-            {/* Security Status */}
-            <div
-              className={`flex items-center justify-center space-x-2 p-3 rounded-lg ${theme === "dark"
-                  ? "bg-green-900/30 border border-green-500/50"
-                  : "bg-green-50 border border-green-200"
-                }`}
+            {/* Google Register Button */}
+            <motion.button
+              whileHover={{ scale: 1.02, y: -2 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={handleGoogleRegister}
+              disabled={loading}
+              className={`w-full flex items-center justify-center gap-3 py-4 px-6 rounded-2xl font-bold text-lg transition-all ${
+                loading
+                  ? 'bg-slate-400 cursor-not-allowed text-white'
+                  : 'bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-700 hover:to-pink-700 shadow-lg shadow-purple-500/30 hover:shadow-xl'
+              }`}
             >
-              <GlobeAltIcon className="w-5 h-5 text-green-500" />
-              <span
-                className={`text-sm font-medium ${theme === "dark" ? "text-green-300" : "text-green-700"
-                  }`}
-              >
-                Secure registration with 256-bit SSL encryption
-              </span>
+              {loading ? (
+                <>
+                  <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Creating account...
+                </>
+              ) : (
+                <>
+                  <img
+                    src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
+                    alt="Google"
+                    className="w-6 h-6"
+                  />
+                  Sign up with Google
+                </>
+              )}
+            </motion.button>
+
+            {/* Divider */}
+            <div className="flex items-center gap-4 my-6">
+              <div className={`flex-1 h-px ${isDark ? 'bg-slate-700' : 'bg-slate-200'}`} />
+              <span className={`text-sm ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>or</span>
+              <div className={`flex-1 h-px ${isDark ? 'bg-slate-700' : 'bg-slate-200'}`} />
             </div>
 
-            {/* Registration Form */}
-            <div className="space-y-6">
-              {/* Rate Limiting Warning */}
-              {registrationAttempts > 0 && !isBlocked && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className={`flex items-center p-3 rounded-lg border ${registrationAttempts >= 2
-                      ? theme === "dark"
-                        ? "bg-red-900/30 border-red-500/50 text-red-300"
-                        : "bg-red-50 border-red-200 text-red-700"
-                      : theme === "dark"
-                        ? "bg-yellow-900/30 border-yellow-500/50 text-yellow-300"
-                        : "bg-yellow-50 border-yellow-200 text-yellow-700"
-                    }`}
-                >
-                  <ExclamationTriangleIcon
-                    className={`w-5 h-5 mr-2 ${registrationAttempts >= 2
-                        ? "text-red-500"
-                        : "text-yellow-500"
-                      }`}
-                  />
-                  <span className="text-sm">
-                    {3 - registrationAttempts} registration attempts remaining
-                  </span>
-                </motion.div>
-              )}
+            {/* Login Link */}
+            <div className="text-center">
+              <p className={`${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                Already have an account?{' '}
+                <Link to="/login" className="font-bold text-purple-500 hover:text-purple-600 transition-colors">
+                  Sign in
+                </Link>
+              </p>
+            </div>
 
-              {/* Blocked State */}
-              {isBlocked && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className={`flex items-center p-4 rounded-lg border ${theme === "dark"
-                      ? "bg-red-900/30 border-red-500/50 text-red-300"
-                      : "bg-red-50 border-red-200 text-red-700"
-                    }`}
-                >
-                  <ClockIcon className="w-6 h-6 text-red-500 mr-3" />
-                  <div>
-                    <p className="font-medium">
-                      Registration Temporarily Blocked
-                    </p>
-                    <p className="text-sm mt-1">
-                      Try again in {Math.floor(blockTimeRemaining / 60)}:
-                      {(blockTimeRemaining % 60).toString().padStart(2, "0")}
-                    </p>
-                  </div>
-                </motion.div>
-              )}
-
-              {/* Google Registration Button */}
-              <motion.button
-                whileHover={{
-                  scale: isBlocked ? 1 : 1.02,
-                  y: isBlocked ? 0 : -2,
-                }}
-                whileTap={{ scale: isBlocked ? 1 : 0.98 }}
-                onClick={handleGoogleRegister}
-                disabled={loading || isBlocked}
-                className={`group relative w-full flex justify-center items-center py-4 xl:py-5 px-6 border border-transparent rounded-xl text-lg font-semibold transition-all duration-300 ${loading || isBlocked
-                    ? "bg-gray-400 cursor-not-allowed"
-                    : theme === "dark"
-                      ? "bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-xl hover:shadow-2xl"
-                      : "bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-xl hover:shadow-2xl"
-                  } focus:outline-none focus:ring-4 focus:ring-blue-500/50`}
-              >
-                <motion.img
-                  animate={{ rotate: loading ? 360 : 0 }}
-                  transition={{
-                    duration: 1,
-                    repeat: loading ? Infinity : 0,
-                    ease: "linear",
-                  }}
-                  className="h-6 w-6 mr-4"
-                  src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
-                  alt="Google logo"
-                />
-                {loading ? (
-                  <span className="flex items-center">
-                    <motion.div
-                      animate={{ rotate: 360 }}
-                      transition={{
-                        duration: 1,
-                        repeat: Infinity,
-                        ease: "linear",
-                      }}
-                      className="w-5 h-5 border-2 border-white border-t-transparent rounded-full mr-3"
-                    />
-                    Creating Account...
-                  </span>
-                ) : isBlocked ? (
-                  "Registration Blocked"
-                ) : (
-                  "Create Account with Google"
-                )}
-              </motion.button>
-
-              {/* Error Message */}
-              <AnimatePresence>
-                {error && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -20, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -20, scale: 0.95 }}
-                    transition={{ duration: 0.3 }}
-                    className={`flex items-start p-4 rounded-xl border ${theme === "dark"
-                        ? "bg-red-900/30 border-red-500/50 text-red-300"
-                        : "bg-red-50 border-red-200 text-red-700"
-                      }`}
-                  >
-                    <ExclamationTriangleIcon className="w-6 h-6 text-red-500 mr-3 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="font-medium">Registration Failed</p>
-                      <p className="text-sm mt-1 opacity-90">{error}</p>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {/* Enhanced Security Notice */}
-              <div
-                className={`text-center space-y-4 pt-4 border-t ${theme === "dark" ? "border-gray-700" : "border-gray-200"
-                  }`}
-              >
-                <div
-                  className={`flex items-center justify-center space-x-2 text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-600"
-                    }`}
-                >
-                  <ShieldCheckIcon className="w-5 h-5 text-green-500" />
-                  <span>
-                    Protected by Google OAuth 2.0 & Enterprise Security
-                  </span>
-                </div>
-
-                <div
-                  className={`text-xs space-y-2 ${theme === "dark" ? "text-gray-500" : "text-gray-500"
-                    }`}
-                >
-                  <p>
-                    Your registration is protected by enterprise-grade security
-                    including rate limiting, fraud detection, and encrypted data
-                    transmission.
-                  </p>
-                  <p>
-                    By creating an account, you agree to our{" "}
-                    <a
-                      href="/terms"
-                      className="text-blue-500 hover:text-blue-600 underline"
-                    >
-                      Terms of Service
-                    </a>{" "}
-                    and{" "}
-                    <a
-                      href="/privacy"
-                      className="text-blue-500 hover:text-blue-600 underline"
-                    >
-                      Privacy Policy
-                    </a>
-                  </p>
-                </div>
-
-                {/* Login Link */}
-                <div
-                  className={`pt-4 ${theme === "dark" ? "text-gray-400" : "text-gray-600"
-                    }`}
-                >
-                  <p className="text-sm">
-                    Already have an account?{" "}
-                    <a
-                      href="/login"
-                      className="text-blue-500 hover:text-blue-600 font-medium underline"
-                    >
-                      Sign in here
-                    </a>
-                  </p>
-                </div>
+            {/* Trust Badge */}
+            <div className={`mt-6 pt-6 border-t ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
+              <div className={`flex items-center justify-center gap-2 text-sm ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+                <span>No credit card required</span>
               </div>
             </div>
-          </motion.div>
+          </div>
+
+          {/* Footer Links */}
+          <div className={`text-center mt-6 text-sm ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+            By signing up, you agree to our{' '}
+            <a href="#" className="text-purple-500 hover:underline">Terms</a>
+            {' '}&{' '}
+            <a href="#" className="text-purple-500 hover:underline">Privacy</a>
+          </div>
         </motion.div>
       </div>
     </div>
