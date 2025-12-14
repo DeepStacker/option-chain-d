@@ -117,6 +117,7 @@ const TradingChart = React.memo(({ embedded = false }) => {
   const [drawingMode, setDrawingMode] = useState(null); // 'hline'
   const [userLines, setUserLines] = useState([]);
   const [activeProfile, setActiveProfile] = useState("none");
+  const [isAutoPilot, setIsAutoPilot] = useState(true); // Smart Auto-Detection Mode
 
   // Redux state
   const { symbols, currentSymbol, timeframe, connectionStatus, daily, weekly, avg } =
@@ -397,7 +398,118 @@ const TradingChart = React.memo(({ embedded = false }) => {
       chart: theme === "dark" ? "bg-gray-900" : "bg-white",
   }), [theme]);
 
-  // --- DRAWING & PROFILE HOOKS ---
+  // Educational Content for Smart Context HUD
+  // Educational Content for Smart Context HUD
+  const profileGuides = {
+    none: { 
+        title: "Select a Profile", 
+        formula: "—",
+        logic: "Choose a profile from the dropdown to overlay market structure analysis on the chart.", 
+        visual: "No overlay active.",
+        signal: "Start with 'OI' for positioning or 'Reversal' for key levels." 
+    },
+    oi: { 
+        title: "Smart OI (Liquidity Weighted)", 
+        formula: "SmartOI = OI × (1 + Volume/MaxVolume)",
+        logic: "Open Interest weighted by today's trading activity. Strikes with high OI but zero volume (ghost positions) are dimmed. Active battles are boosted.",
+        visual: "🔴 Red Bar = Call OI (Resistance). 🟢 Green Bar = Put OI (Support). SINGLE BAR = >60% dominance (strong level). SPLIT BARS = contested zone (weak).",
+        signal: "Trade: Large single-color bars are hard walls. If price approaches, fade the move. Split bars indicate indecision—wait for clarity." 
+    },
+    volume: { 
+        title: "Smart Volume (IV Weighted)", 
+        formula: "SmartVol = Volume × (IV/AvgIV)",
+        logic: "Volume weighted by Implied Volatility. High IV trades indicate fear/greed (conviction). Low IV trades are often hedging/arbitrage (noise).",
+        visual: "🔴 Red = Call Volume (Bearish Pressure). 🟢 Green = Put Volume (Bullish Pressure). Taller bars = higher conviction.",
+        signal: "Trade: Look for tall single-color bars at key levels. High conviction at resistance = potential breakout. Split bars = no clear directional bet." 
+    },
+    oi_change: { 
+        title: "Smart Flow (Volume Weighted)", 
+        formula: "SmartFlow = OI_Change × (1 + Volume/MaxVolume)",
+        logic: "Net change in positions, weighted by volume. Separates 'real money' moves from low-volume noise. Handles unwinding (negative values) correctly.",
+        visual: "🔴 Red = Calls building (bearish bets). 🟢 Green = Puts building (bullish bets). Negative values (unwinding) shown with dashed borders.",
+        signal: "Trade: Follow the flow. Growing green bars = bullish accumulation. Growing red = bearish accumulation. Shrinking bars = profit-taking/trend exhaustion." 
+    },
+    reversal: {
+        title: "Smart Reversal Zones", 
+        formula: "Strength = (OI×0.7 + Vol×0.3) × GammaMult × IVMult",
+        logic: "Auto-detects high-probability reversal points using weighted OI+Volume, boosted by Gamma (hedging pressure) and IV (market fear). Levels are clustered within 0.1% to reduce noise. Statistical filtering removes weak signals.",
+        visual: "🔴 Red = Resistance Zone. 🟢 Green = Support Zone. SOLID (Tier 1) = Statistical outlier (>1.5σ). FADED = Normal level. SINGLE BAR = >60% dominance.",
+        signal: "Trade: At Tier 1 Red zones, look for puts/shorts. At Tier 1 Green zones, look for calls/longs. Fade the move when price touches these levels."
+    },
+    delta: { 
+        title: "Delta Exposure", 
+        formula: "Raw CE Delta vs PE Delta",
+        logic: "Net directional risk at each strike. Shows how much the market moves with (+) or against (-) price movement. Uses raw delta values with dominance filtering.",
+        visual: "🔴 Red = Call Delta (bearish-leaning). 🟢 Green = Put Delta (bullish-leaning). SINGLE BAR = one side heavily dominant.",
+        signal: "Trade: High delta levels indicate strong directional bias. If price goes against accumulated delta, expect violent mean reversion." 
+    },
+    gamma: { 
+        title: "Gamma Exposure", 
+        formula: "Raw CE Gamma vs PE Gamma",
+        logic: "Acceleration risk. High gamma = price magnet effect. Market makers must hedge aggressively as price approaches, creating pinning behavior.",
+        visual: "🔴 Red = Call Gamma. 🟢 Green = Put Gamma. Large bars = strong pinning zones.",
+        signal: "Trade: High gamma strikes act as magnets. Price tends to stick here during expiry. Good for range-bound strategies (Iron Condors)." 
+    },
+    gex: { 
+        title: "Smart Exposure (True Risk)", 
+        formula: "TrueRisk = (OI × |Delta|) + (OI × |Gamma| × Spot × 0.01)",
+        logic: "Combined Delta + Gamma risk. Delta shows current exposure; Gamma shows acceleration if price moves 1%. This is the 'pain point' where Market Makers are most vulnerable.",
+        visual: "🔴 Red = Call-side risk (resistance). 🟢 Green = Put-side risk (support). SINGLE BAR = clear one-sided risk.",
+        signal: "Trade: These are the 'breakout trigger' levels. If price crosses a large GEX bar, expect acceleration as MMs are forced to hedge." 
+    },
+    iv_skew: { 
+        title: "Smart Skew (OI Weighted)", 
+        formula: "SmartSkew = (CE_IV - PE_IV) × (StrikeOI/MaxOI)",
+        logic: "Difference between Call IV and Put IV, weighted by liquidity (OI). Removes noise from illiquid strikes. Positive skew = calls more expensive (bearish fear). Negative = puts more expensive (bullish FOMO).",
+        visual: "🔴 Red = Call Skew (bearish sentiment). 🟢 Green = Put Skew (bullish sentiment). Large bars = high conviction sentiment.",
+        signal: "Trade: Extreme skew often precedes reversals. Heavy call skew at highs = potential top. Heavy put skew at lows = potential bottom." 
+    },
+    pcr: { 
+        title: "PCR Sentiment", 
+        formula: "PCR = PE_OI / CE_OI (normalized 0.3-3.0)",
+        logic: "Put-Call Ratio per strike. >1 = more put writing (support). <1 = more call writing (resistance). Visualizes the bull/bear balance at each level.",
+        visual: "🔴 Red = Bearish (PCR < 1, call-heavy). 🟢 Green = Bullish (PCR > 1, put-heavy).",
+        signal: "Trade: Green bars are floors (puts written = support). Red bars are ceilings. Extreme readings often mark exhaustion." 
+    },
+    oi_strength: { 
+        title: "OI Strength (Position + Momentum)", 
+        formula: "Strength = (OI × |Delta|) + (OI_Change × 2)",
+        logic: "Combines position size (OI weighted by Delta) with recent momentum (OI Change with 2x multiplier). Highlights 'heavy' strikes with fresh activity.",
+        visual: "🔴 Red = Call strength. 🟢 Green = Put strength. Large bars = significant positioned + active strikes.",
+        signal: "Trade: Use for trend confirmation. Increasing strength in trend direction = healthy trend. Divergence = potential reversal." 
+    },
+    composite: { 
+        title: "Composite Score (Master Index)", 
+        formula: "Score = OI(30%) + OI_Chng(25%) + Vol(20%) + Delta(15%) + Gamma(10%)",
+        logic: "Weighted combination of all major metrics. OI for positioning, OI Change for flow, Volume for activity, Delta for direction, Gamma for pinning. The 'God View' metric.",
+        visual: "🔴 Red = Bearish composite. 🟢 Green = Bullish composite. SINGLE BAR = strong consensus. SPLIT = conflicting signals.",
+        signal: "Trade: Use as final filter. If composite aligns with your trade direction, confidence is higher. Divergence = wait for clarity." 
+    },
+    vega: { 
+        title: "Vega Exposure", 
+        formula: "VegaExp = OI × |Vega|",
+        logic: "Sensitivity to volatility changes. High Vega strikes will see large P&L swings when IV changes. Important before events (earnings, expiry).",
+        visual: "🔴 Red = Call Vega. 🟢 Green = Put Vega. Large bars = high volatility sensitivity.",
+        signal: "Trade: Avoid buying options at high-vega strikes if you expect IV crush. Sellers can target these for premium decay." 
+    },
+    theta: { 
+        title: "Theta Decay (Time Burn)", 
+        formula: "ThetaExp = |Theta| × OI",
+        logic: "Daily premium decay at each strike. Shows where option sellers are harvesting time value. Price often gravitates here to 'burn' premium.",
+        visual: "🔴 Red = Call Theta decay. 🟢 Green = Put Theta decay. Large bars = heavy time decay zones.",
+        signal: "Trade: The 'Burn Zone'. Price often drifts toward high-theta areas during low-volatility periods. Good reference for Iron Condors." 
+    },
+    delta_oi: { 
+        title: "Delta-Weighted OI", 
+        formula: "Δ×OI = OI × |Delta|",
+        logic: "Position size weighted by probability of being ITM. Higher delta = higher probability. This shows where 'real' money exposure sits.",
+        visual: "🔴 Red = Call exposure. 🟢 Green = Put exposure. Large bars = significant directional bets.",
+        signal: "Trade: These are the 'smart money' levels. Large delta-weighted OI indicates institutional positioning." 
+    }
+  };
+  
+  // Helper to safely get guide
+  const getGuide = (key) => profileGuides[key] || profileGuides.composite;
 
   // Memoize profile data processing with advanced combined metrics
   const profileData = useMemo(() => {
@@ -453,10 +565,51 @@ const TradingChart = React.memo(({ embedded = false }) => {
       };
     });
 
+    // Helper: Apply Smart Dominance Logic (Winner-Takes-All)
+    // -----------------------------------------------------
+    const applySmartDominance = (ceRaw, peRaw) => {
+        const absCe = Math.abs(ceRaw);
+        const absPe = Math.abs(peRaw);
+        const total = absCe + absPe;
+        
+        if (total === 0) return { ceVal: 0, peVal: 0, total: 0, opacity: 0.5 };
+
+        // Dominance Calculation
+        const dominanceRatio = Math.max(absCe, absPe) / total;
+        const isDominant = dominanceRatio > 0.60;
+        
+        // If Dominant: WINNER takes TOTAL visual weight, loser hidden
+        // If Conflict: Show unmodified split
+        let ceDisplay = absCe;
+        let peDisplay = absPe;
+        
+        if (isDominant) {
+            if (absCe > absPe) {
+                ceDisplay = total; // Winner looks "Full Strength"
+                peDisplay = 0;     // Loser hidden
+            } else {
+                ceDisplay = 0;
+                peDisplay = total;
+            }
+        }
+
+        // Opacity: Dominant signals are brighter (0.85), Contested are dimmer (0.5)
+        // This replaces the "Tier 1" logic for standard profiles since we lack global stats for them
+        const opacity = isDominant ? 0.9 : 0.5;
+
+        return { ceVal: ceDisplay, peVal: peDisplay, total, opacity };
+    };
+
     // Calculate spot price from ATM (where straddle is cheapest)
     const spotApprox = price || Math.min(...rawData.map(r => r.ce_ltp + r.pe_ltp)) > 0 
       ? rawData.reduce((best, r) => (r.ce_ltp + r.pe_ltp) < (best?.ce_ltp + best?.pe_ltp) && (r.ce_ltp + r.pe_ltp) > 0 ? r : best, rawData[0])?.strike 
       : null;
+
+    // Calculate Global Stats for Smart Weighting (Precision Math)
+    const maxVol = Math.max(...rawData.map(r => Math.max(r.ce_vol, r.pe_vol, 1)));
+    const avgIv = rawData.reduce((acc, r) => acc + r.ce_iv + r.pe_iv, 0) / (rawData.length * 2 || 1);
+    const safeAvgIv = avgIv > 0 ? avgIv : 1;
+    const spotPriceForCalc = price || 0; 
 
     // Process based on profile type
     rawData.forEach((r) => {
@@ -466,117 +619,128 @@ const TradingChart = React.memo(({ embedded = false }) => {
 
       switch (activeProfile) {
         // ═══════════════════════════════════════════════════════════════
-        // BASIC PROFILES
+        // SMART PROFILES (PRECISION MATH UPGRADE)
         // ═══════════════════════════════════════════════════════════════
         case 'oi':
-          ceVal = r.ce_oi;
-          peVal = r.pe_oi;
-          total = ceVal + peVal;
+          // Smart OI: Weight by Active Volume (Liquidity)
+          // Logic: OI * (1 + (Vol / MaxVol)) -> Boost active strikes, dim "ghost" positions
+          const ceSmartOi = r.ce_oi * (1 + (r.ce_vol / maxVol));
+          const peSmartOi = r.pe_oi * (1 + (r.pe_vol / maxVol));
+          ({ ceVal, peVal, total, opacity: r.opacity } = applySmartDominance(ceSmartOi, peSmartOi));
           break;
           
         case 'volume':
-          ceVal = r.ce_vol;
-          peVal = r.pe_vol;
-          total = ceVal + peVal;
+          // Smart Volume: Weight by IV (Conviction)
+          // Logic: Vol * (IV / AvgIV) -> Boost high-conviction bets (Fear/Greed)
+          const ceSmartVol = r.ce_vol * (r.ce_iv / safeAvgIv);
+          const peSmartVol = r.pe_vol * (r.pe_iv / safeAvgIv);
+          ({ ceVal, peVal, total, opacity: r.opacity } = applySmartDominance(ceSmartVol, peSmartVol));
           break;
           
         case 'oi_change':
-          ceVal = r.ce_oi_chng;
-          peVal = r.pe_oi_chng;
-          total = Math.abs(ceVal) + Math.abs(peVal);
+          // Smart Flow: Weight by Volume -> High Vol moves are "Real Flow"
+          // We must handle Negative values (Unwinding) carefully.
+          // 1. Calculate weighted flow
+          const ceSmartFlow = r.ce_oi_chng * (1 + (r.ce_vol / maxVol));
+          const peSmartFlow = r.pe_oi_chng * (1 + (r.pe_vol / maxVol));
+          
+          // 2. Get Dominance visuals based on MAGNITUDE
+          const { ceVal: ceD, peVal: peD, total: tD, opacity: oD } = applySmartDominance(Math.abs(ceSmartFlow), Math.abs(peSmartFlow));
+          
+          // 3. Restore signs for visualization (Unwinding borders)
+          ceVal = ceSmartFlow < 0 ? -ceD : ceD;
+          peVal = peSmartFlow < 0 ? -peD : peD;
+          total = tD;
+          r.opacity = oD; 
           break;
           
         case 'delta':
-          ceVal = Math.abs(r.ce_delta);
-          peVal = Math.abs(r.pe_delta);
-          total = ceVal + peVal;
+           // Use raw delta for standard profile, but heavily dominated
+          ({ ceVal, peVal, total, opacity: r.opacity } = applySmartDominance(r.ce_delta, r.pe_delta));
           break;
           
         case 'gamma':
-          ceVal = r.ce_gamma;
-          peVal = r.pe_gamma;
-          total = ceVal + peVal;
+          ({ ceVal, peVal, total, opacity: r.opacity } = applySmartDominance(r.ce_gamma, r.pe_gamma));
           break;
 
         // ═══════════════════════════════════════════════════════════════
         // ADVANCED COMBINED PROFILES
         // ═══════════════════════════════════════════════════════════════
         
-        // GEX (Gamma Exposure) = OI × Gamma × Spot² × 100
-        // Shows where market makers have hedging pressure
-        // Positive = MMs need to sell on rise, buy on fall (mean reversion)
-        // Negative = MMs need to buy on rise, sell on fall (momentum)
+        // Smart Exposure (Gamma-Adjusted Delta Risk)
+        // Replaces standard GEX with "True Risk" view
         case 'gex':
-          const ceGex = r.ce_oi * Math.abs(r.ce_gamma) * 100;
-          const peGex = -r.pe_oi * Math.abs(r.pe_gamma) * 100; // Negative for puts
-          ceVal = ceGex;
-          peVal = Math.abs(peGex);
-          singleVal = ceGex + peGex; // Net GEX
-          total = Math.abs(singleVal);
+          // Formula: (OI * Delta) + (OI * Gamma * Spot * 0.01)
+          // This captures both the current directional risk (Delta) AND the acceleration risk (Gamma)
+          // Normalized to comparable scales
+          const ceRisk = (r.ce_oi * Math.abs(r.ce_delta)) + (r.ce_oi * Math.abs(r.ce_gamma) * spotPriceForCalc * 0.01);
+          const peRisk = (r.pe_oi * Math.abs(r.pe_delta)) + (r.pe_oi * Math.abs(r.pe_gamma) * spotPriceForCalc * 0.01);
+          
+          ({ ceVal, peVal, total, opacity: r.opacity } = applySmartDominance(ceRisk, peRisk));
+          singleVal = ceRisk - peRisk; // Net Risk
           break;
           
-        // Delta-Weighted OI = OI × |Delta|
-        // Shows directional exposure at each strike
+        // Delta-Weighted OI
         case 'delta_oi':
-          ceVal = r.ce_oi * Math.abs(r.ce_delta);
-          peVal = r.pe_oi * Math.abs(r.pe_delta);
-          total = ceVal + peVal;
+          const ceDOI = r.ce_oi * Math.abs(r.ce_delta);
+          const peDOI = r.pe_oi * Math.abs(r.pe_delta);
+          ({ ceVal, peVal, total, opacity: r.opacity } = applySmartDominance(ceDOI, peDOI));
           break;
           
-        // IV Skew = CE IV - PE IV at each strike
-        // Positive = CE more expensive (bearish sentiment)
-        // Negative = PE more expensive (bullish sentiment/fear)
+        // IV Skew = CE IV - PE IV (Weighted by OI)
+        // Smart Skew: Only show skew on LIQUID strikes (Weight by OI)
         case 'iv_skew':
-          const skew = r.ce_iv - r.pe_iv;
-          ceVal = skew > 0 ? skew : 0;
-          peVal = skew < 0 ? Math.abs(skew) : 0;
-          singleVal = skew;
-          total = Math.abs(skew);
+          const totalOi = r.ce_oi + r.pe_oi;
+          const maxTotalOi = Math.max(...rawData.map(x => x.ce_oi + x.pe_oi)) || 1;
+          const oiWeight = totalOi / maxTotalOi;
+          
+          const rawSkew = r.ce_iv - r.pe_iv;
+          const smartSkew = rawSkew * oiWeight; // Filter noise on illiquid strikes
+          
+          const ceSkewComp = smartSkew > 0 ? smartSkew : 0;
+          const peSkewComp = smartSkew < 0 ? Math.abs(smartSkew) : 0;
+          
+          ({ ceVal, peVal, total, opacity: r.opacity } = applySmartDominance(ceSkewComp, peSkewComp));
+          singleVal = smartSkew;
           break;
           
-        // PCR Profile = PE OI / CE OI at each strike
-        // >1 = Bullish (more put writing = support)
-        // <1 = Bearish (more call writing = resistance)
         case 'pcr':
           const pcr = r.ce_oi > 0 ? r.pe_oi / r.ce_oi : 0;
-          // Normalize: PCR 0.5-2.0 range centered at 1.0
           const pcrNorm = Math.min(Math.max(pcr, 0.3), 3);
-          ceVal = pcrNorm < 1 ? (1 - pcrNorm) : 0; // Bearish intensity
-          peVal = pcrNorm > 1 ? (pcrNorm - 1) : 0; // Bullish intensity
+          const cePcr = pcrNorm < 1 ? (1 - pcrNorm) : 0;
+          const pePcr = pcrNorm > 1 ? (pcrNorm - 1) : 0;
+          
+          // Apply dominance to the visualized bars
+          ({ ceVal, peVal, total, opacity: r.opacity } = applySmartDominance(cePcr, pePcr));
           singleVal = pcr;
-          total = Math.abs(pcr - 1);
           break;
           
         // OI Strength = (OI × |Delta|) + (OI_Chng × Multiplier)
         // Combines position size with recent activity
+        // OI Strength
         case 'oi_strength':
           const ceStrength = (r.ce_oi * Math.abs(r.ce_delta)) + (r.ce_oi_chng * 2);
           const peStrength = (r.pe_oi * Math.abs(r.pe_delta)) + (r.pe_oi_chng * 2);
-          ceVal = Math.max(0, ceStrength);
-          peVal = Math.max(0, peStrength);
-          total = ceVal + peVal;
+          ({ ceVal, peVal, total, opacity: r.opacity } = applySmartDominance(Math.max(0, ceStrength), Math.max(0, peStrength)));
           break;
           
-        // Composite = Weighted combination of multiple factors
-        // Weights: OI(30%) + OI_Chng(25%) + Vol(20%) + Delta(15%) + Gamma(10%)
+        // Composite
         case 'composite':
-          // Normalize each metric to 0-1 scale relative to max
           const normCeOi = r.ce_oi;
           const normPeOi = r.pe_oi;
           const normCeChng = Math.abs(r.ce_oi_chng);
           const normPeChng = Math.abs(r.pe_oi_chng);
           const normCeVol = r.ce_vol;
           const normPeVol = r.pe_vol;
-          const normCeDelta = Math.abs(r.ce_delta) * 100; // Scale up
+          const normCeDelta = Math.abs(r.ce_delta) * 100;
           const normPeDelta = Math.abs(r.pe_delta) * 100;
-          const normCeGamma = r.ce_gamma * 10000; // Scale up
+          const normCeGamma = r.ce_gamma * 10000;
           const normPeGamma = r.pe_gamma * 10000;
           
-          ceVal = (normCeOi * 0.30) + (normCeChng * 0.25) + (normCeVol * 0.20) + 
-                  (normCeDelta * 0.15) + (normCeGamma * 0.10);
-          peVal = (normPeOi * 0.30) + (normPeChng * 0.25) + (normPeVol * 0.20) + 
-                  (normPeDelta * 0.15) + (normPeGamma * 0.10);
-          total = ceVal + peVal;
+          const valCeC = (normCeOi * 0.30) + (normCeChng * 0.25) + (normCeVol * 0.20) + (normCeDelta * 0.15) + (normCeGamma * 0.10);
+          const valPeC = (normPeOi * 0.30) + (normPeChng * 0.25) + (normPeVol * 0.20) + (normPeDelta * 0.15) + (normPeGamma * 0.10);
+          
+          ({ ceVal, peVal, total, opacity: r.opacity } = applySmartDominance(valCeC, valPeC));
           break;
           
         // Reversal Zones = Support/Resistance Strength Scores plotted at DYNAMIC levels
@@ -652,18 +816,14 @@ const TradingChart = React.memo(({ embedded = false }) => {
           return; // Skip default push
         }
           
-        // Vega Exposure = OI × Vega (sensitivity to IV changes)
+        // Vega Exposure (Smart: Weighted by IV?) -> Maybe raw is fine, just dominance
         case 'vega':
-          ceVal = r.ce_oi * Math.abs(r.ce_vega);
-          peVal = r.pe_oi * Math.abs(r.pe_vega);
-          total = ceVal + peVal;
+          ({ ceVal, peVal, total, opacity: r.opacity } = applySmartDominance(r.ce_oi * Math.abs(r.ce_vega), r.pe_oi * Math.abs(r.pe_vega)));
           break;
           
-        // Theta Decay = Daily premium decay at each strike
+        // Theta Decay
         case 'theta':
-          ceVal = Math.abs(r.ce_theta * r.ce_oi);
-          peVal = Math.abs(r.pe_theta * r.pe_oi);
-          total = ceVal + peVal;
+          ({ ceVal, peVal, total, opacity: r.opacity } = applySmartDominance(Math.abs(r.ce_theta * r.ce_oi), Math.abs(r.pe_theta * r.pe_oi)));
           break;
 
         default:
@@ -685,7 +845,8 @@ const TradingChart = React.memo(({ embedded = false }) => {
         ceVal, 
         peVal,
         singleVal, // For profiles that show net value
-        raw: r // Keep raw data for tooltips
+        raw: r, // Keep raw data for tooltips
+        opacity: r.opacity // Propagate opacity to dataPoint
       });
     });
 
@@ -751,8 +912,16 @@ const TradingChart = React.memo(({ embedded = false }) => {
         const stdDev = Math.sqrt(variance);
 
         // Dynamic Threshold: Auto-detect noise floor
-        // Use Max(5% of Max, 50% of Mean) to ensure we hide noise but keep relevant structure
-        const dynamicThreshold = Math.max(maxClusterStrength * 0.05, mean * 0.5);
+        // Use Backend Meta if available and Auto-Pilot is ON
+        const meta = optionsData?.meta;
+        let dynamicThreshold;
+        
+        if (isAutoPilot && meta?.recommended_threshold) {
+             dynamicThreshold = meta.recommended_threshold;
+        } else {
+             // Fallback to local statistical heuristic
+             dynamicThreshold = Math.max(maxClusterStrength * 0.05, mean * 0.5);
+        }
 
         const relevantClusters = clusters.filter(c => c.totalStrength > dynamicThreshold);
         
@@ -765,29 +934,41 @@ const TradingChart = React.memo(({ embedded = false }) => {
            
            // Dominance Check
            const isResistance = c.ceSum >= c.peSum;
+           const dominanceRatio = Math.max(c.ceSum, c.peSum) / c.totalStrength;
+           const isDominant = dominanceRatio > 0.60; // 60% majority required to hide the "noise"
 
            // Confidence Tier Calculation
-           // Tier 1 (Super Key): > Mean + 1.5 StdDev OR > 80% of Max
+           // Tier 1 (Super Key): > Backend Noise Floor AND High Dominance
            // Tier 2 (Tradeable): > Threshold
-           const isTier1 = c.totalStrength > (mean + (1.5 * stdDev)) || c.totalStrength > (maxClusterStrength * 0.8);
+           let isTier1;
+           if (isAutoPilot && meta?.std_dev) {
+                isTier1 = c.totalStrength > (meta.noise_floor + (2.0 * meta.std_dev));
+           } else {
+                isTier1 = c.totalStrength > (mean + (1.5 * stdDev)) || c.totalStrength > (maxClusterStrength * 0.8);
+           }
+           
+           // Boost Tier 1 requirement: Must be DOMINANT to be Tier 1 (Reduce Fear/FOMO)
+           if (!isDominant) isTier1 = false;
 
            // Visual Confidence:
            // Tier 1: Full Brightness (1.0)
-           // Tier 2: Standard (0.65)
-           const baseColor = isResistance ? 'rgba(255, 82, 82, ' : 'rgba(0, 230, 118, '; // Bright Red vs Bright Green
-           const opacity = isTier1 ? '1.0)' : '0.55)';
-           const finalColor = baseColor + opacity;
+           const tierOpacity = isTier1 ? 1.0 : (isDominant ? 0.65 : 0.40); // Dim "War Zones" further
            
            return {
              strike: finalPrice,
-             total: c.totalStrength,
-             ceVal: isResistance ? c.totalStrength : 0,
-             peVal: isResistance ? 0 : c.totalStrength,
+             total: c.totalStrength, 
+             // DOMINANCE LOGIC: 
+             // If Dominant (>60%), HIDE the loser (Show "Strong" single bar).
+             // If Contested (<=60%), SHOW BOTH (Split Bar = "War Zone").
+             ceVal: isDominant ? (isResistance ? c.totalStrength : 0) : c.ceSum,
+             peVal: isDominant ? (!isResistance ? c.totalStrength : 0) : c.peSum,
+             
              singleVal: c.totalStrength,
              isCluster: true,
              clusterCount: c.points.length,
              confidenceTier: isTier1 ? 1 : 2,
-             color: finalColor // Used for visual highlighting
+             opacity: tierOpacity,
+             isDominant: isDominant // Flag for drawing
            };
         });
       } else {
@@ -821,15 +1002,15 @@ const TradingChart = React.memo(({ embedded = false }) => {
 
     // Profile metadata for rendering
     const profileMeta = {
-      oi: { name: 'Open Interest', ceLabel: 'CE OI', peLabel: 'PE OI' },
-      volume: { name: 'Volume', ceLabel: 'CE Vol', peLabel: 'PE Vol' },
-      oi_change: { name: 'OI Change', ceLabel: 'CE Chng', peLabel: 'PE Chng', showSign: true },
+      oi: { name: 'Smart OI (Liquidity)', ceLabel: 'CE Liq', peLabel: 'PE Liq' },
+      volume: { name: 'Smart Volume (Conviction)', ceLabel: 'CE Conv', peLabel: 'PE Conv' },
+      oi_change: { name: 'Smart Flow (Vol. Wgt)', ceLabel: 'CE Flow', peLabel: 'PE Flow', showSign: true },
       delta: { name: 'Delta', ceLabel: 'CE Δ', peLabel: 'PE Δ' },
       gamma: { name: 'Gamma', ceLabel: 'CE Γ', peLabel: 'PE Γ' },
-      gex: { name: 'Gamma Exposure', ceLabel: 'CE GEX', peLabel: 'PE GEX', showNet: true },
+      gex: { name: 'Smart Exposure (Risk)', ceLabel: 'CE Risk', peLabel: 'PE Risk', showNet: true },
       delta_oi: { name: 'Delta-Weighted OI', ceLabel: 'CE Δ×OI', peLabel: 'PE Δ×OI' },
-      iv_skew: { name: 'IV Skew', ceLabel: 'CE IV↑', peLabel: 'PE IV↑', showNet: true },
-      pcr: { name: 'PCR Profile', ceLabel: 'Bearish', peLabel: 'Bullish', showRatio: true },
+      iv_skew: { name: 'Smart Skew (OI Wgt)', ceLabel: 'CE IV↑', peLabel: 'PE IV↑', showNet: true },
+      pcr: { name: 'PCR Sentiment', ceLabel: 'Bearish', peLabel: 'Bullish', showRatio: true },
       oi_strength: { name: 'OI Strength', ceLabel: 'CE Str', peLabel: 'PE Str' },
       composite: { name: 'Composite', ceLabel: 'CE Score', peLabel: 'PE Score' },
       reversal: { name: 'Reversal Zones', ceLabel: 'Resist. Str', peLabel: 'Support Str' },
@@ -922,26 +1103,36 @@ const TradingChart = React.memo(({ embedded = false }) => {
           y, ceWidth, peWidth, isVA, isPOC,
           ceUnwinding: activeProfile === 'oi_change' && p.ceVal < 0,
           peUnwinding: activeProfile === 'oi_change' && p.peVal < 0,
-          customColor: p.color // Pass custom confidence color from Smart Auto-Detection
+          customColor: p.color,
+          opacity: p.opacity // Pass opacity to drawing loop
         });
       });
       
       // Draw all bars in batches for better performance
       // First pass: Draw all fills
-      bars.forEach(({ y, ceWidth, peWidth, isVA, ceUnwinding, peUnwinding, customColor }) => {
+      bars.forEach(({ y, ceWidth, peWidth, isVA, ceUnwinding, peUnwinding, customColor, opacity: pOpacity }) => {
         const baseOpacity = isVA ? 0.6 : 0.25;
+        // If point has custom opacity (reversal), use it. Otherwise use calculated baseOpacity.
+        // We attach p.opacity to the bar object in the previous loop mapped as 'opacity'
+        // Accessing it here as 'p.opacity' via the object or destructuring.
+        // Wait, destructuring above needs to match.
+        // let's use the object directly or alias it.
+        const p = { opacity: pOpacity }; // simplistic shim for the logic below
         
         // CE Bar (Red / Custom) - Above strike line
         if (ceWidth > 0.5) {
+          // Use custom opacity if provided (Reversal Profile), else default baseOpacity
+          const op = p.opacity || baseOpacity; 
+          
           if (customColor) {
-             ctx.fillStyle = customColor; // Use Confidence Layout (Smart Auto-Detection)
+             ctx.fillStyle = customColor; 
           } else if (ceUnwinding) {
-            ctx.fillStyle = `rgba(${ceColor.r}, ${ceColor.g}, ${ceColor.b}, ${baseOpacity * 0.4})`;
+            ctx.fillStyle = `rgba(${ceColor.r}, ${ceColor.g}, ${ceColor.b}, ${op * 0.4})`;
           } else {
             // Gradient for professional look
             const gradient = ctx.createLinearGradient(startX - ceWidth, 0, startX, 0);
-            gradient.addColorStop(0, `rgba(${ceColor.r}, ${ceColor.g}, ${ceColor.b}, ${baseOpacity * 0.3})`);
-            gradient.addColorStop(1, `rgba(${ceColor.r}, ${ceColor.g}, ${ceColor.b}, ${baseOpacity})`);
+            gradient.addColorStop(0, `rgba(${ceColor.r}, ${ceColor.g}, ${ceColor.b}, ${op * 0.3})`);
+            gradient.addColorStop(1, `rgba(${ceColor.r}, ${ceColor.g}, ${ceColor.b}, ${op})`);
             ctx.fillStyle = gradient;
           }
           ctx.beginPath();
@@ -951,14 +1142,17 @@ const TradingChart = React.memo(({ embedded = false }) => {
         
         // PE Bar (Green / Custom) - Below strike line
         if (peWidth > 0.5) {
+          // Use custom opacity if provided (Reversal Profile), else default baseOpacity
+          const op = p.opacity || baseOpacity;
+
           if (customColor) {
-             ctx.fillStyle = customColor; // Use Confidence Layout (Smart Auto-Detection)
+             ctx.fillStyle = customColor; 
           } else if (peUnwinding) {
-            ctx.fillStyle = `rgba(${peColor.r}, ${peColor.g}, ${peColor.b}, ${baseOpacity * 0.4})`;
+            ctx.fillStyle = `rgba(${peColor.r}, ${peColor.g}, ${peColor.b}, ${op * 0.4})`;
           } else {
             const gradient = ctx.createLinearGradient(startX - peWidth, 0, startX, 0);
-            gradient.addColorStop(0, `rgba(${peColor.r}, ${peColor.g}, ${peColor.b}, ${baseOpacity * 0.3})`);
-            gradient.addColorStop(1, `rgba(${peColor.r}, ${peColor.g}, ${peColor.b}, ${baseOpacity})`);
+            gradient.addColorStop(0, `rgba(${peColor.r}, ${peColor.g}, ${peColor.b}, ${op * 0.3})`);
+            gradient.addColorStop(1, `rgba(${peColor.r}, ${peColor.g}, ${peColor.b}, ${op})`);
             ctx.fillStyle = gradient;
           }
           ctx.beginPath();
@@ -1284,6 +1478,92 @@ const TradingChart = React.memo(({ embedded = false }) => {
           <option value="reversal">Reversal</option>
         </select>
 
+        {/* Info Icon with Hover Context HUD */}
+        {activeProfile !== 'none' && (
+          <div className="relative group ml-1.5 flex items-center">
+             <div className={`cursor-help p-1 rounded-full border transition-colors ${
+                theme === 'dark' ? 'border-gray-700 hover:border-blue-500 text-gray-400 hover:text-blue-400' : 'border-gray-200 hover:border-blue-500 text-gray-500 hover:text-blue-600'
+             }`}>
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+             </div>
+             
+             {/* Hover Content */}
+             <div className={`absolute top-full left-0 mt-2 w-80 p-3 rounded-lg border shadow-xl backdrop-blur-xl z-[200] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 ${
+                theme === 'dark' ? 'bg-gray-900/95 border-gray-700 text-gray-200' : 'bg-white/95 border-blue-100 text-gray-800'
+             }`}>
+                {/* Connector Arrow */}
+                <div className={`absolute -top-1.5 left-2 w-3 h-3 rotate-45 border-l border-t ${
+                     theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-white border-blue-100'
+                }`}></div>
+
+                <div className="relative z-10 flex flex-col gap-2.5">
+                   {/* Title */}
+                   <div className="flex items-center gap-1.5 border-b pb-2 border-dashed border-opacity-30 border-gray-500">
+                      <span className="text-base">💡</span>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-blue-500">
+                        {getGuide(activeProfile).title}
+                      </span>
+                   </div>
+                   
+                   {/* Formula (Code-like styling) */}
+                   {getGuide(activeProfile).formula && (
+                     <div className={`p-1.5 rounded font-mono text-[9px] ${
+                        theme === 'dark' ? 'bg-gray-800 text-green-400' : 'bg-gray-100 text-green-700'
+                     }`}>
+                       <span className="opacity-50 mr-1">ƒ</span> {getGuide(activeProfile).formula}
+                     </div>
+                   )}
+
+                   {/* Logic */}
+                   <div>
+                     <span className={`text-[8px] uppercase font-bold block mb-0.5 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>Logic</span>
+                     <p className="text-[10px] leading-snug opacity-90">{getGuide(activeProfile).logic}</p>
+                   </div>
+                   
+                   {/* Visual Interpretation */}
+                   {getGuide(activeProfile).visual && (
+                     <div className={`p-1.5 rounded border-l-2 ${
+                        theme === 'dark' ? 'bg-gray-800/50 border-yellow-500/50' : 'bg-yellow-50 border-yellow-400'
+                     }`}>
+                       <span className={`text-[8px] uppercase font-bold block mb-0.5 ${theme === 'dark' ? 'text-yellow-500/70' : 'text-yellow-600'}`}>Visual Guide</span>
+                       <p className={`text-[9px] leading-snug ${theme === 'dark' ? 'text-yellow-200/80' : 'text-yellow-800'}`}>{getGuide(activeProfile).visual}</p>
+                     </div>
+                   )}
+
+                   {/* Trade Signal */}
+                   <div className={`p-1.5 rounded border-l-2 ${
+                      theme === 'dark' ? 'bg-blue-500/10 border-blue-500' : 'bg-blue-50 border-blue-500'
+                   }`}>
+                      <span className={`text-[8px] uppercase font-bold block mb-0.5 ${theme === 'dark' ? 'text-blue-400/70' : 'text-blue-600'}`}>Trade Signal</span>
+                      <p className="text-[9px] font-medium leading-snug text-blue-500">{getGuide(activeProfile).signal}</p>
+                   </div>
+                </div>
+             </div>
+          </div>
+        )}
+
+        {/* Smart Auto-Pilot Toggle */}
+        {activeProfile === 'reversal' && (
+          <button
+            onClick={() => setIsAutoPilot(!isAutoPilot)}
+            className={`ml-2 px-2 py-1 flex items-center gap-1.5 text-[10px] font-bold rounded border transition-all ${
+              isAutoPilot
+                ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white border-transparent shadow-sm'
+                : theme === 'dark' ? 'bg-gray-800 text-gray-400 border-gray-700' : 'bg-white text-gray-500 border-gray-200'
+            }`}
+            title="Auto-Detect Thresholds based on Market Context"
+          >
+            <span>✨ Auto</span>
+            {isAutoPilot && optionsData?.meta && (
+              <span className="bg-white/20 px-1 rounded text-[9px] font-mono">
+                {optionsData.meta.recommended_threshold > 0 ? Math.round(optionsData.meta.recommended_threshold) : '60'}
+              </span>
+            )}
+          </button>
+        )}
+
         {/* Spacer */}
         <div className="flex-grow" />
 
@@ -1351,6 +1631,7 @@ const TradingChart = React.memo(({ embedded = false }) => {
         </div>
       </div>
 
+      {/* Chart Wrapper - Use 100% height in fullscreen, reduced margin normally */}
       {/* Chart Wrapper - Use 100% height in fullscreen, reduced margin normally */}
       <div className="relative w-full flex-grow" style={{ height: isFullscreen ? '100vh' : embedded ? 'calc(100vh - 120px)' : 'calc(100vh - 100px)' }}>
           <div ref={chartContainerRef} className={`w-full h-full ${themeClasses.chart}`} />

@@ -1,11 +1,7 @@
-"""
-Options Service
-High-level service for options data operations
-Production-ready with full reversal integration
-"""
 import logging
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone, timedelta
+import numpy as np
 
 from app.services.dhan_client import DhanClient
 from app.services.bsm import BSMService
@@ -111,6 +107,7 @@ class OptionsService:
         # Process each strike
         oc = chain_data.get("oc", {})
         processed_strikes = {}
+        confidence_scores = []  # For global statistics
         
         # Calculate OI averages for liquidity assessment
         all_ce_oi = [s.get("ce", {}).get("oi", s.get("ce", {}).get("OI", 0)) for s in oc.values()]
@@ -205,6 +202,9 @@ class OptionsService:
                         processed["recommended_strategy"] = reversal_result.recommended_strategy
                         processed["alert"] = reversal_result.alert
                         processed["time_decay"] = self.reversal.weekly_theta_decay(T_days)
+                        
+                        # Collect confidence score for global stats
+                        confidence_scores.append(reversal_result.confidence)
                 
                 # Calculate PCR for this strike
                 ce_oi = ce.get("oi", ce.get("OI", 0))
@@ -225,6 +225,43 @@ class OptionsService:
         strikes = sorted([float(s) for s in oc.keys()])
         atm_strike = min(strikes, key=lambda x: abs(x - spot)) if strikes else spot
         
+        # ===== SMART AUTO-DETECTION METADATA =====
+        meta = {
+            "noise_floor": 60,
+            "volatility_regime": "medium", 
+            "recommended_threshold": 70,
+            "std_dev": 0
+        }
+        
+        if confidence_scores:
+            mean_conf = float(np.mean(confidence_scores))
+            std_conf = float(np.std(confidence_scores))
+            
+            # Smart Threshold Logic
+            vol_regime = "medium"
+            if atmiv > 30: vol_regime = "high"
+            elif atmiv < 12: vol_regime = "low"
+            
+            # Base threshold is the chain average (Noise Floor)
+            base_threshold = mean_conf
+            
+            if vol_regime == "high":
+                # High Vol: Trust only the Very Best (Mean + 0.5 Sigma)
+                rec_threshold = base_threshold + (0.5 * std_conf)
+            elif vol_regime == "low":
+                # Low Vol: Trust slightly above average (Mean - 0.2 Sigma) to catch subtle moves
+                rec_threshold = base_threshold - (0.2 * std_conf)
+            else:
+                # Normal: Just above average
+                rec_threshold = base_threshold
+                
+            meta = {
+                "noise_floor": round(mean_conf, 1),
+                "volatility_regime": vol_regime,
+                "recommended_threshold": round(min(90, max(50, rec_threshold)), 1),
+                "std_dev": round(std_conf, 1)
+            }
+        
         return {
             "symbol": symbol.upper(),
             "expiry": expiry,
@@ -242,11 +279,13 @@ class OptionsService:
             "days_to_expiry": chain_data.get("dte") or T_days,  # Use Dhan's dte if available
             "dte": chain_data.get("dte", T_days),
             "instrument_type": instrument_type,
-            # New fields from Dhan
+            # Schema Fields
             "max_pain_strike": chain_data.get("max_pain_strike", 0),
             "u_id": chain_data.get("u_id", 0),
             "lot_size": chain_data.get("lot_size", 75),
             "expiry_list": chain_data.get("expiry_list", []),
+            # New Meta Field
+            "meta": meta
         }
     
     async def get_percentage_data(

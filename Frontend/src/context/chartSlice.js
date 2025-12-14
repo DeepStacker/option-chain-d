@@ -2,8 +2,8 @@ import { createSlice } from "@reduxjs/toolkit";
 
 const initialState = {
   symbols: [],
-  currentSymbol: null,
-  timeframe: "5",
+  currentSymbol: "INR",
+  timeframe: "10",
   chartData: [],
   connectionStatus: "disconnected",
   weekly: false,

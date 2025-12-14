@@ -102,25 +102,27 @@ class ReversalService:
             return "downtrend"
         return "sideways"
     
-    def liquidity_adjustment(
-        self,
-        oi: float,
-        avg_oi: float,
-        low_liquidity: float = 0.5,
-        high_liquidity: float = 2.0
-    ) -> float:
-        """Calculate liquidity adjustment factor based on open interest."""
-        if avg_oi <= 0:
-            return 1.0
+    def _calculate_liquidity_gravity(
+        self, 
+        ce_oi: float, 
+        pe_oi: float, 
+        avg_ce_oi: float, 
+        avg_pe_oi: float
+    ) -> tuple:
+        """
+        Calculate liquidity ratio and gravity factor.
+        Returns: (liquidity_ratio, gravity)
+        """
+        avg_oi_safe = max(avg_ce_oi + avg_pe_oi, 1) / 2
+        strike_oi = ce_oi + pe_oi
+        ratio = strike_oi / avg_oi_safe
         
-        ratio = oi / avg_oi
-        
-        if ratio > high_liquidity:
-            return 1.2
-        elif ratio < low_liquidity:
-            return 0.8
-        return 1.0
-    
+        # Gravity logic: If OI is huge (>2x average), it anchors the price closer to Strike
+        # If OI is low, price is free to drift with Greeks
+        # Gravity range: 0.0 to 0.4 (max 40% dampening)
+        gravity = min(0.4, max(0, (ratio - 1) * 0.1))
+        return ratio, gravity
+
     def expected_price_range(
         self, 
         S: float, 
@@ -139,6 +141,10 @@ class ReversalService:
         """Calculate weekly theta decay factor."""
         return max(0.5, 1.5 - 0.1 * T_days)
     
+    def round_to_tick(self, price: float, tick_size: float = 0.05) -> float:
+        """Round price to the nearest tick size."""
+        return round(round(price / tick_size) * tick_size, 2)
+
     def adjusted_reversal_price(
         self,
         curr_call_price: float,
@@ -150,39 +156,60 @@ class ReversalService:
         put_iv: float,
         alpha: float,
         pe_delta: float,
-        ce_delta: float
+        ce_delta: float,
+        ce_gamma: float = 0.0,
+        pe_gamma: float = 0.0,
+        gravity: float = 0.0
     ) -> tuple:
         """
-        Calculate adjusted reversal prices.
+        Calculate adjusted reversal prices with Liquidity Gravity.
         Returns: (wkly_rev, rs, rr, ss)
         """
-        wkly_rev = strike + (
-            (curr_put_price - put_theoretical) +
-            (curr_call_price - call_theoretical)
-        )
+        dampener = 1.0 - gravity
         
-        rr = (
-            strike +
+        # Gamma-weighted weekly reversal (trust the leg with higher sensitivity)
+        put_diff = curr_put_price - put_theoretical
+        call_diff = curr_call_price - call_theoretical
+        
+        total_gamma = abs(ce_gamma) + abs(pe_gamma)
+        if total_gamma > 0.0001:
+            weighted_diff = (put_diff * abs(pe_gamma) + call_diff * abs(ce_gamma)) / total_gamma
+        else:
+            weighted_diff = put_diff + call_diff  # Fallback to simple sum
+            
+        # Apply gravity dampener
+        wkly_rev = strike + (weighted_diff * dampener)
+        
+        # RR (Resistance Reversal)
+        rr_raw_adj = (
             (abs(curr_put_price - put_theoretical) - 
              abs(curr_call_price - call_theoretical)) -
             alpha * (put_iv - call_iv)
         )
+        rr = strike + (rr_raw_adj * dampener)
         
-        rs = (
-            strike +
+        # RS (Reversal Support)
+        rs_raw_adj = (
             ((curr_put_price - put_theoretical) * pe_delta) -
             ((curr_call_price - call_theoretical) * ce_delta) +
             alpha * (put_iv - call_iv)
         )
+        rs = strike + (rs_raw_adj * dampener)
         
-        ss = (
-            strike -
+        # SS (Support Support)
+        ss_raw_adj = (
             ((curr_call_price - call_theoretical) - 
              (curr_put_price - put_theoretical)) -
             alpha * (call_iv - put_iv)
         )
+        ss = strike - (ss_raw_adj * dampener)
         
-        return round(wkly_rev, 2), round(rs, 2), round(rr, 2), round(ss, 2)
+        return (
+            self.round_to_tick(wkly_rev),
+            self.round_to_tick(rs),
+            self.round_to_tick(rr),
+            self.round_to_tick(ss)
+        )
     
     def compute_reversal_features(
         self,
@@ -247,24 +274,20 @@ class ReversalService:
         curr_put_price: float,
         call_theoretical: float,
         put_theoretical: float,
+        ce_oi: float = 0,
+        pe_oi: float = 0,
+        avg_ce_oi: float = 1,
+        avg_pe_oi: float = 1,
         S_chng: float = 1.0,
         instrument_type: str = "IDX",
         vol_chng: float = 0.01,
-        time_chng: float = 1/365
+        time_chng: float = 1/365,
+        gravity: float = 0.0,
+        liquidity_ratio: float = 1.0
     ) -> tuple:
         """
-        Calculate advanced reversal point using 11 Greek orders.
+        Calculate advanced reversal point using 11 Greek orders AND Liquidity Gravity.
         Full implementation ported from avp.py advanced_reversal_point()
-        
-        Features:
-        - First-order Greeks (delta, gamma, vega, theta, rho)
-        - Second-order Greeks (vomma, vanna, charm)
-        - Third-order Greeks (speed, zomma, color, ultima)
-        - Time-based weighting (near expiry emphasizes higher-order)
-        - Volatility regime adjustments
-        
-        Returns:
-            (reversal_point, confidence_score, debug_data)
         """
         if T_days <= 0:
             return (K, 0, {})
@@ -356,22 +379,26 @@ class ReversalService:
             first_order_total * w1 + second_order_total * w2 + third_order_total * w3
         )
         
+        # Apply gravity to the adjustment (dampening the theoretical drift)
+        total_greek_adjustment = total_greek_adjustment * (1 - gravity)
+        
         # Price discrepancy factor
         price_discrepancy = (curr_call_price - call_theoretical) + (curr_put_price - put_theoretical)
         
-        # Smart bounds based on instrument and volatility
-        if instrument_type.upper() == "IDX":
-            max_adjustment = min(150, K * (current_iv / 100) * 0.04)
-        elif instrument_type.upper() == "COM":
-            max_adjustment = min(50, K * (current_iv / 100) * 0.05)
-        else:  # Equity
-            max_adjustment = min(30, K * (current_iv / 100) * 0.06)
+        # ===== DYNAMIC BOUNDS (NEW) =====
+        # Replace hardcoded logic with Volatility-based Stdv
+        # 1 Stdv move roughly = Spot * IV * sqrt(T)
+        implied_move_today = spot_price * (current_iv / 100) * math.sqrt(1/365)
+        # Allow up to 3 standard deviations of "adjustment"
+        dynamic_max_adj = max(10.0, implied_move_today * 3.0)
+        
+        max_adjustment = min(dynamic_max_adj, K * 0.02) # Cap at 2% of strike to check infinity
         
         # Apply hyperbolic tangent for smooth bounds
         bounded_adjustment = math.tanh(total_greek_adjustment / max(max_adjustment, 1)) * max_adjustment
         
         # Final reversal point
-        reversal_point = round(K + bounded_adjustment, 2)
+        reversal_point = self.round_to_tick(K + bounded_adjustment)
         
         # ===== ADVANCED CONFIDENCE SCORING =====
         greek_magnitudes = [
@@ -394,6 +421,10 @@ class ReversalService:
         debug_data = {
             "reversal_point": reversal_point,
             "confidence_score": final_confidence,
+            "liquidity_adjustment": {
+                "ratio": liquidity_ratio,
+                "gravity": gravity
+            },
             "greek_breakdown": {
                 "first_order": {
                     "delta": delta_effect,
@@ -497,15 +528,22 @@ class ReversalService:
             # Alpha for reversal calculations
             alpha = put_theoretical - call_theoretical
             
-            # Adjusted reversal prices
+            # Calculate liquidity adjustments (Gravity)
+            liq_ratio, gravity = self._calculate_liquidity_gravity(
+                ce_oi, pe_oi, avg_ce_oi, avg_pe_oi
+            )
+            
+            # Adjusted reversal prices (All types now respect gravity)
             wkly_rev, rs, rr, ss = self.adjusted_reversal_price(
                 curr_call_price, curr_put_price, K,
                 call_theoretical, put_theoretical,
                 sigma_call, sigma_put, alpha,
-                pe_greeks.delta, ce_greeks.delta
+                pe_greeks.delta, ce_greeks.delta,
+                ce_greeks.gamma, pe_greeks.gamma,
+                gravity=gravity
             )
             
-            # Advanced reversal point
+            # Advanced reversal point (Main Reversal)
             rev, confidence, debug_data = self.advanced_reversal_point(
                 K=K,
                 spot_price=S,
@@ -518,8 +556,14 @@ class ReversalService:
                 curr_put_price=curr_put_price,
                 call_theoretical=call_theoretical,
                 put_theoretical=put_theoretical,
+                ce_oi=ce_oi,
+                pe_oi=pe_oi,
+                avg_ce_oi=avg_ce_oi,
+                avg_pe_oi=avg_pe_oi,
                 S_chng=spot_change,
-                instrument_type=instrument_type
+                instrument_type=instrument_type,
+                gravity=gravity,
+                liquidity_ratio=liq_ratio
             )
             
             # IV skew analysis
@@ -558,11 +602,7 @@ class ReversalService:
             vol_regime = self.detect_volatility_regime([s / 100 for s in iv_series])
             trend_regime = self.detect_trend_regime([S])
             
-            liq_adj_ce = self.liquidity_adjustment(ce_oi, avg_ce_oi)
-            liq_adj_pe = self.liquidity_adjustment(pe_oi, avg_pe_oi)
-            liq_adj = (liq_adj_ce + liq_adj_pe) / 2
-            
-            liquidity_regime = "high" if liq_adj > 1.1 else ("medium" if liq_adj > 0.9 else "low")
+            liquidity_regime = "high" if liq_ratio > 1.1 else ("medium" if liq_ratio > 0.9 else "low")
             
             # Recommended strategy
             if vol_regime == "high" and trend_regime == "sideways":
@@ -589,8 +629,8 @@ class ReversalService:
                 alert_message = "Monitoring"
             
             # Future reversal
-            fut_rev = round(rev + (fut_price - S), 4) if fut_price > 0 else rev
-            sr_diff = round(wkly_rev - rr, 4)
+            fut_rev = self.round_to_tick(rev + (fut_price - S)) if fut_price > 0 else rev
+            sr_diff = self.round_to_tick(wkly_rev - rr)
             
             return ReversalResult(
                 strike_price=K,
