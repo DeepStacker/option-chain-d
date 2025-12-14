@@ -743,22 +743,40 @@ const TradingChart = React.memo(({ embedded = false }) => {
       
       // Filter clusters to reduce noise (Smart Filtering)
       if (clusters.length > 0) {
-        // Find local max strength
-        const maxClusterStrength = Math.max(...clusters.map(c => c.totalStrength));
-        // Filter out clusters with < 5% of max strength (Lowered noise floor to show more levels)
-        const relevantClusters = clusters.filter(c => c.totalStrength > maxClusterStrength * 0.05);
+        // Statistical Analysis for Auto-Detection (Smart Brain)
+        const strengths = clusters.map(c => c.totalStrength);
+        const maxClusterStrength = Math.max(...strengths);
+        const mean = strengths.reduce((a, b) => a + b, 0) / strengths.length;
+        const variance = strengths.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / strengths.length;
+        const stdDev = Math.sqrt(variance);
+
+        // Dynamic Threshold: Auto-detect noise floor
+        // Use Max(5% of Max, 50% of Mean) to ensure we hide noise but keep relevant structure
+        const dynamicThreshold = Math.max(maxClusterStrength * 0.05, mean * 0.5);
+
+        const relevantClusters = clusters.filter(c => c.totalStrength > dynamicThreshold);
         
         // 2. Convert filtered clusters to final dataPoints
-        // DOMINANCE LOGIC COLOR FIX:
-        // Use the accumulated CE vs PE sums to decide Resistance vs Support
-        // If CE Sum > PE Sum => Resistance (Red)
-        // Else => Support (Green)
+        // Color Logic Fix: Ensure strict comparison against a VALID spot price
+        const validSpot = (spotApprox && spotApprox > 100) ? spotApprox : (dataPoints[0].strike);
         
         dataPoints = relevantClusters.map(c => {
            const finalPrice = c.weightedSum / c.totalStrength;
            
            // Dominance Check
            const isResistance = c.ceSum >= c.peSum;
+
+           // Confidence Tier Calculation
+           // Tier 1 (Super Key): > Mean + 1.5 StdDev OR > 80% of Max
+           // Tier 2 (Tradeable): > Threshold
+           const isTier1 = c.totalStrength > (mean + (1.5 * stdDev)) || c.totalStrength > (maxClusterStrength * 0.8);
+
+           // Visual Confidence:
+           // Tier 1: Full Brightness (1.0)
+           // Tier 2: Standard (0.65)
+           const baseColor = isResistance ? 'rgba(255, 82, 82, ' : 'rgba(0, 230, 118, '; // Bright Red vs Bright Green
+           const opacity = isTier1 ? '1.0)' : '0.55)';
+           const finalColor = baseColor + opacity;
            
            return {
              strike: finalPrice,
@@ -767,7 +785,9 @@ const TradingChart = React.memo(({ embedded = false }) => {
              peVal: isResistance ? 0 : c.totalStrength,
              singleVal: c.totalStrength,
              isCluster: true,
-             clusterCount: c.points.length
+             clusterCount: c.points.length,
+             confidenceTier: isTier1 ? 1 : 2,
+             color: finalColor // Used for visual highlighting
            };
         });
       } else {
@@ -885,6 +905,7 @@ const TradingChart = React.memo(({ embedded = false }) => {
       ctx.lineJoin = 'round';
       
       // Pre-calculate all coordinates
+      // Pre-calculate all coordinates
       const bars = [];
       dataPoints.forEach((p) => {
         const strike = parseFloat(p.strike);
@@ -901,17 +922,20 @@ const TradingChart = React.memo(({ embedded = false }) => {
           y, ceWidth, peWidth, isVA, isPOC,
           ceUnwinding: activeProfile === 'oi_change' && p.ceVal < 0,
           peUnwinding: activeProfile === 'oi_change' && p.peVal < 0,
+          customColor: p.color // Pass custom confidence color from Smart Auto-Detection
         });
       });
       
       // Draw all bars in batches for better performance
       // First pass: Draw all fills
-      bars.forEach(({ y, ceWidth, peWidth, isVA, ceUnwinding, peUnwinding }) => {
+      bars.forEach(({ y, ceWidth, peWidth, isVA, ceUnwinding, peUnwinding, customColor }) => {
         const baseOpacity = isVA ? 0.6 : 0.25;
         
-        // CE Bar (Red) - Above strike line
+        // CE Bar (Red / Custom) - Above strike line
         if (ceWidth > 0.5) {
-          if (ceUnwinding) {
+          if (customColor) {
+             ctx.fillStyle = customColor; // Use Confidence Layout (Smart Auto-Detection)
+          } else if (ceUnwinding) {
             ctx.fillStyle = `rgba(${ceColor.r}, ${ceColor.g}, ${ceColor.b}, ${baseOpacity * 0.4})`;
           } else {
             // Gradient for professional look
@@ -925,9 +949,11 @@ const TradingChart = React.memo(({ embedded = false }) => {
           ctx.fill();
         }
         
-        // PE Bar (Green) - Below strike line
+        // PE Bar (Green / Custom) - Below strike line
         if (peWidth > 0.5) {
-          if (peUnwinding) {
+          if (customColor) {
+             ctx.fillStyle = customColor; // Use Confidence Layout (Smart Auto-Detection)
+          } else if (peUnwinding) {
             ctx.fillStyle = `rgba(${peColor.r}, ${peColor.g}, ${peColor.b}, ${baseOpacity * 0.4})`;
           } else {
             const gradient = ctx.createLinearGradient(startX - peWidth, 0, startX, 0);
