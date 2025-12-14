@@ -129,11 +129,11 @@ const OIAnalysis = () => {
 
             {/* Summary Cards Row */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-4 text-white">
+                <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-xl p-4 text-white">
                     <div className="text-xs opacity-80 mb-1">Total Call OI</div>
                     <div className="text-2xl font-bold">{formatNumber(totalOI.calls)}</div>
                 </div>
-                <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-xl p-4 text-white">
+                <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-4 text-white">
                     <div className="text-xs opacity-80 mb-1">Total Put OI</div>
                     <div className="text-2xl font-bold">{formatNumber(totalOI.puts)}</div>
                 </div>

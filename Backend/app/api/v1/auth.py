@@ -1,6 +1,7 @@
 """
 Authentication Endpoints
 """
+import os
 import logging
 from datetime import datetime
 
@@ -12,6 +13,7 @@ from app.core.security import verify_firebase_token, revoke_user_tokens
 from app.core.exceptions import UnauthorizedException, ValidationException
 from app.core.dependencies import CurrentUser, Cache
 from app.repositories.user import UserRepository
+from app.models.user import UserRole
 from app.schemas.user import (
     AuthVerifyRequest,
     AuthVerifyResponse,
@@ -23,6 +25,9 @@ from app.schemas.common import ResponseModel
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
+# Get admin email from environment
+ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "").lower().strip()
+
 
 @router.post("/verify", response_model=AuthVerifyResponse)
 async def verify_token(
@@ -33,6 +38,7 @@ async def verify_token(
     """
     Verify Firebase ID token and return user data.
     Creates user if not exists.
+    Auto-promotes ADMIN_EMAIL user to admin role.
     """
     # Verify token
     token_data = verify_firebase_token(request.id_token)
@@ -45,7 +51,7 @@ async def verify_token(
     if not firebase_uid or not email:
         raise ValidationException("Token missing required claims")
     
-    # Get or create user
+    # Get or create user with race condition handling
     user_repo = UserRepository(db)
     user = await user_repo.get_by_firebase_uid(firebase_uid)
     
@@ -60,20 +66,48 @@ async def verify_token(
             username = f"{base_username}{counter}"
             counter += 1
         
-        user = await user_repo.create(
-            firebase_uid=firebase_uid,
-            email=email,
-            username=username,
-            is_email_verified=token_data.get("email_verified", False),
-            login_provider=token_data.get("sign_in_provider", "email"),
-            profile_image=token_data.get("picture"),
-        )
-        await db.commit()
-        logger.info(f"Created new user: {email}")
+        # Check if this email should be admin
+        should_be_admin = ADMIN_EMAIL and email.lower() == ADMIN_EMAIL
+        initial_role = UserRole.ADMIN if should_be_admin else UserRole.USER
+        
+        try:
+            user = await user_repo.create(
+                firebase_uid=firebase_uid,
+                email=email,
+                username=username,
+                is_email_verified=token_data.get("email_verified", False),
+                login_provider=token_data.get("sign_in_provider", "email"),
+                profile_image=token_data.get("picture"),
+                role=initial_role,
+            )
+            await db.commit()
+            
+            if should_be_admin:
+                logger.info(f"Created new ADMIN user: {email} (matched ADMIN_EMAIL)")
+            else:
+                logger.info(f"Created new user: {email}")
+        except Exception as e:
+            # Handle race condition - another request created the user
+            if "unique" in str(e).lower() or "duplicate" in str(e).lower():
+                await db.rollback()
+                user = await user_repo.get_by_firebase_uid(firebase_uid)
+                if not user:
+                    # Try by email as fallback
+                    user = await user_repo.get_by_email(email)
+                logger.info(f"Race condition handled - found existing user: {email}")
+            else:
+                raise
+    else:
+        # Existing user - check if they should be promoted to admin
+        if ADMIN_EMAIL and email.lower() == ADMIN_EMAIL and user.role != UserRole.ADMIN:
+            user.role = UserRole.ADMIN
+            await db.commit()
+            logger.info(f"Promoted existing user to ADMIN: {email}")
     
     # Update last login
-    await user_repo.update_last_login(user.id)
-    await db.commit()
+    if user:
+        await user_repo.update_last_login(user.id)
+        await db.commit()
     
     return AuthVerifyResponse(
         user=UserResponse.model_validate(user.to_dict()),

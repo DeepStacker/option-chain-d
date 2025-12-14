@@ -1,6 +1,7 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, memo } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { setResults } from "../context/tcaSlice";
+import { Helmet } from 'react-helmet-async';
 import CryptoJS from "crypto-js";
 import { toast } from "react-toastify";
 import { motion, AnimatePresence } from "framer-motion";
@@ -108,7 +109,6 @@ const ProfitLossCalculator = () => {
   const [lastCalculationTime, setLastCalculationTime] = useState(null);
   const [apiService] = useState(() => new TCAAPIService());
   const encryptionKey = import.meta.env.VITE_ENCRYPTION_KEY || "Shivam";
-120 |
 
   useEffect(() => {
     document.title = "DeepStrike | Advanced Risk Analysis & TCA";
@@ -254,24 +254,22 @@ const ProfitLossCalculator = () => {
     };
   }, [results]);
 
+  const isDark = theme === 'dark';
+
   return (
-    <div
-      className={`min-h-screen transition-all duration-300 ${
-        theme === "dark"
-          ? "bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white"
-          : "bg-gradient-to-br from-gray-50 via-white to-gray-100 text-gray-900"
-      }`}
-    >
-      {/* Enhanced Header Section */}
-      <div
-        className={`sticky top-16 z-10 backdrop-blur-md ${
-          theme === "dark"
-            ? "bg-gray-900/95 border-gray-700"
-            : "bg-white/95 border-gray-200"
-        } border-b shadow-sm`}
-      >
-        <div className="max-w-7xl mx-auto p-6">
-          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center space-y-4 lg:space-y-0">
+    <>
+      <Helmet>
+        <title>TCA | DeepStrike</title>
+        <meta name="description" content="Trading Cost Analysis and Risk Management" />
+      </Helmet>
+      
+      <div className={`min-h-screen transition-colors duration-300 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+        {/* Compact Header */}
+        <div className={`sticky top-0 z-10 backdrop-blur-md border-b ${
+          isDark ? 'bg-gray-900/90 border-gray-800' : 'bg-white/90 border-gray-200'
+        }`}>
+          <div className="max-w-7xl mx-auto px-4 py-3">
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center space-y-4 lg:space-y-0">
             <div className="flex items-center space-x-4">
               <div
                 className={`p-3 rounded-xl ${
@@ -536,7 +534,8 @@ const ProfitLossCalculator = () => {
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 };
 

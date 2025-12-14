@@ -80,6 +80,14 @@ export const adminService = {
         return response.data;
     },
 
+    /**
+     * Delete instrument
+     */
+    deleteInstrument: async (instrumentId) => {
+        const response = await axiosInstance.delete(`/admin/instruments/${instrumentId}`);
+        return response.data;
+    },
+
     // ═══════════════════════════════════════════════════════════════════
     // User Management
     // ═══════════════════════════════════════════════════════════════════
@@ -150,6 +158,89 @@ export const adminService = {
      */
     getHealth: async () => {
         const response = await axiosInstance.get('/health');
+        return response.data;
+    },
+
+    /**
+     * Get runtime settings from .env (read-only)
+     */
+    getRuntimeSettings: async () => {
+        const response = await axiosInstance.get('/admin/settings/runtime');
+        return response.data;
+    },
+
+    /**
+     * Re-seed missing configs and instruments
+     */
+    seedDatabase: async () => {
+        const response = await axiosInstance.post('/admin/seed');
+        return response.data;
+    },
+
+    // ═══════════════════════════════════════════════════════════════════
+    // Monitoring Endpoints
+    // ═══════════════════════════════════════════════════════════════════
+
+    /**
+     * Get system metrics (CPU, memory, disk)
+     */
+    getSystemMetrics: async () => {
+        const response = await axiosInstance.get('/admin/monitoring/system');
+        return response.data;
+    },
+
+    /**
+     * Get WebSocket connection stats
+     */
+    getWebSocketStats: async () => {
+        const response = await axiosInstance.get('/admin/monitoring/websockets');
+        return response.data;
+    },
+
+    /**
+     * Get database statistics
+     */
+    getDatabaseStats: async () => {
+        const response = await axiosInstance.get('/admin/monitoring/database');
+        return response.data;
+    },
+
+    /**
+     * Get Redis stats
+     */
+    getRedisStats: async () => {
+        const response = await axiosInstance.get('/admin/monitoring/redis');
+        return response.data;
+    },
+
+    /**
+     * Get application logs
+     */
+    getLogs: async (level = null, limit = 100, search = null) => {
+        const params = { limit };
+        if (level) params.level = level;
+        if (search) params.search = search;
+        const response = await axiosInstance.get('/admin/monitoring/logs', { params });
+        return response.data;
+    },
+
+    // ═══════════════════════════════════════════════════════════════════
+    // Feature Flags
+    // ═══════════════════════════════════════════════════════════════════
+
+    /**
+     * Get all feature flags
+     */
+    getFeatureFlags: async () => {
+        const response = await axiosInstance.get('/admin/features');
+        return response.data;
+    },
+
+    /**
+     * Toggle a feature flag
+     */
+    toggleFeature: async (key, enabled) => {
+        const response = await axiosInstance.put(`/admin/features/${key}`, { enabled });
         return response.data;
     },
 };

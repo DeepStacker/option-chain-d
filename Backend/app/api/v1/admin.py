@@ -278,6 +278,33 @@ async def update_instrument(
     )
 
 
+@router.delete("/instruments/{instrument_id}", response_model=ResponseModel)
+async def delete_instrument(
+    instrument_id: UUID,
+    current_user: CurrentAdmin,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Delete a trading instrument (admin only).
+    """
+    instrument_repo = InstrumentRepository(db)
+    instrument = await instrument_repo.get_by_id(instrument_id)
+    
+    if not instrument:
+        raise NotFoundException("Instrument", instrument_id)
+    
+    symbol = instrument.symbol
+    await instrument_repo.delete(instrument_id)
+    await db.commit()
+    
+    logger.info(f"Instrument '{symbol}' deleted by {current_user.email}")
+    
+    return ResponseModel(
+        success=True,
+        message=f"Instrument '{symbol}' deleted successfully"
+    )
+
+
 # ═══════════════════════════════════════════════════════════════════
 # Cache Management Endpoints
 # ═══════════════════════════════════════════════════════════════════
@@ -309,4 +336,167 @@ async def clear_cache(
         success=True,
         keys_cleared=keys_cleared,
         message=message
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════
+# Runtime Settings Endpoints (Read-only .env values)
+# ═══════════════════════════════════════════════════════════════════
+
+@router.get("/settings/runtime", response_model=ResponseModel)
+async def get_runtime_settings(
+    current_user: CurrentAdmin,
+):
+    """
+    Get current runtime settings from environment (read-only).
+    These are loaded from .env and cannot be changed via UI.
+    """
+    from app.config.settings import settings
+    
+    runtime_settings = {
+        "application": {
+            "APP_NAME": settings.APP_NAME,
+            "APP_VERSION": settings.APP_VERSION,
+            "APP_ENV": settings.APP_ENV,
+            "DEBUG": settings.DEBUG,
+        },
+        "server": {
+            "HOST": settings.HOST,
+            "PORT": settings.PORT,
+            "WORKERS": settings.WORKERS,
+        },
+        "database": {
+            "DATABASE_URL": settings.DATABASE_URL[:30] + "..." if settings.DATABASE_URL else "Not configured",
+            "DATABASE_POOL_SIZE": settings.DATABASE_POOL_SIZE,
+            "DATABASE_MAX_OVERFLOW": settings.DATABASE_MAX_OVERFLOW,
+        },
+        "redis": {
+            "REDIS_URL": settings.REDIS_URL[:30] + "..." if settings.REDIS_URL else "Not configured",
+            "REDIS_CACHE_TTL": settings.REDIS_CACHE_TTL,
+            "REDIS_OPTIONS_CACHE_TTL": settings.REDIS_OPTIONS_CACHE_TTL,
+        },
+        "api": {
+            "DHAN_API_BASE_URL": settings.DHAN_API_BASE_URL,
+            "DHAN_API_TIMEOUT": settings.DHAN_API_TIMEOUT,
+            "DHAN_API_RETRY_COUNT": settings.DHAN_API_RETRY_COUNT,
+            "DHAN_AUTH_TOKEN": "***configured***" if settings.DHAN_AUTH_TOKEN else "Not configured",
+        },
+        "websocket": {
+            "WS_HEARTBEAT_INTERVAL": settings.WS_HEARTBEAT_INTERVAL,
+            "WS_MAX_CONNECTIONS": settings.WS_MAX_CONNECTIONS,
+            "WS_BROADCAST_INTERVAL": settings.WS_BROADCAST_INTERVAL,
+        },
+        "security": {
+            "RATE_LIMIT_PER_MINUTE": settings.RATE_LIMIT_PER_MINUTE,
+            "RATE_LIMIT_BURST": settings.RATE_LIMIT_BURST,
+            "ACCESS_TOKEN_EXPIRE_MINUTES": settings.ACCESS_TOKEN_EXPIRE_MINUTES,
+        },
+        "trading": {
+            "DEFAULT_RISK_FREE_RATE": settings.DEFAULT_RISK_FREE_RATE,
+            "DEFAULT_SYMBOL": settings.DEFAULT_SYMBOL,
+        },
+        "logging": {
+            "LOG_LEVEL": settings.LOG_LEVEL,
+        },
+    }
+    
+    return ResponseModel(
+        success=True,
+        data=runtime_settings
+    )
+
+
+@router.post("/seed", response_model=ResponseModel)
+async def reseed_database(
+    current_user: CurrentAdmin,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Re-seed missing configurations and instruments.
+    Will not overwrite existing entries.
+    """
+    from app.utils.seeder import seed_configs, seed_instruments
+    
+    config_count = await seed_configs(db)
+    instrument_count = await seed_instruments(db)
+    
+    logger.info(f"Re-seed by {current_user.email}: {config_count} configs, {instrument_count} instruments")
+    
+    return ResponseModel(
+        success=True,
+        message=f"Seeded {config_count} configs and {instrument_count} instruments",
+        data={
+            "configs_seeded": config_count,
+            "instruments_seeded": instrument_count,
+        }
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════
+# Feature Flags Endpoints
+# ═══════════════════════════════════════════════════════════════════
+
+@router.get("/features", response_model=ResponseModel)
+async def list_feature_flags(
+    current_user: CurrentAdmin,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    List all feature flags with their current status.
+    """
+    config_repo = ConfigRepository(db)
+    
+    try:
+        features_category = ConfigCategory.FEATURES
+    except AttributeError:
+        # FEATURES category might not exist, return empty
+        return ResponseModel(success=True, data=[])
+    
+    features = await config_repo.get_by_category(features_category)
+    
+    result = []
+    for f in features:
+        result.append({
+            "key": f.key,
+            "display_name": f.display_name or f.key,
+            "description": f.description,
+            "enabled": f.value.lower() in ("true", "1", "yes", "on"),
+            "value": f.value,
+        })
+    
+    return ResponseModel(success=True, data=result)
+
+
+@router.put("/features/{key}", response_model=ResponseModel)
+async def toggle_feature(
+    key: str,
+    current_user: CurrentAdmin,
+    enabled: bool = Body(..., embed=True),
+    db: AsyncSession = Depends(get_db),
+    cache: RedisCache = Depends(get_redis),
+):
+    """
+    Toggle a feature flag on or off.
+    """
+    config_repo = ConfigRepository(db)
+    
+    config = await config_repo.get_by_key(key)
+    if not config:
+        raise NotFoundException("Feature flag", key)
+    
+    new_value = "true" if enabled else "false"
+    await config_repo.update_value(key, new_value, updated_by=current_user.id)
+    await db.commit()
+    
+    # Invalidate cache
+    if cache:
+        from app.cache.redis import CacheKeys
+        await cache.delete(CacheKeys.config(key))
+    
+    logger.info(f"Feature '{key}' set to {enabled} by {current_user.email}")
+    
+    return ResponseModel(
+        success=True,
+        message=f"Feature '{key}' {'enabled' if enabled else 'disabled'}",
+        data={"key": key, "enabled": enabled}
     )

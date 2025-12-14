@@ -433,7 +433,8 @@ const Profile = () => {
               </motion.button>
             )}
 
-            {profileData.isVerified && (
+            {/* Admin Panel button - only visible to admin users */}
+            {(userData?.role === 'admin' || userData?.role === 'ADMIN') && (
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}

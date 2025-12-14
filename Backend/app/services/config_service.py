@@ -1,194 +1,208 @@
 """
-Configuration Service
-Handles reading and writing admin-managed configuration
+Config Service - Centralized config loading with Redis caching
+Hierarchy: Redis Cache -> Database -> settings.py defaults
 """
-import json
 import logging
 from typing import Optional, Any, Dict
-from uuid import UUID
+import asyncio
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.repositories.config import ConfigRepository, InstrumentRepository
-from app.models.config import ConfigCategory
-from app.cache.redis import RedisCache, CacheKeys
 from app.config.settings import settings
+from app.cache.redis import RedisCache
+from app.config.database import AsyncSessionLocal
+from app.repositories.config import ConfigRepository
 
 logger = logging.getLogger(__name__)
+
+# Cache prefix for configs
+CONFIG_CACHE_PREFIX = "config:"
+CONFIG_CACHE_TTL = 300  # 5 minutes
 
 
 class ConfigService:
     """
-    Configuration service with caching and fallback support.
-    Provides interface for reading/writing admin-managed configs.
+    Centralized config service with Redis caching.
+    
+    Usage:
+        service = ConfigService(redis_cache)
+        token = await service.get("DHAN_AUTH_TOKEN")
     """
     
-    def __init__(
-        self,
-        db: AsyncSession,
-        cache: Optional[RedisCache] = None
-    ):
-        self.config_repo = ConfigRepository(db)
-        self.instrument_repo = InstrumentRepository(db)
+    # In-memory defaults from settings.py
+    _defaults: Dict[str, Any] = {
+        # API Settings
+        "DHAN_API_BASE_URL": getattr(settings, "DHAN_API_BASE_URL", "https://scanx.dhan.co/scanx"),
+        "DHAN_API_TIMEOUT": getattr(settings, "DHAN_API_TIMEOUT", 10),
+        "DHAN_API_RETRY_COUNT": getattr(settings, "DHAN_API_RETRY_COUNT", 2),
+        "DHAN_API_RETRY_DELAY": getattr(settings, "DHAN_API_RETRY_DELAY", 0.3),
+        "DHAN_AUTH_TOKEN": getattr(settings, "DHAN_AUTH_TOKEN", ""),
+        "DHAN_CLIENT_ID": getattr(settings, "DHAN_CLIENT_ID", ""),
+        
+        # Cache Settings
+        "REDIS_CACHE_TTL": getattr(settings, "REDIS_CACHE_TTL", 60),
+        "REDIS_OPTIONS_CACHE_TTL": getattr(settings, "REDIS_OPTIONS_CACHE_TTL", 2),
+        "REDIS_EXPIRY_CACHE_TTL": getattr(settings, "REDIS_EXPIRY_CACHE_TTL", 300),
+        
+        # Trading Settings
+        "DEFAULT_RISK_FREE_RATE": getattr(settings, "DEFAULT_RISK_FREE_RATE", 0.10),
+        "DEFAULT_SYMBOL": getattr(settings, "DEFAULT_SYMBOL", "NIFTY"),
+        
+        # WebSocket Settings
+        "WS_HEARTBEAT_INTERVAL": getattr(settings, "WS_HEARTBEAT_INTERVAL", 30),
+        "WS_BROADCAST_INTERVAL": getattr(settings, "WS_BROADCAST_INTERVAL", 0.5),
+        "WS_MAX_CONNECTIONS": getattr(settings, "WS_MAX_CONNECTIONS", 100),
+        
+        # Rate Limiting
+        "RATE_LIMIT_PER_MINUTE": getattr(settings, "RATE_LIMIT_PER_MINUTE", 100),
+        "RATE_LIMIT_BURST": getattr(settings, "RATE_LIMIT_BURST", 200),
+    }
+    
+    def __init__(self, cache: Optional[RedisCache] = None):
         self.cache = cache
     
-    async def get(
-        self,
-        key: str,
-        fallback: Optional[str] = None,
-        as_type: Optional[type] = None
-    ) -> Optional[Any]:
+    def _get_cache_key(self, key: str) -> str:
+        """Get Redis cache key for config"""
+        return f"{CONFIG_CACHE_PREFIX}{key}"
+    
+    async def get(self, key: str, default: Any = None) -> Any:
         """
-        Get configuration value with caching and fallback.
+        Get config value with caching hierarchy:
+        1. Redis cache (fastest)
+        2. Database (UI-configurable)
+        3. settings.py default
+        4. Provided default
+        """
+        cache_key = self._get_cache_key(key)
         
-        Args:
-            key: Configuration key
-            fallback: Fallback value if not found
-            as_type: Type to convert value to (int, float, bool, dict)
-            
-        Returns:
-            Configuration value or fallback
-        """
-        # Try cache first
+        # 1. Try Redis cache first (fastest)
         if self.cache:
-            cache_key = CacheKeys.config(key)
-            cached = await self.cache.get(cache_key)
-            if cached is not None:
-                return self._convert_type(cached, as_type)
+            try:
+                cached_value = await self.cache.get(cache_key)
+                if cached_value is not None:
+                    logger.debug(f"Config {key} from Redis cache")
+                    return self._convert_type(cached_value, key)
+            except Exception as e:
+                logger.warning(f"Redis cache error for {key}: {e}")
         
-        # Try database
-        value = await self.config_repo.get_value(key)
+        # 2. Try database (UI-configured values)
+        try:
+            async with AsyncSessionLocal() as db:
+                repo = ConfigRepository(db)
+                config = await repo.get_by_key(key)
+                if config and config.is_active:
+                    value = config.value
+                    
+                    # Cache in Redis for next time
+                    if self.cache:
+                        try:
+                            await self.cache.set(cache_key, str(value), ttl=CONFIG_CACHE_TTL)
+                        except Exception as e:
+                            logger.warning(f"Failed to cache config {key}: {e}")
+                    
+                    logger.debug(f"Config {key} from database")
+                    return self._convert_type(value, key)
+        except Exception as e:
+            logger.warning(f"Database config error for {key}: {e}")
         
-        if value is not None:
-            # Update cache
-            if self.cache:
-                await self.cache.set(
-                    CacheKeys.config(key),
-                    value,
-                    ttl=settings.REDIS_CONFIG_CACHE_TTL
-                )
-            return self._convert_type(value, as_type)
+        # 3. Fall back to settings.py defaults
+        if key in self._defaults:
+            logger.debug(f"Config {key} from defaults")
+            return self._defaults[key]
         
-        # Try settings fallback
-        settings_fallback = settings.get_fallback(key)
-        if settings_fallback:
-            return self._convert_type(settings_fallback, as_type)
-        
-        # Use provided fallback
-        return self._convert_type(fallback, as_type) if fallback else None
+        # 4. Use provided default
+        return default
     
-    async def set(
-        self,
-        key: str,
-        value: Any,
-        category: ConfigCategory = ConfigCategory.SYSTEM,
-        updated_by: Optional[UUID] = None,
-        **kwargs
-    ) -> bool:
-        """
-        Set configuration value.
-        
-        Args:
-            key: Configuration key
-            value: Configuration value
-            category: Config category
-            updated_by: Admin user ID
-            **kwargs: Additional config attributes
-            
-        Returns:
-            True if successful
-        """
-        # Convert value to string
-        if isinstance(value, (dict, list)):
-            value = json.dumps(value)
-        else:
-            value = str(value)
-        
-        config = await self.config_repo.set_config(
-            key=key,
-            value=value,
-            category=category,
-            updated_by=updated_by,
-            **kwargs
-        )
-        
-        # Invalidate cache
-        if self.cache and config:
-            await self.cache.delete(CacheKeys.config(key))
-        
-        return config is not None
-    
-    async def get_all(self, category: Optional[ConfigCategory] = None) -> list:
-        """Get all configurations, optionally filtered by category"""
-        if category:
-            return await self.config_repo.get_by_category(category)
-        return await self.config_repo.get_all_active()
-    
-    async def delete(self, key: str) -> bool:
-        """Delete a configuration"""
-        config = await self.config_repo.get_by_key(key)
-        if config:
-            result = await self.config_repo.delete(config.id)
-            
-            # Invalidate cache
-            if self.cache and result:
-                await self.cache.delete(CacheKeys.config(key))
-            
-            return result
-        return False
-    
-    async def get_instruments(self, active_only: bool = True) -> list:
-        """Get all trading instruments"""
-        if active_only:
-            return await self.instrument_repo.get_active()
-        return await self.instrument_repo.get_all()
-    
-    async def get_instrument(self, symbol: str) -> Optional[Any]:
-        """Get instrument by symbol"""
-        return await self.instrument_repo.get_by_symbol(symbol)
-    
-    async def create_instrument(self, **kwargs) -> Any:
-        """Create a new trading instrument"""
-        return await self.instrument_repo.create(**kwargs)
-    
-    async def invalidate_cache(self, pattern: Optional[str] = None) -> int:
-        """Invalidate cache entries"""
-        if not self.cache:
-            return 0
-        
-        if pattern:
-            return await self.cache.delete_pattern(pattern)
-        
-        # Clear all config cache
-        return await self.cache.delete_pattern("config:*")
-    
-    def _convert_type(self, value: Optional[str], target_type: Optional[type]) -> Any:
-        """Convert string value to target type"""
+    def _convert_type(self, value: Any, key: str) -> Any:
+        """Convert string value to appropriate type based on key"""
         if value is None:
             return None
         
-        if target_type is None:
-            return value
+        str_value = str(value)
         
-        try:
-            if target_type == bool:
-                return value.lower() in ("true", "1", "yes")
-            elif target_type == int:
-                return int(value)
-            elif target_type == float:
-                return float(value)
-            elif target_type == dict or target_type == list:
-                return json.loads(value)
-            return value
-        except (ValueError, json.JSONDecodeError):
-            logger.warning(f"Failed to convert '{value}' to {target_type}")
-            return value
+        # Boolean conversion
+        if str_value.lower() in ("true", "false"):
+            return str_value.lower() == "true"
+        
+        # Numeric conversion for known numeric keys
+        numeric_keys = [
+            "TIMEOUT", "TTL", "COUNT", "DELAY", "RATE", "LIMIT",
+            "INTERVAL", "MAX", "MIN", "SIZE", "THRESHOLD"
+        ]
+        
+        if any(nk in key.upper() for nk in numeric_keys):
+            try:
+                if "." in str_value:
+                    return float(str_value)
+                return int(str_value)
+            except ValueError:
+                pass
+        
+        return str_value
+    
+    async def set(self, key: str, value: Any) -> None:
+        """Set config value in cache (DB update should be via admin API)"""
+        if self.cache:
+            cache_key = self._get_cache_key(key)
+            await self.cache.set(cache_key, str(value), ttl=CONFIG_CACHE_TTL)
+    
+    async def invalidate(self, key: str) -> None:
+        """Invalidate config cache for a key"""
+        if self.cache:
+            cache_key = self._get_cache_key(key)
+            await self.cache.delete(cache_key)
+    
+    async def invalidate_all(self) -> None:
+        """Invalidate all config cache"""
+        if self.cache:
+            # Delete all config keys
+            try:
+                keys = await self.cache.keys(f"{CONFIG_CACHE_PREFIX}*")
+                if keys:
+                    for key in keys:
+                        await self.cache.delete(key)
+            except Exception as e:
+                logger.warning(f"Failed to invalidate config cache: {e}")
+    
+    async def get_dhan_token(self) -> str:
+        """Get Dhan auth token with proper caching"""
+        return await self.get("DHAN_AUTH_TOKEN", "")
+    
+    async def get_dhan_base_url(self) -> str:
+        """Get Dhan API base URL"""
+        return await self.get("DHAN_API_BASE_URL", "https://scanx.dhan.co/scanx")
+    
+    async def get_dhan_timeout(self) -> int:
+        """Get Dhan API timeout"""
+        return await self.get("DHAN_API_TIMEOUT", 10)
+    
+    async def get_dhan_retry_count(self) -> int:
+        """Get Dhan API retry count"""
+        return await self.get("DHAN_API_RETRY_COUNT", 2)
+    
+    async def get_dhan_retry_delay(self) -> float:
+        """Get Dhan API retry delay"""
+        return await self.get("DHAN_API_RETRY_DELAY", 0.3)
 
 
-# Factory function for dependency injection
-async def get_config_service(
-    db: AsyncSession,
-    cache: Optional[RedisCache] = None
-) -> ConfigService:
-    """Get config service instance"""
-    return ConfigService(db=db, cache=cache)
+# Global singleton instance
+_config_service: Optional[ConfigService] = None
+
+
+async def get_config_service(cache: Optional[RedisCache] = None) -> ConfigService:
+    """Get or create global config service instance"""
+    global _config_service
+    if _config_service is None:
+        _config_service = ConfigService(cache)
+    elif cache is not None and _config_service.cache is None:
+        _config_service.cache = cache
+    return _config_service
+
+
+async def get_config(key: str, default: Any = None, cache: Optional[RedisCache] = None) -> Any:
+    """
+    Convenience function to get a config value.
+    
+    Usage:
+        token = await get_config("DHAN_AUTH_TOKEN")
+    """
+    service = await get_config_service(cache)
+    return await service.get(key, default)

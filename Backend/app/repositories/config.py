@@ -167,6 +167,7 @@ class InstrumentRepository(BaseRepository[TradingInstrument]):
         strike_interval: float = 50.0,
         strikes_count: int = 20,
         priority: int = 0,
+        is_active: bool = True,
     ) -> TradingInstrument:
         """Create a new instrument"""
         instrument = TradingInstrument(
@@ -178,6 +179,7 @@ class InstrumentRepository(BaseRepository[TradingInstrument]):
             strike_interval=strike_interval,
             strikes_count=strikes_count,
             priority=priority,
+            is_active=is_active,
         )
         self.db.add(instrument)
         await self.db.flush()

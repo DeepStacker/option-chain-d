@@ -22,6 +22,7 @@ class ConfigCategory(str, enum.Enum):
     TRADING = "trading"
     UI = "ui"
     SYSTEM = "system"
+    FEATURES = "features"
 
 
 class SystemConfig(Base, TimestampMixin):

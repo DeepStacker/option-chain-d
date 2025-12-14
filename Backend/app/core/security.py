@@ -79,9 +79,40 @@ def verify_firebase_token(token: str) -> Optional[Dict[str, Any]]:
         return None
     except Exception as e:
         logger.warning(f"Error verifying Firebase token: {e}")
-        # In development, fallback to mock user on failure
+        # In development, try to decode token payload without verification
         if settings.is_development:
             logger.warning("DEV MODE: Bypassing token verification failure")
+            try:
+                # Decode JWT payload without verification (Header.Payload.Signature)
+                import base64
+                import json
+                parts = token.split('.')
+                if len(parts) >= 2:
+                    # Add padding if needed
+                    payload = parts[1]
+                    padding = 4 - len(payload) % 4
+                    if padding != 4:
+                        payload += '=' * padding
+                    decoded_payload = json.loads(base64.urlsafe_b64decode(payload))
+                    
+                    email = decoded_payload.get("email")
+                    uid = decoded_payload.get("user_id") or decoded_payload.get("sub") or decoded_payload.get("uid")
+                    
+                    if email and uid:
+                        logger.info(f"DEV MODE: Extracted user from token: {email}")
+                        return {
+                            "uid": uid,
+                            "email": email,
+                            "email_verified": decoded_payload.get("email_verified", True),
+                            "name": decoded_payload.get("name", ""),
+                            "picture": decoded_payload.get("picture"),
+                            "sign_in_provider": decoded_payload.get("firebase", {}).get("sign_in_provider", "google.com"),
+                        }
+            except Exception as decode_error:
+                logger.warning(f"DEV MODE: Failed to decode token: {decode_error}")
+            
+            # Only use mock user as last resort
+            logger.warning("DEV MODE: Using mock user as fallback")
             return {
                 "uid": "dev-user-uid",
                 "email": "dev@example.com",

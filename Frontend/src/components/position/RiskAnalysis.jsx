@@ -1,320 +1,277 @@
-import React, { useState } from 'react';
-import { Bar, Line } from 'react-chartjs-2';
+import { useState, memo, useMemo } from 'react';
+import { Bar } from 'react-chartjs-2';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
-    Chart as ChartJS,
-    CategoryScale,
-    LinearScale,
-    BarElement,
-    LineElement,
-    PointElement,
-    Title,
-    Tooltip,
-    Legend
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend
 } from 'chart.js';
+import { 
+  ChartBarIcon, 
+  SparklesIcon, 
+  LightBulbIcon,
+  ExclamationTriangleIcon,
+  CheckCircleIcon,
+  InformationCircleIcon,
+} from '@heroicons/react/24/outline';
 import { runMonteCarloSimulation, calculateRiskMetrics, generateTradingSuggestions } from '../../utils/positionAnalytics';
 
-ChartJS.register(
-    CategoryScale,
-    LinearScale,
-    BarElement,
-    LineElement,
-    PointElement,
-    Title,
-    Tooltip,
-    Legend
-);
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
-const RiskAnalysis = ({ calculatedPosition, analysisData, theme }) => {
-    const [selectedTab, setSelectedTab] = useState('overview');
-    
-    // Run Monte Carlo simulation
-    const marketData = {
-        price: calculatedPosition.entryPrice,
-        stopLoss: calculatedPosition.stopLoss,
-        target: calculatedPosition.targetPrice,
-        volatility: analysisData.volatilityLevel || 'medium',
-        volume: 500000 // Example volume, should be fetched from market data
+/**
+ * Enhanced Risk Analysis Component with glass-morphism styling
+ */
+const RiskAnalysis = memo(({ calculatedPosition, analysisData = {}, theme }) => {
+  const [selectedTab, setSelectedTab] = useState('overview');
+  const isDark = theme === 'dark';
+  const safeAnalysisData = analysisData || {};
+  
+  // Memoize market data and calculations
+  const { simulationResults, riskMetrics, tradingSuggestions, marketData } = useMemo(() => {
+    const mktData = {
+      price: calculatedPosition.entryPrice,
+      stopLoss: calculatedPosition.stopLoss,
+      target: calculatedPosition.targetPrice,
+      volatility: safeAnalysisData.volatilityLevel || 'medium',
+      volume: 500000
     };
     
-    const simulationResults = runMonteCarloSimulation(calculatedPosition, marketData);
-    const riskMetrics = calculateRiskMetrics(calculatedPosition, marketData);
-    const tradingSuggestions = generateTradingSuggestions(calculatedPosition, analysisData, marketData);
-
-    // Chart data for Monte Carlo simulation
-    const simulationChartData = {
-        labels: ['Win Probability', 'Loss Probability'],
-        datasets: [{
-            data: [simulationResults.winProbability, (100 - simulationResults.winProbability)],
-            backgroundColor: theme === 'dark' 
-                ? ['rgba(34, 197, 94, 0.5)', 'rgba(239, 68, 68, 0.5)']
-                : ['rgba(34, 197, 94, 0.8)', 'rgba(239, 68, 68, 0.8)'],
-            borderColor: theme === 'dark'
-                ? ['rgba(34, 197, 94, 1)', 'rgba(239, 68, 68, 1)']
-                : ['rgba(34, 197, 94, 1)', 'rgba(239, 68, 68, 1)'],
-            borderWidth: 1
-        }]
+    return {
+      marketData: mktData,
+      simulationResults: runMonteCarloSimulation(calculatedPosition, mktData),
+      riskMetrics: calculateRiskMetrics(calculatedPosition, mktData),
+      tradingSuggestions: generateTradingSuggestions(calculatedPosition, safeAnalysisData, mktData)
     };
+  }, [calculatedPosition, analysisData]);
 
-    // Original chart data
-    const positionChartData = {
-        labels: ['Position Value', 'Risk Amount', 'Potential Gain', 'Potential Loss'],
-        datasets: [{
-            label: 'Amount (₹)',
-            data: [
-                calculatedPosition.totalValue,
-                calculatedPosition.riskAmount,
-                parseFloat(analysisData.potentialGain),
-                parseFloat(analysisData.potentialLoss)
-            ],
-            backgroundColor: theme === 'dark' 
-                ? ['rgba(59, 130, 246, 0.5)', 'rgba(239, 68, 68, 0.5)', 'rgba(34, 197, 94, 0.5)', 'rgba(249, 115, 22, 0.5)']
-                : ['rgba(59, 130, 246, 0.8)', 'rgba(239, 68, 68, 0.8)', 'rgba(34, 197, 94, 0.8)', 'rgba(249, 115, 22, 0.8)'],
-            borderColor: theme === 'dark'
-                ? ['rgba(59, 130, 246, 1)', 'rgba(239, 68, 68, 1)', 'rgba(34, 197, 94, 1)', 'rgba(249, 115, 22, 1)']
-                : ['rgba(59, 130, 246, 1)', 'rgba(239, 68, 68, 1)', 'rgba(34, 197, 94, 1)', 'rgba(249, 115, 22, 1)'],
-            borderWidth: 1
-        }]
-    };
-
-    const chartOptions = {
-        responsive: true,
-        plugins: {
-            legend: {
-                display: false
-            },
-            tooltip: {
-                callbacks: {
-                    label: function(context) {
-                        const value = context.raw;
-                        return typeof value === 'number' ? `₹${value.toFixed(2)}` : `${value}%`;
-                    }
-                }
-            }
-        },
-        scales: {
-            y: {
-                beginAtZero: true,
-                grid: {
-                    color: theme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'
-                },
-                ticks: {
-                    color: theme === 'dark' ? '#E5E7EB' : '#4B5563'
-                }
-            },
-            x: {
-                grid: {
-                    display: false
-                },
-                ticks: {
-                    color: theme === 'dark' ? '#E5E7EB' : '#4B5563'
-                }
-            }
+  // Chart configurations
+  const chartOptions = useMemo(() => ({
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: isDark ? '#1f2937' : '#ffffff',
+        titleColor: isDark ? '#fff' : '#111',
+        bodyColor: isDark ? '#9ca3af' : '#666',
+        borderColor: isDark ? '#374151' : '#e5e7eb',
+        borderWidth: 1,
+        callbacks: {
+          label: (ctx) => typeof ctx.raw === 'number' ? `₹${ctx.raw.toFixed(2)}` : `${ctx.raw}%`
         }
-    };
+      }
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        grid: { color: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' },
+        ticks: { color: isDark ? '#9ca3af' : '#6b7280' }
+      },
+      x: {
+        grid: { display: false },
+        ticks: { color: isDark ? '#9ca3af' : '#6b7280', font: { size: 10 } }
+      }
+    }
+  }), [isDark]);
 
-    return (
-        <div className={`p-6 rounded-lg shadow-lg ${
-            theme === "dark" ? "bg-gray-800" : "bg-white"
-        }`}>
-            <h3 className="text-xl font-semibold mb-4">Risk Analysis</h3>
-            
-            {/* Tab Navigation */}
-            <div className="flex space-x-4 mb-6">
-                <button
-                    onClick={() => setSelectedTab('overview')}
-                    className={`px-4 py-2 rounded-lg ${
-                        selectedTab === 'overview'
-                            ? theme === 'dark' ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
-                            : theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'
-                    }`}
-                >
-                    Overview
-                </button>
-                <button
-                    onClick={() => setSelectedTab('simulation')}
-                    className={`px-4 py-2 rounded-lg ${
-                        selectedTab === 'simulation'
-                            ? theme === 'dark' ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
-                            : theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'
-                    }`}
-                >
-                    Monte Carlo
-                </button>
-                <button
-                    onClick={() => setSelectedTab('suggestions')}
-                    className={`px-4 py-2 rounded-lg ${
-                        selectedTab === 'suggestions'
-                            ? theme === 'dark' ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
-                            : theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'
-                    }`}
-                >
-                    Suggestions
-                </button>
-            </div>
-            
-            {/* Overview Tab */}
-            {selectedTab === 'overview' && (
-                <>
-                    {/* Key Metrics */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                        <div className={`p-4 rounded-lg ${
-                            theme === "dark" ? "bg-gray-700" : "bg-gray-50"
-                        }`}>
-                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Position Size</p>
-                            <p className="text-lg font-semibold">{calculatedPosition.quantity} units</p>
-                        </div>
-                        <div className={`p-4 rounded-lg ${
-                            theme === "dark" ? "bg-gray-700" : "bg-gray-50"
-                        }`}>
-                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Risk:Reward</p>
-                            <p className="text-lg font-semibold">{analysisData.riskRewardRatio}</p>
-                        </div>
-                        <div className={`p-4 rounded-lg ${
-                            theme === "dark" ? "bg-gray-700" : "bg-gray-50"
-                        }`}>
-                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Portfolio Heat</p>
-                            <p className="text-lg font-semibold">{analysisData.portfolioHeat}%</p>
-                        </div>
-                        <div className={`p-4 rounded-lg ${
-                            theme === "dark" ? "bg-gray-700" : "bg-gray-50"
-                        }`}>
-                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Volatility Impact</p>
-                            <p className="text-lg font-semibold">{analysisData.volatilityImpact}%</p>
-                        </div>
-                    </div>
+  const positionChartData = useMemo(() => ({
+    labels: ['Position', 'Risk', 'Gain', 'Loss'],
+    datasets: [{
+      data: [
+        calculatedPosition.totalValue || 0,
+        calculatedPosition.riskAmount || 0,
+        parseFloat(safeAnalysisData.potentialGain) || 0,
+        parseFloat(safeAnalysisData.potentialLoss) || 0
+      ],
+      backgroundColor: ['rgba(59,130,246,0.7)', 'rgba(239,68,68,0.7)', 'rgba(34,197,94,0.7)', 'rgba(249,115,22,0.7)'],
+      borderRadius: 6
+    }]
+  }), [calculatedPosition, analysisData]);
 
-                    {/* Risk Chart */}
-                    <div className="h-64 mb-6">
-                        <Bar data={positionChartData} options={chartOptions} />
-                    </div>
+  const tabs = [
+    { id: 'overview', label: 'Overview', icon: ChartBarIcon },
+    { id: 'simulation', label: 'Monte Carlo', icon: SparklesIcon },
+    { id: 'suggestions', label: 'Insights', icon: LightBulbIcon },
+  ];
 
-                    {/* Risk Metrics */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className={`p-4 rounded-lg ${
-                            theme === "dark" ? "bg-gray-700" : "bg-gray-50"
-                        }`}>
-                            <h4 className="font-medium mb-2">Market Risk Metrics</h4>
-                            <ul className="space-y-2">
-                                <li className="flex justify-between">
-                                    <span className="text-gray-500">Volatility Risk:</span>
-                                    <span>{(riskMetrics.volatilityRisk * 100).toFixed(2)}%</span>
-                                </li>
-                                <li className="flex justify-between">
-                                    <span className="text-gray-500">Liquidity Risk:</span>
-                                    <span className={
-                                        riskMetrics.liquidityRisk === 'high' 
-                                            ? 'text-red-500' 
-                                            : riskMetrics.liquidityRisk === 'medium'
-                                                ? 'text-yellow-500'
-                                                : 'text-green-500'
-                                    }>{riskMetrics.liquidityRisk}</span>
-                                </li>
-                                <li className="flex justify-between">
-                                    <span className="text-gray-500">Position Impact:</span>
-                                    <span>{(riskMetrics.positionImpact * 100).toFixed(2)}%</span>
-                                </li>
-                                <li className="flex justify-between">
-                                    <span className="text-gray-500">Est. Slippage:</span>
-                                    <span>{riskMetrics.slippageEstimate.toFixed(2)}%</span>
-                                </li>
-                            </ul>
-                        </div>
-                        <div className={`p-4 rounded-lg ${
-                            theme === "dark" ? "bg-gray-700" : "bg-gray-50"
-                        }`}>
-                            <h4 className="font-medium mb-2">Position Risk Factors</h4>
-                            <ul className="space-y-2">
-                                <li className="flex justify-between">
-                                    <span className="text-gray-500">Correlation Risk:</span>
-                                    <span>{analysisData.correlationRisk}</span>
-                                </li>
-                                <li className="flex justify-between">
-                                    <span className="text-gray-500">Time Frame Risk:</span>
-                                    <span>{analysisData.timeFrameRisk}</span>
-                                </li>
-                                <li className="flex justify-between">
-                                    <span className="text-gray-500">Market Condition:</span>
-                                    <span>{marketData.volatility}</span>
-                                </li>
-                                <li className="flex justify-between">
-                                    <span className="text-gray-500">Risk Score:</span>
-                                    <span className={
-                                        simulationResults.confidenceScore > 70
-                                            ? 'text-green-500'
-                                            : simulationResults.confidenceScore > 50
-                                                ? 'text-yellow-500'
-                                                : 'text-red-500'
-                                    }>{simulationResults.confidenceScore.toFixed(1)}%</span>
-                                </li>
-                            </ul>
-                        </div>
-                    </div>
-                </>
-            )}
-
-            {/* Monte Carlo Tab */}
-            {selectedTab === 'simulation' && (
-                <div className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className={`p-4 rounded-lg ${
-                            theme === "dark" ? "bg-gray-700" : "bg-gray-50"
-                        }`}>
-                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Win Probability</p>
-                            <p className="text-lg font-semibold">{simulationResults.winProbability}%</p>
-                        </div>
-                        <div className={`p-4 rounded-lg ${
-                            theme === "dark" ? "bg-gray-700" : "bg-gray-50"
-                        }`}>
-                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Avg. Days to Outcome</p>
-                            <p className="text-lg font-semibold">{simulationResults.averageDaysToOutcome} days</p>
-                        </div>
-                        <div className={`p-4 rounded-lg ${
-                            theme === "dark" ? "bg-gray-700" : "bg-gray-50"
-                        }`}>
-                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Confidence Score</p>
-                            <p className="text-lg font-semibold">{simulationResults.confidenceScore}%</p>
-                        </div>
-                    </div>
-
-                    <div className="h-64">
-                        <Bar data={simulationChartData} options={chartOptions} />
-                    </div>
-
-                    <div className={`p-4 rounded-lg ${
-                        theme === "dark" ? "bg-gray-700" : "bg-gray-50"
-                    }`}>
-                        <h4 className="font-medium mb-2">Simulation Insights</h4>
-                        <ul className="space-y-2 text-sm">
-                            <li>• Based on {marketData.volatility} market volatility</li>
-                            <li>• Simulated over 1000 iterations</li>
-                            <li>• Maximum simulation period: 20 days</li>
-                            <li>• Includes market drift and random walk</li>
-                        </ul>
-                    </div>
-                </div>
-            )}
-
-            {/* Suggestions Tab */}
-            {selectedTab === 'suggestions' && (
-                <div className="space-y-4">
-                    {tradingSuggestions.map((suggestion, index) => (
-                        <div key={index} className={`p-4 rounded-lg border-l-4 ${
-                            theme === "dark" ? "bg-gray-700 " : "bg-gray-50 "
-                        }${
-                            suggestion.type === 'danger' 
-                                ? 'border-red-500' 
-                                : suggestion.type === 'warning'
-                                    ? 'border-yellow-500'
-                                    : 'border-blue-500'
-                        }`}>
-                            <p className="font-medium mb-1">{suggestion.message}</p>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">{suggestion.action}</p>
-                        </div>
-                    ))}
-                </div>
-            )}
+  return (
+    <div className={`rounded-2xl border backdrop-blur-sm ${
+      isDark ? 'bg-gray-800/50 border-gray-700' : 'bg-white/80 border-gray-200 shadow-lg'
+    }`}>
+      {/* Header with Tabs */}
+      <div className={`px-5 py-3 border-b flex items-center gap-4 ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+        <h3 className="font-semibold flex items-center gap-2">
+          <ChartBarIcon className={`w-5 h-5 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
+          Risk Analysis
+        </h3>
+        <div className="flex-1" />
+        <div className="flex rounded-lg overflow-hidden border ${isDark ? 'border-gray-600' : 'border-gray-200'}">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setSelectedTab(tab.id)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-all ${
+                selectedTab === tab.id
+                  ? 'bg-blue-500 text-white'
+                  : isDark ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              <tab.icon className="w-3.5 h-3.5" />
+              {tab.label}
+            </button>
+          ))}
         </div>
-    );
-};
+      </div>
+
+      {/* Content */}
+      <div className="p-5">
+        <AnimatePresence mode="wait">
+          {selectedTab === 'overview' && (
+            <motion.div
+              key="overview"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+            >
+              {/* Key Metrics */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+                {[
+                  { label: 'Position Size', value: `${calculatedPosition.quantity || 0} units` },
+                  { label: 'Risk:Reward', value: safeAnalysisData.riskRewardRatio },
+                  { label: 'Portfolio Heat', value: `${safeAnalysisData.portfolioHeat}%` },
+                  { label: 'Vol. Impact', value: `${safeAnalysisData.volatilityImpact}%` },
+                ].map((metric) => (
+                  <div key={metric.label} className={`p-3 rounded-xl ${isDark ? 'bg-gray-700/50' : 'bg-gray-50'}`}>
+                    <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{metric.label}</p>
+                    <p className="text-lg font-bold">{metric.value}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Chart */}
+              <div className="h-48 mb-5">
+                <Bar data={positionChartData} options={chartOptions} />
+              </div>
+
+              {/* Risk Metrics */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className={`p-4 rounded-xl ${isDark ? 'bg-gray-700/50' : 'bg-gray-50'}`}>
+                  <h4 className="text-sm font-medium mb-3">Market Risk</h4>
+                  <div className="space-y-2 text-sm">
+                    <MetricRow label="Volatility Risk" value={`${(riskMetrics.volatilityRisk * 100).toFixed(1)}%`} isDark={isDark} />
+                    <MetricRow label="Liquidity Risk" value={riskMetrics.liquidityRisk} status={riskMetrics.liquidityRisk} isDark={isDark} />
+                    <MetricRow label="Position Impact" value={`${(riskMetrics.positionImpact * 100).toFixed(2)}%`} isDark={isDark} />
+                    <MetricRow label="Est. Slippage" value={`${riskMetrics.slippageEstimate.toFixed(2)}%`} isDark={isDark} />
+                  </div>
+                </div>
+                <div className={`p-4 rounded-xl ${isDark ? 'bg-gray-700/50' : 'bg-gray-50'}`}>
+                  <h4 className="text-sm font-medium mb-3">Position Risk</h4>
+                  <div className="space-y-2 text-sm">
+                    <MetricRow label="Correlation Risk" value={safeAnalysisData.correlationRisk} isDark={isDark} />
+                    <MetricRow label="Time Frame Risk" value={safeAnalysisData.timeFrameRisk} isDark={isDark} />
+                    <MetricRow label="Market Condition" value={marketData.volatility} isDark={isDark} />
+                    <MetricRow label="Risk Score" value={`${simulationResults.confidenceScore?.toFixed(1) || 0}%`} 
+                      status={simulationResults.confidenceScore > 70 ? 'low' : simulationResults.confidenceScore > 50 ? 'medium' : 'high'} isDark={isDark} />
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {selectedTab === 'simulation' && (
+            <motion.div
+              key="simulation"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="space-y-5"
+            >
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { label: 'Win Probability', value: `${simulationResults.winProbability}%`, color: 'green' },
+                  { label: 'Avg Days', value: `${simulationResults.averageDaysToOutcome} days`, color: 'blue' },
+                  { label: 'Confidence', value: `${simulationResults.confidenceScore}%`, color: 'purple' },
+                ].map((stat) => (
+                  <div key={stat.label} className={`p-4 rounded-xl text-center ${isDark ? 'bg-gray-700/50' : 'bg-gray-50'}`}>
+                    <p className={`text-xs mb-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{stat.label}</p>
+                    <p className={`text-xl font-bold text-${stat.color}-500`}>{stat.value}</p>
+                  </div>
+                ))}
+              </div>
+              <div className={`p-4 rounded-xl ${isDark ? 'bg-gray-700/50' : 'bg-gray-50'}`}>
+                <h4 className="text-sm font-medium mb-2">Simulation Details</h4>
+                <ul className={`text-xs space-y-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                  <li>• Based on {marketData.volatility} market volatility</li>
+                  <li>• 1000 Monte Carlo iterations</li>
+                  <li>• Maximum 20-day simulation period</li>
+                  <li>• Includes market drift and random walk</li>
+                </ul>
+              </div>
+            </motion.div>
+          )}
+
+          {selectedTab === 'suggestions' && (
+            <motion.div
+              key="suggestions"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="space-y-3"
+            >
+              {tradingSuggestions.length > 0 ? tradingSuggestions.map((suggestion, i) => (
+                <div key={i} className={`p-4 rounded-xl border-l-4 ${
+                  suggestion.type === 'danger' ? 'border-red-500' : 
+                  suggestion.type === 'warning' ? 'border-amber-500' : 'border-blue-500'
+                } ${isDark ? 'bg-gray-700/50' : 'bg-gray-50'}`}>
+                  <div className="flex items-start gap-2">
+                    {suggestion.type === 'danger' ? <ExclamationTriangleIcon className="w-5 h-5 text-red-500 flex-shrink-0" /> :
+                     suggestion.type === 'warning' ? <InformationCircleIcon className="w-5 h-5 text-amber-500 flex-shrink-0" /> :
+                     <CheckCircleIcon className="w-5 h-5 text-blue-500 flex-shrink-0" />}
+                    <div>
+                      <p className="font-medium text-sm">{suggestion.message}</p>
+                      <p className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{suggestion.action}</p>
+                    </div>
+                  </div>
+                </div>
+              )) : (
+                <div className={`p-6 text-center rounded-xl ${isDark ? 'bg-gray-700/50' : 'bg-gray-50'}`}>
+                  <CheckCircleIcon className="w-10 h-10 mx-auto text-green-500 mb-2" />
+                  <p className="font-medium">Position looks good!</p>
+                  <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>No significant risk warnings</p>
+                </div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </div>
+  );
+});
+
+RiskAnalysis.displayName = 'RiskAnalysis';
+
+/**
+ * Metric Row Helper
+ */
+const MetricRow = memo(({ label, value, status, isDark }) => {
+  const statusColors = {
+    high: 'text-red-500',
+    medium: 'text-amber-500',
+    low: 'text-green-500',
+  };
+
+  return (
+    <div className="flex justify-between">
+      <span className={isDark ? 'text-gray-400' : 'text-gray-500'}>{label}</span>
+      <span className={status ? statusColors[status] || '' : ''}>{value}</span>
+    </div>
+  );
+});
+
+MetricRow.displayName = 'MetricRow';
 
 export default RiskAnalysis;

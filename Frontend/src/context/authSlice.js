@@ -162,40 +162,54 @@ export const refreshUserToken = createAsyncThunk(
   "auth/refreshUserToken",
   async (_, { rejectWithValue }) => {
     try {
-      if (tokenManager.isRefreshing) {
+      if (tokenManager.isRefreshing && tokenManager.refreshPromise) {
         return tokenManager.refreshPromise;
       }
 
       tokenManager.isRefreshing = true;
 
-      const currentUser = auth.currentUser;
-      if (!currentUser) {
-        throw new Error("No authenticated user found");
-      }
+      // Create a promise for the refresh operation and store it
+      tokenManager.refreshPromise = (async () => {
+        try {
+          const currentUser = auth.currentUser;
+          if (!currentUser) {
+            throw new Error("No authenticated user found");
+          }
 
-      const token = await currentUser.getIdToken(true);
-      const expiry = Date.now() + 55 * 60 * 1000; // 55 minutes
+          const token = await currentUser.getIdToken(true);
+          const expiry = Date.now() + 55 * 60 * 1000; // 55 minutes
 
-      // Update storage
-      const storage = localStorage.getItem("authToken")
-        ? localStorage
-        : sessionStorage;
-      storage.setItem("authToken", token);
+          // Update storage
+          const storage = localStorage.getItem("authToken")
+            ? localStorage
+            : sessionStorage;
+          storage.setItem("authToken", token);
 
-      const storedUser = storage.getItem("user");
-      if (storedUser) {
-        const userData = JSON.parse(storedUser);
-        userData.token = token;
-        userData.tokenExpiry = expiry;
-        userData.lastRefresh = new Date().toISOString();
-        storage.setItem("user", JSON.stringify(userData));
-      }
+          const storedUser = storage.getItem("user");
+          if (storedUser) {
+            const userData = JSON.parse(storedUser);
+            userData.token = token;
+            userData.tokenExpiry = expiry;
+            userData.lastRefresh = new Date().toISOString();
+            storage.setItem("user", JSON.stringify(userData));
+          }
 
-      // Update axios header
-      axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+          // Update axios header
+          axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
 
-      tokenManager.isRefreshing = false;
-      return { token, expiry };
+          tokenManager.isRefreshing = false;
+          tokenManager.refreshPromise = null;
+          return { token, expiry };
+        } catch (error) {
+          tokenManager.isRefreshing = false;
+          tokenManager.refreshPromise = null;
+          throw error;
+        }
+      })();
+
+      return tokenManager.refreshPromise;
+
+
     } catch (error) {
       tokenManager.isRefreshing = false;
       console.error("Token refresh failed:", error);
@@ -339,7 +353,7 @@ const authSlice = createSlice({
       })
       .addCase(refreshUserToken.fulfilled, (state, action) => {
         state.tokenRefreshing = false;
-        if (state.user) {
+        if (state.user && action.payload) {
           state.user.token = action.payload.token;
           state.user.tokenExpiry = action.payload.expiry;
           state.user.lastRefresh = new Date().toISOString();

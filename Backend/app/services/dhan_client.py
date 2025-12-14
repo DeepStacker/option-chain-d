@@ -68,18 +68,41 @@ class DhanClient:
         self.retry_count = settings.DHAN_API_RETRY_COUNT
         self.retry_delay = settings.DHAN_API_RETRY_DELAY
         self.cache = cache
-        self.auth_token = auth_token
+        self._static_token = auth_token  # Token passed at init (may be stale)
         self._client: Optional[httpx.AsyncClient] = None
+        self._current_token: Optional[str] = None  # Currently active token
+    
+    async def _get_auth_token(self) -> str:
+        """Get auth token from config service (Redis -> DB -> settings fallback)"""
+        try:
+            from app.services.config_service import get_config
+            token = await get_config("DHAN_AUTH_TOKEN", self._static_token, self.cache)
+            return token or self._static_token or ""
+        except Exception as e:
+            logger.warning(f"Failed to get token from config service: {e}")
+            return self._static_token or settings.DHAN_AUTH_TOKEN or ""
     
     async def _get_client(self) -> httpx.AsyncClient:
         """Get or create HTTP client with connection pooling for high concurrency"""
         global _shared_client
         
+        # Get current token from config service
+        token = await self._get_auth_token()
+        
+        # Check if token changed - need new client
+        token_changed = self._current_token is not None and self._current_token != token
+        if token_changed:
+            logger.info(f"Auth token changed, recreating HTTP client")
+            if _shared_client and not _shared_client.is_closed:
+                await _shared_client.aclose()
+            _shared_client = None
+        
         if _shared_client is None or _shared_client.is_closed:
             headers = dict(self.DEFAULT_HEADERS)
-            # Add auth token if available (Note: Auth token is usually static from settings)
-            if self.auth_token:
-                headers["auth"] = self.auth_token
+            # Add auth token if available
+            if token:
+                headers["auth"] = token
+                self._current_token = token
             
             logger.info("Initializing new global HTTP client pool")
             _shared_client = httpx.AsyncClient(

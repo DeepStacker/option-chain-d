@@ -110,6 +110,7 @@ const TradingChart = React.memo(({ embedded = false }) => {
     time: "",
   });
   const [showCustomTimeframe, setShowCustomTimeframe] = useState(false);
+  const [showTimeframeDropdown, setShowTimeframeDropdown] = useState(false);
   const [customInterval, setCustomInterval] = useState("");
   const [livePrice, setLivePrice] = useState(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -182,8 +183,15 @@ const TradingChart = React.memo(({ embedded = false }) => {
           { key: "resistance_2_1", title: "R2.1", color: themeColors.resistanceColor },
           { key: "resistance_2_2", title: "R2.2", color: themeColors.resistanceColor },
         ];
-        // Reuse structure for Avg if needed, or define separately
-        const avgLines = weeklyLines.map(l => ({ ...l, title: l.title + " (Avg)" })); // Simplified for now
+        // TrueAvg lines use unique _avg keys from computeLevels
+        const avgLines = [
+          { key: "support_avg", title: "S-Avg", color: "#a855f7" }, // Purple for avg
+          { key: "support_1_1_avg", title: "S1.1-Avg", color: "#c084fc" },
+          { key: "support_1_2_avg", title: "S1.2-Avg", color: "#c084fc" },
+          { key: "resistance_avg", title: "R-Avg", color: "#f97316" }, // Orange for avg
+          { key: "resistance_1_1_avg", title: "R1.1-Avg", color: "#fb923c" },
+          { key: "resistance_1_2_avg", title: "R1.2-Avg", color: "#fb923c" },
+        ];
         
         return [...(daily ? dailyLines : []), ...(weekly ? weeklyLines : []), ...(avg ? avgLines : [])];
       };
@@ -391,10 +399,431 @@ const TradingChart = React.memo(({ embedded = false }) => {
 
   // --- DRAWING & PROFILE HOOKS ---
 
-  // Canvas Overlay Logic (Profiles)
+  // Memoize profile data processing with advanced combined metrics
+  const profileData = useMemo(() => {
+    if (!oc || activeProfile === 'none') return null;
+    
+    const strikes = Object.keys(oc);
+    let dataPoints = [];
+    let totalSum = 0;
+    let maxVal = 0;
+    let pocStrike = null;
+    let maxTotalVal = 0;
+    
+    // First pass: collect raw data for all strikes
+    const rawData = strikes.map((strikeStr) => {
+      const s = oc[strikeStr];
+      const strike = parseFloat(strikeStr);
+      
+      // Extract all available metrics
+      const ce = s.ce || {};
+      const pe = s.pe || {};
+      
+      return {
+        strikeStr,
+        strike,
+        // OI Data
+        ce_oi: ce.OI || ce.oi || 0,
+        pe_oi: pe.OI || pe.oi || 0,
+        ce_oi_chng: ce.oichng || ce.oi_change || 0,
+        pe_oi_chng: pe.oichng || pe.oi_change || 0,
+        // Volume
+        ce_vol: ce.volume || ce.vol || 0,
+        pe_vol: pe.volume || pe.vol || 0,
+        // Greeks - check both optgeeks and direct properties
+        ce_delta: ce.optgeeks?.delta || ce.delta || 0,
+        pe_delta: pe.optgeeks?.delta || pe.delta || 0,
+        ce_gamma: ce.optgeeks?.gamma || ce.gamma || 0,
+        pe_gamma: pe.optgeeks?.gamma || pe.gamma || 0,
+        ce_theta: ce.optgeeks?.theta || ce.theta || 0,
+        pe_theta: pe.optgeeks?.theta || pe.theta || 0,
+        ce_vega: ce.optgeeks?.vega || ce.vega || 0,
+        pe_vega: pe.optgeeks?.vega || pe.vega || 0,
+        // IV - check multiple field names
+        ce_iv: ce.iv || ce.IV || ce.impliedVolatility || 0,
+        pe_iv: pe.iv || pe.IV || pe.impliedVolatility || 0,
+        // Price
+        ce_ltp: ce.ltp || 0,
+        pe_ltp: pe.ltp || 0,
+        // Reversal - at strike level, not CE/PE level
+        // Use strike-level data (s.reversal) and split between CE (resistance) and PE (support)
+        reversal: s.reversal || 0,
+        wkly_reversal: s.wkly_reversal || 0,
+        fut_reversal: s.fut_reversal || 0,
+      };
+    });
+
+    // Calculate spot price from ATM (where straddle is cheapest)
+    const spotApprox = price || Math.min(...rawData.map(r => r.ce_ltp + r.pe_ltp)) > 0 
+      ? rawData.reduce((best, r) => (r.ce_ltp + r.pe_ltp) < (best?.ce_ltp + best?.pe_ltp) && (r.ce_ltp + r.pe_ltp) > 0 ? r : best, rawData[0])?.strike 
+      : null;
+
+    // Process based on profile type
+    rawData.forEach((r) => {
+      let ceVal = 0, peVal = 0;
+      let total = 0;
+      let singleVal = null; // For profiles that show a single combined value
+
+      switch (activeProfile) {
+        // ═══════════════════════════════════════════════════════════════
+        // BASIC PROFILES
+        // ═══════════════════════════════════════════════════════════════
+        case 'oi':
+          ceVal = r.ce_oi;
+          peVal = r.pe_oi;
+          total = ceVal + peVal;
+          break;
+          
+        case 'volume':
+          ceVal = r.ce_vol;
+          peVal = r.pe_vol;
+          total = ceVal + peVal;
+          break;
+          
+        case 'oi_change':
+          ceVal = r.ce_oi_chng;
+          peVal = r.pe_oi_chng;
+          total = Math.abs(ceVal) + Math.abs(peVal);
+          break;
+          
+        case 'delta':
+          ceVal = Math.abs(r.ce_delta);
+          peVal = Math.abs(r.pe_delta);
+          total = ceVal + peVal;
+          break;
+          
+        case 'gamma':
+          ceVal = r.ce_gamma;
+          peVal = r.pe_gamma;
+          total = ceVal + peVal;
+          break;
+
+        // ═══════════════════════════════════════════════════════════════
+        // ADVANCED COMBINED PROFILES
+        // ═══════════════════════════════════════════════════════════════
+        
+        // GEX (Gamma Exposure) = OI × Gamma × Spot² × 100
+        // Shows where market makers have hedging pressure
+        // Positive = MMs need to sell on rise, buy on fall (mean reversion)
+        // Negative = MMs need to buy on rise, sell on fall (momentum)
+        case 'gex':
+          const ceGex = r.ce_oi * Math.abs(r.ce_gamma) * 100;
+          const peGex = -r.pe_oi * Math.abs(r.pe_gamma) * 100; // Negative for puts
+          ceVal = ceGex;
+          peVal = Math.abs(peGex);
+          singleVal = ceGex + peGex; // Net GEX
+          total = Math.abs(singleVal);
+          break;
+          
+        // Delta-Weighted OI = OI × |Delta|
+        // Shows directional exposure at each strike
+        case 'delta_oi':
+          ceVal = r.ce_oi * Math.abs(r.ce_delta);
+          peVal = r.pe_oi * Math.abs(r.pe_delta);
+          total = ceVal + peVal;
+          break;
+          
+        // IV Skew = CE IV - PE IV at each strike
+        // Positive = CE more expensive (bearish sentiment)
+        // Negative = PE more expensive (bullish sentiment/fear)
+        case 'iv_skew':
+          const skew = r.ce_iv - r.pe_iv;
+          ceVal = skew > 0 ? skew : 0;
+          peVal = skew < 0 ? Math.abs(skew) : 0;
+          singleVal = skew;
+          total = Math.abs(skew);
+          break;
+          
+        // PCR Profile = PE OI / CE OI at each strike
+        // >1 = Bullish (more put writing = support)
+        // <1 = Bearish (more call writing = resistance)
+        case 'pcr':
+          const pcr = r.ce_oi > 0 ? r.pe_oi / r.ce_oi : 0;
+          // Normalize: PCR 0.5-2.0 range centered at 1.0
+          const pcrNorm = Math.min(Math.max(pcr, 0.3), 3);
+          ceVal = pcrNorm < 1 ? (1 - pcrNorm) : 0; // Bearish intensity
+          peVal = pcrNorm > 1 ? (pcrNorm - 1) : 0; // Bullish intensity
+          singleVal = pcr;
+          total = Math.abs(pcr - 1);
+          break;
+          
+        // OI Strength = (OI × |Delta|) + (OI_Chng × Multiplier)
+        // Combines position size with recent activity
+        case 'oi_strength':
+          const ceStrength = (r.ce_oi * Math.abs(r.ce_delta)) + (r.ce_oi_chng * 2);
+          const peStrength = (r.pe_oi * Math.abs(r.pe_delta)) + (r.pe_oi_chng * 2);
+          ceVal = Math.max(0, ceStrength);
+          peVal = Math.max(0, peStrength);
+          total = ceVal + peVal;
+          break;
+          
+        // Composite = Weighted combination of multiple factors
+        // Weights: OI(30%) + OI_Chng(25%) + Vol(20%) + Delta(15%) + Gamma(10%)
+        case 'composite':
+          // Normalize each metric to 0-1 scale relative to max
+          const normCeOi = r.ce_oi;
+          const normPeOi = r.pe_oi;
+          const normCeChng = Math.abs(r.ce_oi_chng);
+          const normPeChng = Math.abs(r.pe_oi_chng);
+          const normCeVol = r.ce_vol;
+          const normPeVol = r.pe_vol;
+          const normCeDelta = Math.abs(r.ce_delta) * 100; // Scale up
+          const normPeDelta = Math.abs(r.pe_delta) * 100;
+          const normCeGamma = r.ce_gamma * 10000; // Scale up
+          const normPeGamma = r.pe_gamma * 10000;
+          
+          ceVal = (normCeOi * 0.30) + (normCeChng * 0.25) + (normCeVol * 0.20) + 
+                  (normCeDelta * 0.15) + (normCeGamma * 0.10);
+          peVal = (normPeOi * 0.30) + (normPeChng * 0.25) + (normPeVol * 0.20) + 
+                  (normPeDelta * 0.15) + (normPeGamma * 0.10);
+          total = ceVal + peVal;
+          break;
+          
+        // Reversal Zones = Support/Resistance Strength Scores plotted at DYNAMIC levels
+        // CLUSTERED to reduce noise
+        case 'reversal': {
+          // 1. Collect ALL independent reversal levels first
+          // We need a temporary collection because clustering happens across ALL strikes, not just per-strike loop
+          // But here we are inside the map loop (iterating strikes). 
+          // ! wait, we are inside `rawData.map`. We can't cluster efficiently here.
+          // Correct approach:
+          // The current arch loops `rawData` (which is per strike) and pushes to `dataPoints`.
+          // To cluster properly, we should:
+          // A. Collect levels in this loop.
+          // B. AFTER the loop, process the collection to cluster and push to `dataPoints`.
+          //
+          // HOWEVER, refactoring the outer `profileData` calculation structure is risky/large.
+          // ALTERNATIVE:
+          // Push "raw" reversal points to `dataPoints` with a special flag, 
+          // then add a POST-PROCESSING step before returning `profileData`.
+          //
+          // Let's modify the plan:
+          // 1. In this loop, push ALL raw reversal points as usual (using the logic I just wrote).
+          // 2. Add a post-processing block after the `rawData.forEach` loop to CLUSTER the `dataPoints` if activeProfile == 'reversal'.
+          
+          // Advanced Strength Scoring:
+          // 1. Base: OI (70%) + Volume (30%)
+          // 2. Multipliers: Gamma (Hedging Pressure) & IV (Risk/Fear)
+          
+          // Gamma Multiplier: High Gamma (>0.01) implies pinning/reversal pressure
+          // Scaling: 1 + (Gamma * 50). e.g., 0.02 * 50 = 1.0 -> 2.0x boost
+          const ceGammaMult = 1 + (Math.abs(r.ce_gamma || 0) * 50);
+          const peGammaMult = 1 + (Math.abs(r.pe_gamma || 0) * 50);
+          
+          // IV Multiplier: High IV (>20%) implies market pays premium for this level
+          // Scaling: 1 + (IV / 100). e.g., 30% IV -> 1.3x boost
+          const ceIvMult = 1 + ((r.ce_iv || 0) / 100);
+          const peIvMult = 1 + ((r.pe_iv || 0) / 100);
+
+          const ceStrength = ((r.ce_oi * 0.7) + (r.ce_vol * 0.3)) * ceGammaMult * ceIvMult;
+          const peStrength = ((r.pe_oi * 0.7) + (r.pe_vol * 0.3)) * peGammaMult * peIvMult;
+
+          // Collect valid reversal levels for this strike (Use formatted values)
+          const levels = [
+            { val: parseFloat(r.reversal), label: 'Intraday' },
+            { val: parseFloat(r.wkly_reversal), label: 'Weekly' },
+            { val: parseFloat(r.fut_reversal), label: 'Future' }
+          ].filter(l => l.val && l.val > 0 && !isNaN(l.val));
+
+          levels.forEach(l => {
+             // Determine raw type (Support/Res) just for initial strength assignment
+             // but store BOTH strengths for dominance calculation later
+             const isResistance = spotApprox ? l.val > spotApprox : l.val > r.strike;
+             const strength = isResistance ? ceStrength : peStrength; // This is just for the "total" used in other places, but we need components
+             
+             dataPoints.push({
+               strike: l.val, 
+               total: strength,
+               ceVal: isResistance ? strength : 0, 
+               peVal: isResistance ? 0 : strength,
+               singleVal: strength,
+               
+               // Store raw components for Dominance Logic
+               rawCeStrength: ceStrength,
+               rawPeStrength: peStrength,
+               isResistanceRaw: isResistance, // Keep this for reference but use dominance later
+               
+               isRawReversal: true, // Flag for post-processing
+               reversalType: l.label,
+               metrics: { gamma: isResistance ? r.ce_gamma : r.pe_gamma, iv: isResistance ? r.ce_iv : r.pe_iv }
+             });
+          });
+
+          return; // Skip default push
+        }
+          
+        // Vega Exposure = OI × Vega (sensitivity to IV changes)
+        case 'vega':
+          ceVal = r.ce_oi * Math.abs(r.ce_vega);
+          peVal = r.pe_oi * Math.abs(r.pe_vega);
+          total = ceVal + peVal;
+          break;
+          
+        // Theta Decay = Daily premium decay at each strike
+        case 'theta':
+          ceVal = Math.abs(r.ce_theta * r.ce_oi);
+          peVal = Math.abs(r.pe_theta * r.pe_oi);
+          total = ceVal + peVal;
+          break;
+
+        default:
+          return;
+      }
+
+      const maxSideVal = Math.max(Math.abs(ceVal), Math.abs(peVal));
+      maxVal = Math.max(maxVal, maxSideVal);
+      totalSum += total;
+      
+      if (total > maxTotalVal) {
+        maxTotalVal = total;
+        pocStrike = r.strikeStr;
+      }
+
+      dataPoints.push({ 
+        strike: r.strikeStr, 
+        total, 
+        ceVal, 
+        peVal,
+        singleVal, // For profiles that show net value
+        raw: r // Keep raw data for tooltips
+      });
+    });
+
+    // ═══════════════════════════════════════════════════════════════
+    // POST-PROCESSING: CLUSTERING FOR REVERSAL PROFILE (Noise Reduction)
+    // ═══════════════════════════════════════════════════════════════
+    if (activeProfile === 'reversal' && dataPoints.length > 0) {
+      // 1. Sort points by price
+      dataPoints.sort((a, b) => a.strike - b.strike);
+      
+      const clusters = [];
+      // Threshold: 0.1% of price (e.g. ~25 pts for Nifty 25000)
+      const refPrice = spotApprox || dataPoints[0].strike;
+      const threshold = refPrice * 0.001; 
+      
+      let currentCluster = null;
+      
+      dataPoints.forEach(p => {
+        if (!currentCluster) {
+          // Initialize cluster with dominance components
+          // USE RAW STRENGTHS to avoid bias from potentially incorrect Spot Price checks earlier
+          currentCluster = { 
+            totalStrength: p.total, 
+            ceSum: p.rawCeStrength || p.ceVal, // Fallback for safety
+            peSum: p.rawPeStrength || p.peVal,
+            weightedSum: p.strike * p.total,
+            points: [p] 
+          };
+        } else {
+          // Compare against cluster's current weighted center
+          const currentAvg = currentCluster.weightedSum / currentCluster.totalStrength;
+          
+          if (Math.abs(p.strike - currentAvg) < threshold) {
+            // Merge into cluster
+            currentCluster.totalStrength += p.total;
+            currentCluster.ceSum += (p.rawCeStrength || p.ceVal);
+            currentCluster.peSum += (p.rawPeStrength || p.peVal);
+            currentCluster.weightedSum += (p.strike * p.total);
+            currentCluster.points.push(p);
+          } else {
+            // Finalize old cluster
+            clusters.push(currentCluster);
+            // Start new
+            currentCluster = { 
+              totalStrength: p.total, 
+              ceSum: p.rawCeStrength || p.ceVal,
+              peSum: p.rawPeStrength || p.peVal,
+              weightedSum: p.strike * p.total,
+              points: [p] 
+            };
+          }
+        }
+      });
+      if (currentCluster) clusters.push(currentCluster);
+      
+      // Filter clusters to reduce noise (Smart Filtering)
+      if (clusters.length > 0) {
+        // Find local max strength
+        const maxClusterStrength = Math.max(...clusters.map(c => c.totalStrength));
+        // Filter out clusters with < 5% of max strength (Lowered noise floor to show more levels)
+        const relevantClusters = clusters.filter(c => c.totalStrength > maxClusterStrength * 0.05);
+        
+        // 2. Convert filtered clusters to final dataPoints
+        // DOMINANCE LOGIC COLOR FIX:
+        // Use the accumulated CE vs PE sums to decide Resistance vs Support
+        // If CE Sum > PE Sum => Resistance (Red)
+        // Else => Support (Green)
+        
+        dataPoints = relevantClusters.map(c => {
+           const finalPrice = c.weightedSum / c.totalStrength;
+           
+           // Dominance Check
+           const isResistance = c.ceSum >= c.peSum;
+           
+           return {
+             strike: finalPrice,
+             total: c.totalStrength,
+             ceVal: isResistance ? c.totalStrength : 0,
+             peVal: isResistance ? 0 : c.totalStrength,
+             singleVal: c.totalStrength,
+             isCluster: true,
+             clusterCount: c.points.length
+           };
+        });
+      } else {
+        dataPoints = [];
+      }
+      
+      // 3. Recalculate Stats for Scaling
+      if (dataPoints.length > 0) {
+        maxVal = Math.max(...dataPoints.map(d => d.total));
+        totalSum = dataPoints.reduce((acc, d) => acc + d.total, 0);
+        // Find POC of clustered data
+        const pocPoint = dataPoints.reduce((best, d) => d.total > best.total ? d : best, dataPoints[0]);
+        pocStrike = pocPoint.strike.toString();
+        maxTotalVal = pocPoint.total;
+      }
+    }
+
+    if (maxVal === 0) return null;
+
+    // Value Area Calculation (70% of volume)
+    const sortedByVal = [...dataPoints].sort((a, b) => b.total - a.total);
+    const vaThreshold = totalSum * 0.70;
+    let currentSum = 0;
+    const vaStrikes = new Set();
+    
+    for (const p of sortedByVal) {
+      currentSum += p.total;
+      vaStrikes.add(p.strike);
+      if (currentSum >= vaThreshold) break;
+    }
+
+    // Profile metadata for rendering
+    const profileMeta = {
+      oi: { name: 'Open Interest', ceLabel: 'CE OI', peLabel: 'PE OI' },
+      volume: { name: 'Volume', ceLabel: 'CE Vol', peLabel: 'PE Vol' },
+      oi_change: { name: 'OI Change', ceLabel: 'CE Chng', peLabel: 'PE Chng', showSign: true },
+      delta: { name: 'Delta', ceLabel: 'CE Δ', peLabel: 'PE Δ' },
+      gamma: { name: 'Gamma', ceLabel: 'CE Γ', peLabel: 'PE Γ' },
+      gex: { name: 'Gamma Exposure', ceLabel: 'CE GEX', peLabel: 'PE GEX', showNet: true },
+      delta_oi: { name: 'Delta-Weighted OI', ceLabel: 'CE Δ×OI', peLabel: 'PE Δ×OI' },
+      iv_skew: { name: 'IV Skew', ceLabel: 'CE IV↑', peLabel: 'PE IV↑', showNet: true },
+      pcr: { name: 'PCR Profile', ceLabel: 'Bearish', peLabel: 'Bullish', showRatio: true },
+      oi_strength: { name: 'OI Strength', ceLabel: 'CE Str', peLabel: 'PE Str' },
+      composite: { name: 'Composite', ceLabel: 'CE Score', peLabel: 'PE Score' },
+      reversal: { name: 'Reversal Zones', ceLabel: 'Resist. Str', peLabel: 'Support Str' },
+      vega: { name: 'Vega Exposure', ceLabel: 'CE Vega', peLabel: 'PE Vega' },
+      theta: { name: 'Theta Decay', ceLabel: 'CE Θ', peLabel: 'PE Θ' },
+    };
+
+    return { dataPoints, maxVal, pocStrike, vaStrikes, meta: profileMeta[activeProfile] };
+  }, [oc, activeProfile, price]);
+
+  // Canvas Overlay Logic (Profiles) - Optimized
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas || !chartRef.current || !candleSeriesRef.current || activeProfile === 'none' || !oc) {
+    if (!canvas || !chartRef.current || !candleSeriesRef.current || !profileData) {
       if (canvas) {
         const ctx = canvas.getContext('2d');
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -402,188 +831,196 @@ const TradingChart = React.memo(({ embedded = false }) => {
       return;
     }
 
-    const ctx = canvas.getContext('2d');
-    const chart = chartRef.current;
+    const ctx = canvas.getContext('2d', { alpha: true });
     const series = candleSeriesRef.current;
+    const { dataPoints, maxVal, pocStrike, vaStrikes } = profileData;
+    
+    // Throttle flag to prevent overdraw
+    let animationFrameId = null;
+    let lastDrawTime = 0;
+    const MIN_DRAW_INTERVAL = 16; // ~60fps cap
 
-    const draw = () => {
+    const draw = (timestamp) => {
+      // Throttle draws to prevent performance issues
+      if (timestamp - lastDrawTime < MIN_DRAW_INTERVAL) {
+        animationFrameId = requestAnimationFrame(draw);
+        return;
+      }
+      lastDrawTime = timestamp;
+
       if (!canvas || !series) return;
+      
       const rect = canvas.parentElement.getBoundingClientRect();
       const dpr = window.devicePixelRatio || 1;
       
-      if (canvas.width !== rect.width * dpr || canvas.height !== rect.height * dpr) {
-         canvas.width = rect.width * dpr;
-         canvas.height = rect.height * dpr;
-         ctx.scale(dpr, dpr);
-         canvas.style.width = `${rect.width}px`;
-         canvas.style.height = `${rect.height}px`;
+      // Only resize if needed
+      const targetWidth = Math.floor(rect.width * dpr);
+      const targetHeight = Math.floor(rect.height * dpr);
+      
+      if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
+        canvas.width = targetWidth;
+        canvas.height = targetHeight;
+        canvas.style.width = `${rect.width}px`;
+        canvas.style.height = `${rect.height}px`;
       }
+      
+      // Reset transform and clear
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, rect.width, rect.height);
       
-      // Right Padding to prevent covering Price Scale (approx 65px)
-      // Ideally we'd get this from chart.priceScale('right').width(), but hardcoding is safer for now
+      // Professional styling
       const rightPadding = 65;
       const startX = rect.width - rightPadding;
-
-      // 1. Data Aggregation for Advanced Metrics (POC, VA)
-      const strikes = Object.keys(oc);
-      let dataPoints = [];
-      let totalSum = 0;
-      let maxVal = 0;
-      let pocStrike = null;
-      let maxTotalVal = 0;
-
-      strikes.forEach((strikeStr) => {
-        const s = oc[strikeStr];
-        let ceVal = 0, peVal = 0;
-        let total = 0;
-
-        if (activeProfile === 'oi') {
-            ceVal = s.ce?.OI || s.ce?.oi || 0;
-            peVal = s.pe?.OI || s.pe?.oi || 0;
-            total = ceVal + peVal;
-        } else if (activeProfile === 'volume') {
-            ceVal = s.ce?.volume || s.ce?.vol || 0;
-            peVal = s.pe?.volume || s.pe?.vol || 0;
-            total = ceVal + peVal;
-        } else if (activeProfile === 'oi_change') {
-            ceVal = s.ce?.oichng || 0;
-            peVal = s.pe?.oichng || 0;
-            total = Math.abs(ceVal) + Math.abs(peVal);
-        } else if (activeProfile === 'delta') {
-            ceVal = Math.abs(s.ce?.optgeeks?.delta || 0);
-            peVal = Math.abs(s.pe?.optgeeks?.delta || 0);
-            total = ceVal + peVal;
-        } else if (activeProfile === 'gamma') {
-            ceVal = s.ce?.optgeeks?.gamma || 0;
-            peVal = s.pe?.optgeeks?.gamma || 0;
-            total = ceVal + peVal;
-        }
-
-        const maxSideVal = Math.max(Math.abs(ceVal), Math.abs(peVal));
-        maxVal = Math.max(maxVal, maxSideVal);
-        
-        // Accumulate for VA/POC
-        totalSum += total;
-        if (total > maxTotalVal) {
-            maxTotalVal = total;
-            pocStrike = strikeStr;
-        }
-
-        dataPoints.push({
-            strike: strikeStr,
-            total,
-            ceVal,
-            peVal
-        });
-      });
-
-      if (maxVal === 0) return;
-
-      // 2. Value Area Calculation (70% of volume)
-      // Sort by total value descending
-      const sortedByVal = [...dataPoints].sort((a, b) => b.total - a.total);
-      const vaThreshold = totalSum * 0.70;
-      let currentSum = 0;
-      const vaStrikes = new Set();
+      const maxBarWidth = (rect.width - rightPadding) * 0.40;
+      const barHeight = 5;
+      const barGap = 1;
       
-      for (const p of sortedByVal) {
-          currentSum += p.total;
-          vaStrikes.add(p.strike);
-          if (currentSum >= vaThreshold) break;
-      }
-
-      const maxBarWidth = (rect.width - rightPadding) * 0.35; // Allow wider bars now that we have padding
-
-      // 3. Draw
+      // Colors - CE Red, PE Green (swapped per user request)
+      const ceColor = { r: 239, g: 68, b: 68 };   // Red-500 for CE
+      const peColor = { r: 34, g: 197, b: 94 };   // Green-500 for PE
+      const pocColor = '#FACC15';
+      
+      // Batch similar operations for performance
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      
+      // Pre-calculate all coordinates
+      const bars = [];
       dataPoints.forEach((p) => {
         const strike = parseFloat(p.strike);
         const y = series.priceToCoordinate(strike);
+        if (y === null || y < 0 || y > rect.height) return;
         
-        if (y === null) return;
-
         const isVA = vaStrikes.has(p.strike);
         const isPOC = p.strike === pocStrike;
         
-        // Base Opacity
-        // VA = 0.5, Outside VA = 0.15 (Ghost)
-        const opacity = isVA ? 0.5 : 0.15;
-        const lineOpacity = isVA ? 0.8 : 0.3;
-
-        const emeraldBase = '16, 185, 129';
-        const roseBase = '244, 63, 94';
-        const pocColor = '#FACC15'; // Yellow-400
-
-        const barHeight = 6; // slightly thicker
-
-        // CE Bar (Calls/Resistance) - Grows Left from StartX
         const ceWidth = (Math.abs(p.ceVal) / maxVal) * maxBarWidth;
-        
-        // Fill
-        if (activeProfile === 'oi_change' && p.ceVal < 0) {
-             // Unwinding - Hollow
-             ctx.fillStyle = `rgba(${emeraldBase}, ${opacity * 0.3})`; 
-             ctx.strokeStyle = `rgba(${emeraldBase}, ${lineOpacity})`;
-             ctx.lineWidth = 1;
-             ctx.strokeRect(startX - ceWidth, y - barHeight, ceWidth, barHeight);
-        } else {
-             ctx.fillStyle = `rgba(${emeraldBase}, ${opacity})`;
-             ctx.fillRect(startX - ceWidth, y - barHeight, ceWidth, barHeight);
-        }
-        
-        // PE Bar (Puts/Support) - Grows Left from StartX (stacked below CE? or same line?)
-        // Standard: Stacked vertically around the strike line. CE above, PE below.
         const peWidth = (Math.abs(p.peVal) / maxVal) * maxBarWidth;
         
-        if (activeProfile === 'oi_change' && p.peVal < 0) {
-             ctx.fillStyle = `rgba(${roseBase}, ${opacity * 0.3})`;
-             ctx.strokeStyle = `rgba(${roseBase}, ${lineOpacity})`;
-             ctx.lineWidth = 1;
-             ctx.strokeRect(startX - peWidth, y, peWidth, barHeight);
-        } else {
-             ctx.fillStyle = `rgba(${roseBase}, ${opacity})`;
-             ctx.fillRect(startX - peWidth, y, peWidth, barHeight);
+        bars.push({
+          y, ceWidth, peWidth, isVA, isPOC,
+          ceUnwinding: activeProfile === 'oi_change' && p.ceVal < 0,
+          peUnwinding: activeProfile === 'oi_change' && p.peVal < 0,
+        });
+      });
+      
+      // Draw all bars in batches for better performance
+      // First pass: Draw all fills
+      bars.forEach(({ y, ceWidth, peWidth, isVA, ceUnwinding, peUnwinding }) => {
+        const baseOpacity = isVA ? 0.6 : 0.25;
+        
+        // CE Bar (Red) - Above strike line
+        if (ceWidth > 0.5) {
+          if (ceUnwinding) {
+            ctx.fillStyle = `rgba(${ceColor.r}, ${ceColor.g}, ${ceColor.b}, ${baseOpacity * 0.4})`;
+          } else {
+            // Gradient for professional look
+            const gradient = ctx.createLinearGradient(startX - ceWidth, 0, startX, 0);
+            gradient.addColorStop(0, `rgba(${ceColor.r}, ${ceColor.g}, ${ceColor.b}, ${baseOpacity * 0.3})`);
+            gradient.addColorStop(1, `rgba(${ceColor.r}, ${ceColor.g}, ${ceColor.b}, ${baseOpacity})`);
+            ctx.fillStyle = gradient;
+          }
+          ctx.beginPath();
+          ctx.roundRect(startX - ceWidth, y - barHeight - barGap, ceWidth, barHeight, 2);
+          ctx.fill();
         }
-
-        // POC Highlight
-        if (isPOC) {
-            ctx.strokeStyle = pocColor;
-            ctx.lineWidth = 2;
-            const pocWidth = Math.max(ceWidth, peWidth) + 5;
-            // Draw a bracket or box around the POC node
-            // Let's draw a border around BOTH bars
-            ctx.strokeRect(startX - ceWidth, y - barHeight, ceWidth, barHeight); // CE
-            ctx.strokeRect(startX - peWidth, y, peWidth, barHeight); // PE
-            
-            // Optional: POC Line extending to price?
-            ctx.beginPath();
-            ctx.moveTo(startX, y);
-            ctx.lineTo(startX + 10, y);
-            ctx.stroke();
+        
+        // PE Bar (Green) - Below strike line
+        if (peWidth > 0.5) {
+          if (peUnwinding) {
+            ctx.fillStyle = `rgba(${peColor.r}, ${peColor.g}, ${peColor.b}, ${baseOpacity * 0.4})`;
+          } else {
+            const gradient = ctx.createLinearGradient(startX - peWidth, 0, startX, 0);
+            gradient.addColorStop(0, `rgba(${peColor.r}, ${peColor.g}, ${peColor.b}, ${baseOpacity * 0.3})`);
+            gradient.addColorStop(1, `rgba(${peColor.r}, ${peColor.g}, ${peColor.b}, ${baseOpacity})`);
+            ctx.fillStyle = gradient;
+          }
+          ctx.beginPath();
+          ctx.roundRect(startX - peWidth, y + barGap, peWidth, barHeight, 2);
+          ctx.fill();
         }
       });
+      
+      // Second pass: Draw unwinding borders
+      ctx.lineWidth = 1;
+      bars.forEach(({ y, ceWidth, peWidth, isVA, ceUnwinding, peUnwinding }) => {
+        const lineOpacity = isVA ? 0.8 : 0.4;
+        
+        if (ceUnwinding && ceWidth > 0.5) {
+          ctx.strokeStyle = `rgba(${ceColor.r}, ${ceColor.g}, ${ceColor.b}, ${lineOpacity})`;
+          ctx.beginPath();
+          ctx.roundRect(startX - ceWidth, y - barHeight - barGap, ceWidth, barHeight, 2);
+          ctx.stroke();
+        }
+        
+        if (peUnwinding && peWidth > 0.5) {
+          ctx.strokeStyle = `rgba(${peColor.r}, ${peColor.g}, ${peColor.b}, ${lineOpacity})`;
+          ctx.beginPath();
+          ctx.roundRect(startX - peWidth, y + barGap, peWidth, barHeight, 2);
+          ctx.stroke();
+        }
+      });
+      
+      // Third pass: POC highlight with glow effect
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = pocColor;
+      ctx.shadowColor = pocColor;
+      ctx.shadowBlur = 6;
+      
+      bars.filter(b => b.isPOC).forEach(({ y, ceWidth, peWidth }) => {
+        // POC indicator line
+        ctx.beginPath();
+        ctx.moveTo(startX - Math.max(ceWidth, peWidth) - 10, y);
+        ctx.lineTo(startX + 5, y);
+        ctx.stroke();
+        
+        // POC label
+        ctx.shadowBlur = 0;
+        ctx.font = 'bold 10px Inter, system-ui, sans-serif';
+        ctx.fillStyle = pocColor;
+        ctx.textAlign = 'right';
+        ctx.fillText('POC', startX - Math.max(ceWidth, peWidth) - 14, y + 3);
+      });
+      
+      ctx.shadowBlur = 0;
     };
 
-    const timeScale = chart.timeScale();
-    const handleResize = () => requestAnimationFrame(draw);
-    timeScale.subscribeVisibleLogicalRangeChange(handleResize);
+    // Initial draw with animation frame
+    const startDraw = () => {
+      animationFrameId = requestAnimationFrame(draw);
+    };
     
-    // ResizeObserver for Canvas Overlay
-    const resizeObserver = new ResizeObserver((entries) => {
-        if (!entries || entries.length === 0) return;
-        requestAnimationFrame(draw);
-    });
+    startDraw();
+
+    // Subscribe to chart changes with throttling
+    const chart = chartRef.current;
+    const timeScale = chart.timeScale();
+    
+    const handleVisibleRangeChange = throttle(() => {
+      if (animationFrameId) cancelAnimationFrame(animationFrameId);
+      animationFrameId = requestAnimationFrame(draw);
+    }, 32); // ~30fps for scroll events
+    
+    timeScale.subscribeVisibleLogicalRangeChange(handleVisibleRangeChange);
+    
+    // ResizeObserver with debounce
+    const resizeObserver = new ResizeObserver(
+      debounce(() => {
+        if (animationFrameId) cancelAnimationFrame(animationFrameId);
+        animationFrameId = requestAnimationFrame(draw);
+      }, 100)
+    );
+    
     if (canvas.parentElement) {
-        resizeObserver.observe(canvas.parentElement);
+      resizeObserver.observe(canvas.parentElement);
     }
 
-    requestAnimationFrame(draw);
-    
     return () => {
-        timeScale.unsubscribeVisibleLogicalRangeChange(handleResize);
-        resizeObserver.disconnect();
+      if (animationFrameId) cancelAnimationFrame(animationFrameId);
+      timeScale.unsubscribeVisibleLogicalRangeChange(handleVisibleRangeChange);
+      resizeObserver.disconnect();
     };
-  }, [activeProfile, oc, chartRef.current, candleSeriesRef.current]);
+  }, [profileData, chartRef.current, candleSeriesRef.current, activeProfile]);
 
   // Drawing Tool Logic
   useEffect(() => {
@@ -645,88 +1082,247 @@ const TradingChart = React.memo(({ embedded = false }) => {
         </div>
       )}
 
-      {/* Toolbar */}
-      <div className={`flex flex-wrap gap-1 ${embedded ? 'p-1.5' : 'p-3'} border-b shadow-lg ${themeClasses.toolbar}`}>
-        {/* ... Toolbar content same as before ... */}
+      {/* Professional Compact Toolbar */}
+      <div className={`relative z-[100] flex items-center gap-1.5 px-2 py-1.5 border-b backdrop-blur-sm ${
+        theme === 'dark' 
+          ? 'bg-gray-900/95 border-gray-800' 
+          : 'bg-white/95 border-gray-200'
+      }`}>
+        
+        {/* Symbol & Price */}
         {!embedded && (
-          <SymbolSelector
-            symbols={symbols}
-            currentSymbol={currentSymbol}
-            onSelect={(s) => dispatch(setCurrentSymbol(s))}
-            theme={theme}
-          />
+          <div className="flex items-center gap-2 pr-2 border-r border-gray-700/30">
+            <SymbolSelector
+              symbols={symbols}
+              currentSymbol={currentSymbol}
+              onSelect={(s) => dispatch(setCurrentSymbol(s))}
+              theme={theme}
+            />
+            {livePrice && (
+              <span className={`text-sm font-bold tabular-nums ${
+                theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'
+              }`}>{livePrice.toFixed(2)}</span>
+            )}
+          </div>
         )}
 
-        <div className="flex flex-wrap gap-1">
-          {timeframes.map((tf) => (
-            <button key={tf.value} className={`px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 ${timeframe === tf.value ? themeClasses.activeButton : themeClasses.button}`} onClick={() => dispatch(setTimeframe(tf.value))}>{tf.label}</button>
+        {/* Timeframes - Compact horizontal scroll */}
+        <div className="flex items-center gap-0.5 px-1">
+          {timeframes.slice(0, 6).map((tf) => (
+            <button 
+              key={tf.value} 
+              onClick={() => dispatch(setTimeframe(tf.value))}
+              className={`px-2 py-1 text-[11px] font-medium rounded transition-all ${
+                timeframe === tf.value 
+                  ? theme === 'dark' 
+                    ? 'bg-blue-600 text-white' 
+                    : 'bg-blue-500 text-white'
+                  : theme === 'dark'
+                    ? 'text-gray-400 hover:text-white hover:bg-gray-800'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+              }`}
+            >{tf.label}</button>
           ))}
-          <button onClick={() => setShowCustomTimeframe(true)} className={`px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 ${themeClasses.button}`}>Custom</button>
-        </div>
-
-        {/* Daily Toggle - Standardized */}
-        <div className="flex items-center gap-2">
-            <button onClick={() => handleDailyToggle(!daily)}
-                className={`px-3 py-1 rounded-full text-xs font-semibold border shadow-sm transition-all ${daily ? theme === 'dark' ? 'bg-blue-900/30 text-blue-400 border-blue-700/50' : 'bg-blue-50 text-blue-600 border-blue-200' : theme === 'dark' ? 'bg-gray-800 border-gray-700 text-gray-400 hover:text-gray-200' : 'bg-white border-gray-200 text-gray-600 hover:text-gray-900'}`}>
-                Daily
+          {/* More Timeframes Dropdown - Click-based */}
+          <div className="relative">
+            <button 
+              onClick={() => setShowTimeframeDropdown(!showTimeframeDropdown)}
+              className={`px-2 py-1 text-[11px] font-medium rounded transition-all ${
+                timeframes.slice(6).some(tf => tf.value === timeframe)
+                  ? theme === 'dark' ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
+                  : theme === 'dark' ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+              }`}
+            >
+              {timeframes.slice(6).some(tf => tf.value === timeframe) 
+                ? timeframes.find(tf => tf.value === timeframe)?.label 
+                : '+'
+              }
             </button>
+            {showTimeframeDropdown && (
+              <>
+                {/* Backdrop to close dropdown */}
+                <div 
+                  className="fixed inset-0 z-[2147483646]" 
+                  onClick={() => setShowTimeframeDropdown(false)}
+                />
+                <div className={`absolute top-full right-0 mt-1 py-1 rounded-lg shadow-xl border z-[2147483647] min-w-[100px] ${
+                  theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+                }`}>
+                  {timeframes.slice(6).map((tf) => (
+                    <button 
+                      key={tf.value}
+                      onClick={() => {
+                        dispatch(setTimeframe(tf.value));
+                        setShowTimeframeDropdown(false);
+                      }}
+                      className={`block w-full px-3 py-1.5 text-xs text-left whitespace-nowrap ${
+                        timeframe === tf.value
+                          ? theme === 'dark' ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
+                          : theme === 'dark' ? 'text-gray-300 hover:bg-gray-800' : 'text-gray-700 hover:bg-gray-100'
+                      }`}
+                    >{tf.label}</button>
+                  ))}
+                  <div className={`border-t my-1 ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`} />
+                  <button 
+                    onClick={() => {
+                      setShowCustomTimeframe(true);
+                      setShowTimeframeDropdown(false);
+                    }}
+                    className={`block w-full px-3 py-1.5 text-xs text-left ${
+                      theme === 'dark' ? 'text-gray-400 hover:bg-gray-800' : 'text-gray-500 hover:bg-gray-100'
+                    }`}
+                  >Custom...</button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
 
-        {/* Toolbar Tools */}
-        <div className="flex items-center gap-2">
-            <button onClick={() => setDrawingMode(drawingMode === 'hline' ? null : 'hline')}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border shadow-sm transition-all ${drawingMode === 'hline' ? theme === 'dark' ? 'bg-blue-900/40 text-blue-400 border-blue-700/50 ring-1 ring-blue-500/50' : 'bg-blue-50 text-blue-600 border-blue-200 ring-1 ring-blue-300' : theme === 'dark' ? 'bg-gray-800 border-gray-700 text-gray-400 hover:text-gray-200 hover:bg-gray-700' : 'bg-white border-gray-200 text-gray-600 hover:text-gray-900 hover:bg-gray-50'}`}
-                title="Draw Horizontal Line">
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
-                <span>Line</span>
-            </button>
-            <div className={`w-px h-4 ${theme === "dark" ? "bg-gray-700" : "bg-gray-300"}`} />
-            <button onClick={() => handleWeeklyToggle(!weekly)} className={`px-3 py-1 rounded-full text-xs font-semibold border shadow-sm transition-all ${weekly ? theme === 'dark' ? 'bg-emerald-900/30 text-emerald-400 border-emerald-700/50' : 'bg-emerald-50 text-emerald-600 border-emerald-200' : theme === 'dark' ? 'bg-gray-800 border-gray-700 text-gray-400 hover:text-gray-200' : 'bg-white border-gray-200 text-gray-600 hover:text-gray-900'}`}>Weekly</button>
-            <button onClick={() => handleAvgToggle(!avg)} className={`px-3 py-1 rounded-full text-xs font-semibold border shadow-sm transition-all ${avg ? theme === 'dark' ? 'bg-purple-900/30 text-purple-400 border-purple-700/50' : 'bg-purple-50 text-purple-600 border-purple-200' : theme === 'dark' ? 'bg-gray-800 border-gray-700 text-gray-400 hover:text-gray-200' : 'bg-white border-gray-200 text-gray-600 hover:text-gray-900'}`}>TrueAvg</button>
+        {/* Separator */}
+        <div className={`w-px h-5 ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-300'}`} />
+
+        {/* S/R Lines Toggle Group */}
+        <div className={`flex items-center rounded-md overflow-hidden border ${
+          theme === 'dark' ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50'
+        }`}>
+          <button 
+            onClick={() => handleDailyToggle(!daily)}
+            className={`px-2 py-1 text-[10px] font-semibold transition-all ${
+              daily 
+                ? 'bg-blue-500 text-white' 
+                : theme === 'dark' ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-900'
+            }`}
+            title="Daily S/R"
+          >D</button>
+          <button 
+            onClick={() => handleWeeklyToggle(!weekly)}
+            className={`px-2 py-1 text-[10px] font-semibold transition-all border-l ${
+              weekly 
+                ? 'bg-emerald-500 text-white' 
+                : theme === 'dark' ? 'text-gray-400 hover:text-white border-gray-700' : 'text-gray-500 hover:text-gray-900 border-gray-200'
+            }`}
+            title="Weekly S/R"
+          >W</button>
+          <button 
+            onClick={() => handleAvgToggle(!avg)}
+            className={`px-2 py-1 text-[10px] font-semibold transition-all border-l ${
+              avg 
+                ? 'bg-purple-500 text-white' 
+                : theme === 'dark' ? 'text-gray-400 hover:text-white border-gray-700' : 'text-gray-500 hover:text-gray-900 border-gray-200'
+            }`}
+            title="Average S/R"
+          >A</button>
         </div>
 
-        {/* Profile Selector */}
-        <div className="flex items-center gap-2">
-            <div className="relative group">
-                <select className={`appearance-none pl-3 pr-8 py-1 text-xs font-semibold rounded-full border transition-all duration-200 cursor-pointer shadow-sm outline-none ${theme === "dark" ? "bg-gray-700 border-gray-600 text-gray-200 hover:bg-gray-600 focus:ring-2 focus:ring-emerald-500/50" : "bg-white border-gray-200 text-gray-700 hover:border-gray-300 focus:ring-2 focus:ring-emerald-500/50"}`}
-                    value={activeProfile} onChange={(e) => setActiveProfile(e.target.value)}>
-                    <option value="none">No Profile</option>
-                    <option value="oi">Open Interest</option>
-                    <option value="oi_change">OI Change</option>
-                    <option value="volume">Volume</option>
-                    <option value="delta">Delta</option>
-                    <option value="gamma">Gamma</option>
-                </select>
-                <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400"><svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg></div>
-            </div>
-        </div>
-
-        <div className={`w-px h-6 ${theme === "dark" ? "bg-gray-700" : "bg-gray-300"}`} />
-
-        {/* Zoom Controls */}
-        <div className="flex items-center gap-1">
-          <button onClick={() => { if (chartRef.current) { const ts = chartRef.current.timeScale(); const r = ts.getVisibleLogicalRange(); if (r) ts.setVisibleLogicalRange({ from: r.from + (r.to - r.from) * 0.1, to: r.to - (r.to - r.from) * 0.1 }); } }}
-            className={`p-1.5 rounded-full transition-all duration-200 border shadow-sm ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-gray-400 hover:text-white hover:bg-gray-700' : 'bg-white border-gray-200 text-gray-500 hover:text-gray-900 hover:bg-gray-50'}`} title="Zoom In">
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7" /></svg>
-          </button>
-          <button onClick={() => { if (chartRef.current) { const ts = chartRef.current.timeScale(); const r = ts.getVisibleLogicalRange(); if (r) ts.setVisibleLogicalRange({ from: r.from - (r.to - r.from) * 0.1, to: r.to + (r.to - r.from) * 0.1 }); } }}
-            className={`p-2 rounded-md transition-all duration-200 ${themeClasses.button}`} title="Zoom Out">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM7 10h6" /></svg>
-          </button>
-          <button onClick={() => { if (chartRef.current) chartRef.current.timeScale().fitContent(); }} className={`p-2 rounded-md transition-all duration-200 ${themeClasses.button}`} title="Fit to Screen">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg>
-          </button>
-        </div>
-
-        {/* Fullscreen Toggle */}
-        <button onClick={() => { const elem = chartContainerRef.current?.parentElement?.parentElement; if (!document.fullscreenElement) { elem?.requestFullscreen?.(); setIsFullscreen(true); } else { document.exitFullscreen?.(); setIsFullscreen(false); } }}
-          className={`p-2 rounded-md transition-all duration-200 ${themeClasses.button}`} title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}>
-          {isFullscreen ? <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-            : <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg>}
+        {/* Drawing Tools */}
+        <button 
+          onClick={() => setDrawingMode(drawingMode === 'hline' ? null : 'hline')}
+          className={`p-1.5 rounded transition-all ${
+            drawingMode === 'hline'
+              ? 'bg-blue-500 text-white'
+              : theme === 'dark' ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+          }`}
+          title="Draw Line"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 12h16" />
+          </svg>
         </button>
 
-        {/* Connection status */}
-        <div className={`w-3 h-3 rounded-full ml-auto ${connectionStatus === "connected" ? "bg-green-500" : connectionStatus === "loading" ? "bg-yellow-500 animate-pulse" : "bg-red-500"}`} title={connectionStatus} />
+        {/* Separator */}
+        <div className={`w-px h-5 ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-300'}`} />
+
+        {/* Profile Selector - Compact */}
+        <select 
+          className={`text-[11px] font-medium px-2 py-1 rounded border-0 outline-none cursor-pointer ${
+            theme === 'dark' 
+              ? 'bg-gray-800 text-gray-300 focus:ring-1 focus:ring-blue-500' 
+              : 'bg-gray-100 text-gray-700 focus:ring-1 focus:ring-blue-500'
+          }`}
+          value={activeProfile} 
+          onChange={(e) => setActiveProfile(e.target.value)}
+        >
+          <option value="none">Profile</option>
+          <option value="oi">OI</option>
+          <option value="oi_change">OI Δ</option>
+          <option value="volume">Vol</option>
+          <option value="delta">Delta</option>
+          <option value="gamma">Gamma</option>
+          <option value="gex">GEX</option>
+          <option value="delta_oi">Δ×OI</option>
+          <option value="composite">Comp</option>
+          <option value="pcr">PCR</option>
+          <option value="iv_skew">IV Skew</option>
+          <option value="vega">Vega</option>
+          <option value="theta">Theta</option>
+          <option value="reversal">Reversal</option>
+        </select>
+
+        {/* Spacer */}
+        <div className="flex-grow" />
+
+        {/* Right Controls */}
+        <div className="flex items-center gap-0.5">
+          {/* Zoom Controls */}
+          <button 
+            onClick={() => { if (chartRef.current) { const ts = chartRef.current.timeScale(); const r = ts.getVisibleLogicalRange(); if (r) ts.setVisibleLogicalRange({ from: r.from + (r.to - r.from) * 0.1, to: r.to - (r.to - r.from) * 0.1 }); } }}
+            className={`p-1.5 rounded transition-all ${theme === 'dark' ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'}`}
+            title="Zoom In"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v12M6 12h12" />
+            </svg>
+          </button>
+          <button 
+            onClick={() => { if (chartRef.current) { const ts = chartRef.current.timeScale(); const r = ts.getVisibleLogicalRange(); if (r) ts.setVisibleLogicalRange({ from: r.from - (r.to - r.from) * 0.1, to: r.to + (r.to - r.from) * 0.1 }); } }}
+            className={`p-1.5 rounded transition-all ${theme === 'dark' ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'}`}
+            title="Zoom Out"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+            </svg>
+          </button>
+          <button 
+            onClick={() => { if (chartRef.current) chartRef.current.timeScale().fitContent(); }}
+            className={`p-1.5 rounded transition-all ${theme === 'dark' ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'}`}
+            title="Fit All"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+            </svg>
+          </button>
+          
+          {/* Separator */}
+          <div className={`w-px h-4 mx-1 ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-300'}`} />
+          
+          {/* Fullscreen */}
+          <button 
+            onClick={() => { 
+              const elem = chartContainerRef.current?.parentElement?.parentElement; 
+              if (!document.fullscreenElement) { elem?.requestFullscreen?.(); setIsFullscreen(true); } 
+              else { document.exitFullscreen?.(); setIsFullscreen(false); } 
+            }}
+            className={`p-1.5 rounded transition-all ${theme === 'dark' ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'}`}
+            title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              {isFullscreen 
+                ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 9V4.5M9 9H4.5M9 9L3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M15 15h4.5M15 15v4.5m0-4.5l5.25 5.25" />
+                : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
+              }
+            </svg>
+          </button>
+
+          {/* Status Indicator */}
+          <div 
+            className={`w-2 h-2 rounded-full ml-1 ${
+              connectionStatus === 'connected' ? 'bg-emerald-500' 
+              : connectionStatus === 'loading' ? 'bg-amber-500 animate-pulse' 
+              : 'bg-red-500'
+            }`} 
+            title={connectionStatus}
+          />
+        </div>
       </div>
 
       {/* Chart Wrapper - Use 100% height in fullscreen, reduced margin normally */}

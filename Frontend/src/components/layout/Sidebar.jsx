@@ -60,15 +60,15 @@ const Sidebar = () => {
       badge: "Pro",
     },
     {
-      name: "Charts",
-      path: "/charts",
-      icon: ArrowTrendingUpIcon,
-      badge: null,
-    },
-    {
       name: "Position Sizing",
       path: "/position-sizing",
       icon: CalculatorIcon,
+      badge: null,
+    },
+    {
+      name: "TCA",
+      path: "/tca",
+      icon: ArrowTrendingUpIcon,
       badge: null,
     },
   ];

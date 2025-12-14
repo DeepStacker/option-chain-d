@@ -31,7 +31,6 @@ import OptionChain from "./pages/OptionChain";
 import Analytics from "./pages/Analytics";
 import NotFound from "./pages/NotFound";
 import MainLayout from "./layouts/MainLayout";
-import TradingChart from "./components/charts/TradingChart";
 import Admin from "./pages/Admin";
 
 import { activateServices } from "./services/healthCheck";
@@ -112,7 +111,6 @@ function App() {
                     <Route path="/analytics" element={<Analytics />} />
                     <Route path="/position-sizing" element={<PositionSizing />} />
                     <Route path="/tca" element={<Tca />} />
-                    <Route path="/charts" element={<TradingChart />} />
                     <Route path="/admin" element={<Admin />} />
                   </Route>
                 </Route>

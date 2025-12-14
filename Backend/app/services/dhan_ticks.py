@@ -104,25 +104,39 @@ class DhanTicksService:
     
     def __init__(self):
         self.client = httpx.AsyncClient(timeout=30.0)
-        # Get auth token from settings
-        self.auth_token = getattr(settings, 'DHAN_AUTH_TOKEN', '')
+        # Get auth token from settings (will be dynamically loaded via ConfigService)
+        self._static_auth_token = getattr(settings, 'DHAN_AUTH_TOKEN', '')
         # Authorization token (from env or hardcoded for now)
         self.authorization = getattr(settings, 'DHAN_AUTHORIZATION', 'RFC8mfDnhwK86NPfnQ1T94inmIIDATYT+OhOSKa7j0/Mi22GZoIYM67t8Zk0zPUCnfXk4tpC3pHrrRaw+uok/w==')
-        
-        self.headers = {
+        self._current_token = None
+        logger.info(f"DhanTicksService initialized (token will be loaded dynamically)")
+    
+    async def _get_auth_token(self) -> str:
+        """Get auth token from config service (Redis -> DB -> settings fallback)"""
+        try:
+            from app.services.config_service import get_config
+            token = await get_config("DHAN_AUTH_TOKEN", self._static_auth_token)
+            return token or self._static_auth_token or ""
+        except Exception as e:
+            logger.warning(f"Failed to get token from config service: {e}")
+            return self._static_auth_token or ""
+    
+    async def _get_headers(self) -> dict:
+        """Get headers with current auth token"""
+        token = await self._get_auth_token()
+        return {
             "Content-Type": "application/json",
             "Accept": "*/*",
             "Origin": "https://tv-web.dhan.co",
             "Referer": "https://tv-web.dhan.co/",
             "Access-Control-Allow-Origin": "true",
-            "Auth": self.auth_token,  # JWT token
+            "Auth": token,  # JWT token (dynamically loaded)
             "Authorization": self.authorization,  # API key
             "Bid": "DHN1804",
             "Cid": "7209683699",
             "Src": "T",
             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
         }
-        logger.info(f"DhanTicksService initialized with auth token: {self.auth_token[:20]}..." if self.auth_token else "DhanTicksService initialized without auth token")
     
     async def get_chart_data(
         self,
@@ -195,10 +209,11 @@ class DhanTicksService:
         logger.info(f"Fetching chart data for {symbol}, interval={interval} ({dhan_interval}), days={days_back}, url={api_url}")
         
         try:
+            headers = await self._get_headers()
             response = await self.client.post(
                 api_url,
                 json=payload,
-                headers=self.headers,
+                headers=headers,
             )
             
             if response.status_code == 200:

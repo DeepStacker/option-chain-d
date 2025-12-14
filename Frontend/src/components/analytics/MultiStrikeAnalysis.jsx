@@ -212,35 +212,35 @@ const MultiStrikeAnalysis = () => {
                                 </thead>
                                 <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                                     <tr>
-                                        <td className="p-2 font-medium text-green-600">CE OI</td>
+                                        <td className="p-2 font-medium text-red-600">CE OI</td>
                                         {comparisonData.map(d => <td key={d.strike} className="p-2 text-center">{formatNumber(d.ce_oi)}</td>)}
                                     </tr>
                                     <tr>
-                                        <td className="p-2 font-medium text-red-600">PE OI</td>
+                                        <td className="p-2 font-medium text-green-600">PE OI</td>
                                         {comparisonData.map(d => <td key={d.strike} className="p-2 text-center">{formatNumber(d.pe_oi)}</td>)}
                                     </tr>
                                     <tr>
-                                        <td className="p-2 font-medium text-green-600">CE LTP</td>
+                                        <td className="p-2 font-medium text-red-600">CE LTP</td>
                                         {comparisonData.map(d => <td key={d.strike} className="p-2 text-center">₹{d.ce_ltp.toFixed(2)}</td>)}
                                     </tr>
                                     <tr>
-                                        <td className="p-2 font-medium text-red-600">PE LTP</td>
+                                        <td className="p-2 font-medium text-green-600">PE LTP</td>
                                         {comparisonData.map(d => <td key={d.strike} className="p-2 text-center">₹{d.pe_ltp.toFixed(2)}</td>)}
                                     </tr>
                                     <tr>
-                                        <td className="p-2 font-medium text-green-600">CE IV</td>
+                                        <td className="p-2 font-medium text-red-600">CE IV</td>
                                         {comparisonData.map(d => <td key={d.strike} className="p-2 text-center">{d.ce_iv.toFixed(1)}%</td>)}
                                     </tr>
                                     <tr>
-                                        <td className="p-2 font-medium text-red-600">PE IV</td>
+                                        <td className="p-2 font-medium text-green-600">PE IV</td>
                                         {comparisonData.map(d => <td key={d.strike} className="p-2 text-center">{d.pe_iv.toFixed(1)}%</td>)}
                                     </tr>
                                     <tr>
-                                        <td className="p-2 font-medium text-green-600">CE Delta</td>
+                                        <td className="p-2 font-medium text-red-600">CE Delta</td>
                                         {comparisonData.map(d => <td key={d.strike} className="p-2 text-center">{d.ce_delta.toFixed(3)}</td>)}
                                     </tr>
                                     <tr>
-                                        <td className="p-2 font-medium text-red-600">PE Delta</td>
+                                        <td className="p-2 font-medium text-green-600">PE Delta</td>
                                         {comparisonData.map(d => <td key={d.strike} className="p-2 text-center">{d.pe_delta.toFixed(3)}</td>)}
                                     </tr>
                                     <tr className="bg-purple-50 dark:bg-purple-900/20">
@@ -294,7 +294,7 @@ const ComparisonChart = ({ data, ceKey, peKey, label, colors, atmStrike }) => {
                             y={20 + chartHeight - ceHeight}
                             width={barWidth}
                             height={ceHeight}
-                            fill="#10B981"
+                            fill="#EF4444"
                             rx="2"
                         />
                         
@@ -304,7 +304,7 @@ const ComparisonChart = ({ data, ceKey, peKey, label, colors, atmStrike }) => {
                             y={20 + chartHeight - peHeight}
                             width={barWidth}
                             height={peHeight}
-                            fill="#EF4444"
+                            fill="#10B981"
                             rx="2"
                         />
 
@@ -318,9 +318,9 @@ const ComparisonChart = ({ data, ceKey, peKey, label, colors, atmStrike }) => {
 
             {/* Legend */}
             <g transform="translate(50, 5)">
-                <rect x="0" y="0" width="12" height="12" fill="#10B981" rx="2" />
+                <rect x="0" y="0" width="12" height="12" fill="#EF4444" rx="2" />
                 <text x="16" y="10" className="fill-gray-600 text-[10px]">CE</text>
-                <rect x="40" y="0" width="12" height="12" fill="#EF4444" rx="2" />
+                <rect x="40" y="0" width="12" height="12" fill="#10B981" rx="2" />
                 <text x="56" y="10" className="fill-gray-600 text-[10px]">PE</text>
             </g>
         </svg>

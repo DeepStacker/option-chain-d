@@ -61,6 +61,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
     try:
         await init_db()
         logger.info("Database initialized")
+        
+        # Seed default configs and instruments
+        from app.utils.seeder import run_seeder
+        seed_result = await run_seeder()
+        if seed_result["configs_seeded"] > 0 or seed_result["instruments_seeded"] > 0:
+            logger.info(f"Seeded {seed_result['configs_seeded']} configs, {seed_result['instruments_seeded']} instruments")
     except Exception as e:
         logger.error(f"Database initialization failed: {e}")
         raise
