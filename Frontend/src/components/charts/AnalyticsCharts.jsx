@@ -2,7 +2,7 @@
  * Premium Chart Components for Analytics
  * SVG-based visualizations with animations and interactions
  */
-import { memo, useState, useMemo } from 'react';
+import { memo, useState } from 'react';
 import PropTypes from 'prop-types';
 
 // ============== Color Palettes ==============

@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 import { BUILDUP_TYPES } from '../../../constants';
 import { useColumnConfig } from '../../../context/ColumnConfigContext';
 import { useTableSettings } from '../../../context/TableSettingsContext';
-import { XMarkIcon, ArrowTrendingUpIcon, ArrowTrendingDownIcon, ChartBarIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, ChartBarIcon } from '@heroicons/react/24/outline';
 
 /**
  * Format number as K/M/B/T
@@ -11,10 +11,10 @@ import { XMarkIcon, ArrowTrendingUpIcon, ArrowTrendingDownIcon, ChartBarIcon } f
 const formatNumber = (num) => {
   if (num === null || num === undefined) return '—';
   if (num === 0) return '0';
-  
+
   const absNum = Math.abs(num);
   const sign = num < 0 ? '-' : '';
-  
+
   if (absNum >= 1e12) return sign + (absNum / 1e12).toFixed(2) + 'T';
   if (absNum >= 1e9) return sign + (absNum / 1e9).toFixed(2) + 'B';
   if (absNum >= 1e6) return sign + (absNum / 1e6).toFixed(2) + 'M';
@@ -80,16 +80,16 @@ const StrikeDetailPopup = memo(({ data, strike, spotPrice, onClose }) => {
 
   const ce = data.ce || {};
   const pe = data.pe || {};
-  
+
   const ce_oi = ce.OI || ce.oi || 0;
   const pe_oi = pe.OI || pe.oi || 0;
   const ce_oi_chng = ce.oichng || 0;
   const pe_oi_chng = pe.oichng || 0;
-  
+
   // PCR calculations
   const pcr_oi = ce_oi > 0 ? (pe_oi / ce_oi) : 0;
   const pcr_oi_chng = ce_oi_chng !== 0 ? (pe_oi_chng / ce_oi_chng) : 0;
-  
+
   // Reversal at strike level - resistance above spot, support below
   const reversal = data.reversal || 0;
   const wklyReversal = data.wkly_reversal || 0;
@@ -99,8 +99,8 @@ const StrikeDetailPopup = memo(({ data, strike, spotPrice, onClose }) => {
 
   // Trading signals
   const signals = data.trading_signals || {};
-  const priceRange = data.price_range || {};
-  const regime = data.market_regimes || {};
+  const _priceRange = data.price_range || {};
+  const _regime = data.market_regimes || {};
 
   const getPCRColor = (pcrValue) => {
     if (pcrValue > 1.5) return 'text-green-600 bg-green-50 dark:bg-green-900/30';
@@ -143,7 +143,7 @@ const StrikeDetailPopup = memo(({ data, strike, spotPrice, onClose }) => {
               </button>
             )}
           </div>
-          <div 
+          <div
             className="text-3xl font-bold text-purple-800 dark:text-purple-200 mb-2 cursor-pointer select-all"
             onClick={() => reversal && navigator.clipboard.writeText(reversal.toFixed(2))}
             title="Click to copy"
@@ -334,7 +334,7 @@ PCRDisplay.displayName = 'PCRDisplay';
  * Strike Row Component - Dynamic columns, all cells clickable
  * Enhanced with K/M/B formatting, dual PCR, larger font, combined LTP cell
  */
-const StrikeRow = memo(({ data, strike, atmStrike, spotPrice, onCellClick, onStrikeSelect, highlightData }) => {
+const StrikeRow = memo(({ data, strike, atmStrike, spotPrice, onCellClick, onStrikeSelect: _onStrikeSelect, onStrikeClick, highlightData }) => {
   const { isColumnVisible } = useColumnConfig();
   const { settings } = useTableSettings();
 
@@ -342,7 +342,7 @@ const StrikeRow = memo(({ data, strike, atmStrike, spotPrice, onCellClick, onStr
   const getHighlight = (key) => highlightData?.[key]?.color || '';
   // Helper to get percentage value
   const getPct = (key) => highlightData?.[key]?.pct || 0;
-  
+
   const ce = useMemo(() => data.ce || {}, [data.ce]);
   const pe = useMemo(() => data.pe || {}, [data.pe]);
   const [hoveredGreeks, setHoveredGreeks] = useState(null);
@@ -362,7 +362,7 @@ const StrikeRow = memo(({ data, strike, atmStrike, spotPrice, onCellClick, onStr
   const pe_oi_chng = pe.oichng || 0;
   const ce_vol = ce.volume || 0;
   const pe_vol = pe.volume || 0;
-  
+
   const oiPcr = ce_oi > 0 ? pe_oi / ce_oi : 0;
   const oiChngPcr = ce_oi_chng !== 0 ? pe_oi_chng / ce_oi_chng : 0;
   const volPcr = ce_vol > 0 ? pe_vol / ce_vol : 0; // Reverted to PCR (PE/CE)
@@ -382,8 +382,13 @@ const StrikeRow = memo(({ data, strike, atmStrike, spotPrice, onCellClick, onStr
   }, [strike, ce.sym, ce.sid, pe.sym, pe.sid, onCellClick, data]);
 
   const handleStrikeClick = useCallback(() => {
-    setShowStrikePopup(true);
-  }, []);
+    // Trigger Strike Analysis Modal with full strike data
+    if (onStrikeClick) {
+      onStrikeClick({ strike, ce, pe, ...data });
+    } else {
+      setShowStrikePopup(true);
+    }
+  }, [onStrikeClick, strike, ce, pe, data]);
 
   // Compact padding for smaller row height - but keep readable font
   const cellPadding = isCompact ? 'py-1 px-1.5' : 'p-2';
@@ -402,7 +407,10 @@ const StrikeRow = memo(({ data, strike, atmStrike, spotPrice, onCellClick, onStr
         className={`
           border-b border-gray-100 dark:border-gray-800
           hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors
-          ${isATM ? 'bg-blue-50/50 dark:bg-blue-900/20 ring-2 ring-blue-300 dark:ring-blue-700' : ''}
+          ${isATM
+            ? 'bg-gradient-to-r from-yellow-50 via-amber-50 to-yellow-50 dark:from-yellow-900/30 dark:via-amber-900/20 dark:to-yellow-900/30 ring-2 ring-yellow-400 dark:ring-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.3)] relative z-10'
+            : ''
+          }
         `}
       >
         {/* ============ CALLS (Left) - Order: IV/Delta (outer) -> OI Chg -> OI -> Vol -> LTP (near strike) ============ */}

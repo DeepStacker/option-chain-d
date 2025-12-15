@@ -5,11 +5,11 @@
 import { useMemo, useState, useCallback } from 'react';
 import { useSelector } from 'react-redux';
 import { selectOptionChain, selectSpotPrice, selectATMStrike } from '../../context/selectors';
-import { ChartBarIcon, PlusIcon, XMarkIcon, EyeIcon } from '@heroicons/react/24/outline';
+import { ChartBarIcon, XMarkIcon, EyeIcon } from '@heroicons/react/24/outline';
 
 const MultiStrikeAnalysis = () => {
     const optionChain = useSelector(selectOptionChain);
-    const spotPrice = useSelector(selectSpotPrice);
+    const _spotPrice = useSelector(selectSpotPrice);
     const atmStrike = useSelector(selectATMStrike);
     
     const [selectedStrikes, setSelectedStrikes] = useState([]);
@@ -258,7 +258,7 @@ const MultiStrikeAnalysis = () => {
 };
 
 // Grouped Bar Chart for Comparison
-const ComparisonChart = ({ data, ceKey, peKey, label, colors, atmStrike }) => {
+const ComparisonChart = ({ data, ceKey, peKey, label: _label, colors: _colors, atmStrike }) => {
     if (!data || data.length === 0) return null;
 
     const maxValue = Math.max(...data.flatMap(d => [d[ceKey], d[peKey]]));

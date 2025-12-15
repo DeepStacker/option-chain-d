@@ -3,9 +3,7 @@ import PropTypes from 'prop-types';
 import {
   XMarkIcon,
   ArrowTrendingUpIcon,
-  ArrowTrendingDownIcon,
   BoltIcon,
-  ExclamationTriangleIcon,
   ChartBarIcon,
   BeakerIcon,
 } from '@heroicons/react/24/outline';
@@ -23,7 +21,7 @@ const StrikeDetailPanel = memo(({ strikeData, onClose }) => {
     wkly_reversal,
     fut_reversal,
     rs,
-    rr,
+    rr: _rr,
     ss,
     sr_diff,
     ce_tv,
@@ -35,8 +33,8 @@ const StrikeDetailPanel = memo(({ strikeData, onClose }) => {
     recommended_strategy,
     alert,
     time_decay,
-    ce,
-    pe,
+    ce: _ce,
+    pe: _pe,
   } = strikeData;
 
   const regimeColors = {

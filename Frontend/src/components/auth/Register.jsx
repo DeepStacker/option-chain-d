@@ -163,7 +163,7 @@ const Register = () => {
                 Create Account
               </h2>
               <p className={`${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                It's free and takes 10 seconds
+                It&apos;s free and takes 10 seconds
               </p>
             </div>
 

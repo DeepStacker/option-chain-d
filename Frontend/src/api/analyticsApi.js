@@ -119,6 +119,70 @@ export const getIVSkew = async ({
     return response.data;
 };
 
+/**
+ * Get aggregate Change in OI (COI) across all strikes
+ * Similar to LOC Calculator's "COi" and "Overall COi" views
+ */
+export const getAggregateCOI = async ({
+    symbol,
+    expiry,
+    topN = 30,
+}) => {
+    const response = await axiosInstance.get(
+        `${ANALYTICS_BASE}/aggregate/coi/${symbol}/${expiry}`,
+        {
+            params: { top_n: topN },
+        }
+    );
+    return response.data;
+};
+
+/**
+ * Get aggregate OI across all strikes
+ * Similar to LOC Calculator's "Oi" and "Overall Oi" views
+ */
+export const getAggregateOI = async ({
+    symbol,
+    expiry,
+    topN = 30,
+}) => {
+    const response = await axiosInstance.get(
+        `${ANALYTICS_BASE}/aggregate/oi/${symbol}/${expiry}`,
+        {
+            params: { top_n: topN },
+        }
+    );
+    return response.data;
+};
+
+/**
+ * Get aggregate PCR (Put-Call Ratio) across all strikes
+ * Similar to LOC Calculator's "PCR" view
+ */
+export const getAggregatePCR = async ({
+    symbol,
+    expiry,
+}) => {
+    const response = await axiosInstance.get(
+        `${ANALYTICS_BASE}/aggregate/pcr/${symbol}/${expiry}`
+    );
+    return response.data;
+};
+
+/**
+ * Get aggregate percentage changes across all strikes
+ * Similar to LOC Calculator's "Percentage" view
+ */
+export const getAggregatePercentage = async ({
+    symbol,
+    expiry,
+}) => {
+    const response = await axiosInstance.get(
+        `${ANALYTICS_BASE}/aggregate/percentage/${symbol}/${expiry}`
+    );
+    return response.data;
+};
+
 export default {
     getStrikeTimeSeries,
     getSpotTimeSeries,
@@ -127,4 +191,9 @@ export default {
     getOIDistribution,
     getMaxPainAnalysis,
     getIVSkew,
+    getAggregateCOI,
+    getAggregateOI,
+    getAggregatePCR,
+    getAggregatePercentage,
 };
+

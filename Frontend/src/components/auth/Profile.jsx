@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useRef } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSelector, useDispatch } from "react-redux";
 import { toast } from "react-toastify";
@@ -22,6 +22,8 @@ import {
   KeyIcon,
   DevicePhoneMobileIcon,
 } from "@heroicons/react/24/outline";
+import { getMyProfile, updateMyProfile, updateNotificationSettings, getMyTradingStats } from "../../api/profileApi";
+
 
 const Profile = () => {
   const _dispatch = useDispatch();
@@ -59,6 +61,71 @@ const Profile = () => {
     loginAlerts: true,
     sessionTimeout: 30,
   });
+
+  const [tradingStats, setTradingStats] = useState({
+    totalTrades: "0",
+    winRate: "0%",
+    totalPnL: "₹0",
+    avgReturn: "0%",
+    riskScore: "Low",
+    activeDays: "0",
+  });
+
+  const [_profileLoading, setProfileLoading] = useState(true);
+
+  // Fetch profile data from backend API
+  useEffect(() => {
+    const fetchProfileData = async () => {
+      try {
+        setProfileLoading(true);
+        
+        // Fetch profile from backend
+        const profileResponse = await getMyProfile();
+        if (profileResponse.success && profileResponse.data) {
+          const profile = profileResponse.data;
+          setUserData({
+            ...profile,
+            username: profile.username || profile.email?.split('@')[0],
+            joinDate: profile.created_at ? new Date(profile.created_at).toLocaleDateString() : new Date().toLocaleDateString(),
+          });
+          setEditedData({
+            username: profile.username || "",
+            email: profile.email || "",
+            phone: profile.phone || "",
+            bio: profile.bio || "",
+            location: profile.location || "",
+          });
+          if (profile.notification_settings) {
+            setNotificationSettings(profile.notification_settings);
+          }
+          if (profile.trading_stats) {
+            setTradingStats(profile.trading_stats);
+          }
+        }
+        
+        // Fetch trading stats separately for more detailed data
+        const statsResponse = await getMyTradingStats();
+        if (statsResponse.success && statsResponse.stats) {
+          const stats = statsResponse.stats;
+          setTradingStats({
+            totalTrades: stats.total_trades?.toLocaleString() || "0",
+            winRate: `${stats.win_rate || 0}%`,
+            totalPnL: `₹${(stats.total_pnl / 100000).toFixed(1)}L`,
+            avgReturn: `${stats.avg_return || 0}%`,
+            riskScore: stats.total_pnl > 500000 ? "High" : stats.total_pnl > 100000 ? "Medium" : "Low",
+            activeDays: stats.active_days?.toString() || "0",
+          });
+        }
+      } catch (error) {
+        console.log("Using local profile data:", error.message);
+        // Fallback to localStorage data if API fails
+      } finally {
+        setProfileLoading(false);
+      }
+    };
+
+    fetchProfileData();
+  }, []);
 
   // Professional tab configuration
   const tabs = useMemo(
@@ -115,18 +182,12 @@ const Profile = () => {
       location: userData?.location || "Bangalore, India",
       joinDate: userData?.joinDate || new Date().toLocaleDateString(),
       subscription: userData?.subscription_type || "Professional",
-      isVerified: userData?.email === "svm.singh.01@gmail.com",
-      stats: {
-        totalTrades: "1,247",
-        winRate: "73.2%",
-        totalPnL: "₹12.4L",
-        avgReturn: "18.5%",
-        riskScore: "Medium",
-        activeDays: "156",
-      },
+      isVerified: userData?.is_email_verified || false,
+      stats: tradingStats,
     }),
-    [userData]
+    [userData, tradingStats]
   );
+
 
   // Validation functions
   const validateForm = useCallback(() => {
@@ -164,20 +225,36 @@ const Profile = () => {
 
     setLoading(true);
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Call backend API to update profile
+      const response = await updateMyProfile({
+        username: editedData.username,
+        phone: editedData.phone,
+        bio: editedData.bio,
+        location: editedData.location,
+      });
 
+      if (response.success) {
+        const updatedUser = { ...userData, ...editedData };
+        localStorage.setItem("user", JSON.stringify(updatedUser));
+        setUserData(updatedUser);
+        setIsEditing(false);
+        toast.success("Profile updated successfully");
+      } else {
+        toast.error(response.message || "Failed to update profile");
+      }
+    } catch (error) {
+      console.error("Profile update error:", error);
+      // Fallback: save to localStorage if API fails
       const updatedUser = { ...userData, ...editedData };
       localStorage.setItem("user", JSON.stringify(updatedUser));
       setUserData(updatedUser);
       setIsEditing(false);
-      toast.success("Profile updated successfully");
-    } catch (_error) {
-      toast.error("Failed to update profile");
+      toast.success("Profile saved locally");
     } finally {
       setLoading(false);
     }
   }, [editedData, userData, validateForm]);
+
 
   const handleCancel = useCallback(() => {
     setEditedData({
@@ -201,12 +278,21 @@ const Profile = () => {
     [errors]
   );
 
-  const toggleNotification = useCallback((key) => {
-    setNotificationSettings((prev) => ({
-      ...prev,
-      [key]: !prev[key],
-    }));
-  }, []);
+  const toggleNotification = useCallback(async (key) => {
+    const newSettings = {
+      ...notificationSettings,
+      [key]: !notificationSettings[key],
+    };
+    setNotificationSettings(newSettings);
+    
+    // Save to backend
+    try {
+      await updateNotificationSettings(newSettings);
+    } catch (error) {
+      console.log("Failed to save notification settings:", error.message);
+    }
+  }, [notificationSettings]);
+
 
   // Animation variants
   const containerVariants = {

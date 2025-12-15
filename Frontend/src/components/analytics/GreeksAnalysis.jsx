@@ -9,7 +9,7 @@ import { BeakerIcon, ChartBarIcon } from '@heroicons/react/24/outline';
 
 const GreeksAnalysis = () => {
     const optionChain = useSelector(selectOptionChain);
-    const spotPrice = useSelector(selectSpotPrice);
+    const _spotPrice = useSelector(selectSpotPrice);
     const atmStrike = useSelector(selectATMStrike);
     const [selectedGreek, setSelectedGreek] = useState('delta');
 

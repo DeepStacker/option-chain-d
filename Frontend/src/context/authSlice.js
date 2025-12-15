@@ -6,6 +6,7 @@ import {
   signOut,
 } from "firebase/auth";
 import { auth } from "../firebase/init";
+import logger from "../utils/logger";
 
 // Optimized Token Manager Class
 class OptimizedTokenManager {
@@ -96,13 +97,13 @@ export const initializeAuth = createAsyncThunk(
   "auth/initializeAuth",
   async (_, { dispatch, rejectWithValue }) => {
     try {
-      console.log("🔐 Initializing authentication...");
+      logger.log("🔐 Initializing authentication...");
 
       // Clear any expired tokens first
       const hadExpiredTokens = tokenManager.clearExpiredTokens();
 
       if (hadExpiredTokens) {
-        console.log("🗑️ Expired tokens were cleared during initialization");
+        logger.log("🗑️ Expired tokens were cleared during initialization");
         return { user: null, isAuthenticated: false };
       }
 
@@ -119,7 +120,7 @@ export const initializeAuth = createAsyncThunk(
 
           // Validate token is not expired
           if (!tokenManager.isTokenExpired(storedToken)) {
-            console.log("✅ Valid token found in storage, user authenticated");
+            logger.log("✅ Valid token found in storage, user authenticated");
 
             // Set axios header immediately
             axios.defaults.headers.common[
@@ -134,7 +135,7 @@ export const initializeAuth = createAsyncThunk(
               isAuthenticated: true,
             };
           } else {
-            console.log("⏰ Stored token is expired - clearing");
+            logger.log("⏰ Stored token is expired - clearing");
             tokenManager.clearAllAuthData();
           }
         } catch (parseError) {
@@ -144,7 +145,7 @@ export const initializeAuth = createAsyncThunk(
       }
 
       // No valid authentication found
-      console.log("❌ No valid authentication found");
+      logger.log("❌ No valid authentication found");
       return { user: null, isAuthenticated: false };
     } catch (error) {
       console.error("❌ Error initializing auth:", error);
@@ -221,13 +222,13 @@ export const refreshUserToken = createAsyncThunk(
 // Logout - signs out from Firebase and clears all auth data
 export const performLogout = createAsyncThunk(
   "auth/performLogout",
-  async (_, { dispatch, rejectWithValue }) => {
+  async (_, { dispatch: _dispatch, rejectWithValue }) => {
     try {
-      console.log("🚪 Performing logout...");
+      logger.log("🚪 Performing logout...");
 
       // Sign out from Firebase
       await signOut(auth);
-      console.log("✅ Firebase sign out successful");
+      logger.log("✅ Firebase sign out successful");
 
       // Clear all local auth data
       tokenManager.clearAllAuthData();
@@ -403,7 +404,7 @@ export const {
 
 // Enhanced Firebase auth state listener
 export const setupAuthListener = () => (dispatch) => {
-  console.log("🔥 Setting up Firebase auth state listener...");
+  logger.log("🔥 Setting up Firebase auth state listener...");
 
   let authStateInitialized = false;
 
@@ -411,7 +412,7 @@ export const setupAuthListener = () => (dispatch) => {
   const unsubscribeAuth = onAuthStateChanged(
     auth,
     async (user) => {
-      console.log("🔥 Auth state changed:", user ? "User found" : "No user");
+      logger.log("🔥 Auth state changed:", user ? "User found" : "No user");
 
       if (!authStateInitialized) {
         authStateInitialized = true;
@@ -431,7 +432,7 @@ export const setupAuthListener = () => (dispatch) => {
                 id_token: token
               });
               backendUser = response.data?.user || response.data?.data?.user;
-              console.log("✅ Backend verification successful:", backendUser?.email);
+              logger.log("✅ Backend verification successful:", backendUser?.email);
             } catch (backendError) {
               console.warn("⚠️ Backend verification failed, using Firebase data only:", backendError.message);
             }
@@ -529,7 +530,7 @@ export const setupAuthListener = () => (dispatch) => {
   });
 
   return () => {
-    console.log("🧹 Cleaning up auth listeners");
+    logger.log("🧹 Cleaning up auth listeners");
     unsubscribeAuth();
     unsubscribeIdToken();
     tokenManager.cleanup();

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { decode as msgpackDecode } from '@msgpack/msgpack';
+import logger from '../utils/logger';
 
 /**
  * WebSocket Hook for FastAPI Backend
@@ -66,7 +67,7 @@ const useSocket = (onDataReceived, options = {}) => {
       // Use the WebSocket URL (already includes /ws/options if using VITE_WS_URL)
       const wsUrl = socketUrl.includes('/ws/') ? socketUrl : `${socketUrl}/ws/options`;
 
-      console.log('🔌 Connecting to WebSocket:', wsUrl);
+      logger.log('🔌 Connecting to WebSocket:', wsUrl);
 
       // Connect without token in URL (long JWT tokens can cause issues in query params)
       // Auth token can be sent as first message after connection if needed
@@ -74,7 +75,7 @@ const useSocket = (onDataReceived, options = {}) => {
 
       // Connection opened
       socketRef.current.onopen = () => {
-        console.log('✅ WebSocket Connected');
+        logger.log('✅ WebSocket Connected');
         setIsConnected(true);
         setError(null);
         reconnectAttemptsRef.current = 0;
@@ -89,23 +90,23 @@ const useSocket = (onDataReceived, options = {}) => {
       socketRef.current.onmessage = async (event) => {
         try {
           // Debug: Log raw message type
-          console.log('📩 WebSocket raw message type:', typeof event.data, event.data instanceof Blob ? 'Blob' : event.data instanceof ArrayBuffer ? 'ArrayBuffer' : 'String');
+          logger.debug('📩 WebSocket raw message type:', typeof event.data, event.data instanceof Blob ? 'Blob' : event.data instanceof ArrayBuffer ? 'ArrayBuffer' : 'String');
           
           const data = await decodeMessage(event.data);
           
           // Debug: Log decoded data
-          console.log('📦 WebSocket decoded data:', data?.type || 'live_data', data?.oc ? `(${Object.keys(data.oc).length} strikes)` : '');
+          logger.debug('📦 WebSocket decoded data:', data?.type || 'live_data', data?.oc ? `(${Object.keys(data.oc).length} strikes)` : '');
 
           // Handle different message types
           if (data.type === 'connected') {
-            console.log('✅ Connection confirmed, client_id:', data.client_id);
+            logger.log('✅ Connection confirmed, client_id:', data.client_id);
             setError(null); // Clear error on successful connection
           } else if (data.type === 'subscribed') {
-            console.log('✅ Subscribed to:', data.symbol, data.expiry);
+            logger.log('✅ Subscribed to:', data.symbol, data.expiry);
             setSubscription({ symbol: data.symbol, expiry: data.expiry });
             setError(null); // Clear error on successful subscription
           } else if (data.type === 'unsubscribed') {
-            console.log('✅ Unsubscribed');
+            logger.log('✅ Unsubscribed');
             setSubscription(null);
           } else if (data.type === 'pong') {
             // Heartbeat response
@@ -115,7 +116,7 @@ const useSocket = (onDataReceived, options = {}) => {
           } else {
             // Live data - pass to callback
             if (error) setError(null); // Clear error if we start receiving data
-            console.log('📡 Passing live data to callback');
+            logger.debug('📡 Passing live data to callback');
             if (onDataReceivedRef.current) {
                 onDataReceivedRef.current(data);
             }
@@ -134,7 +135,7 @@ const useSocket = (onDataReceived, options = {}) => {
 
       // Connection closed
       socketRef.current.onclose = (event) => {
-        console.log('🔌 WebSocket Disconnected:', event.code, event.reason);
+        logger.log('🔌 WebSocket Disconnected:', event.code, event.reason);
         setIsConnected(false);
         setSubscription(null);
 
@@ -145,7 +146,7 @@ const useSocket = (onDataReceived, options = {}) => {
           !event.wasClean
         ) {
           reconnectAttemptsRef.current += 1;
-          console.log(
+          logger.log(
             `⏳ Reconnecting... Attempt ${reconnectAttemptsRef.current}/${maxReconnectAttempts}`
           );
 
@@ -161,6 +162,7 @@ const useSocket = (onDataReceived, options = {}) => {
       console.error('Error creating WebSocket:', err);
       setError(err.message);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [socketUrl, autoReconnect, reconnectInterval, maxReconnectAttempts]);
 
   // Disconnect function

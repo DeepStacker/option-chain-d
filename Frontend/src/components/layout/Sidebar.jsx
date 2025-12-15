@@ -14,15 +14,20 @@ import {
   UserCircleIcon,
   CogIcon,
   ArrowRightOnRectangleIcon,
-  ChartBarIcon,
   HomeIcon,
+  TableCellsIcon,
+  ChartPieIcon,
+  ClockIcon,
+  Squares2X2Icon,
+  MagnifyingGlassCircleIcon,
   CalculatorIcon,
-  PhoneIcon,
-  InformationCircleIcon,
+  ScaleIcon,
+  BanknotesIcon,
   ArrowTrendingUpIcon,
-  Bars3Icon,
 } from "@heroicons/react/24/outline";
 import { BellIcon as BellIconSolid } from "@heroicons/react/24/solid";
+import { getNotifications, markAllAsRead } from "../../api/notificationsApi";
+
 
 const Sidebar = () => {
   const dispatch = useDispatch();
@@ -35,43 +40,76 @@ const Sidebar = () => {
   // Use shared sidebar context
   const { isCollapsed, toggleSidebar, sidebarWidth } = useSidebar();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [notifications] = useState(3);
+  const [notifications, setNotifications] = useState(0);
+  const [_notificationList, setNotificationList] = useState([]);
+  const [_isNotificationsOpen, _setIsNotificationsOpen] = useState(false);
   
   const profileRef = useRef(null);
+  const _notificationRef = useRef(null);
 
-  // Navigation items - Core trading features only
-  const navigationItems = [
+  // Fetch notifications from backend
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        const response = await getNotifications(10);
+        if (response.success) {
+          setNotifications(response.unread_count || 0);
+          setNotificationList(response.notifications || []);
+        }
+      } catch (error) {
+        console.log("Failed to fetch notifications:", error.message);
+      }
+    };
+
+    fetchNotifications();
+    // Refresh every 30 seconds
+    const interval = setInterval(fetchNotifications, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Handle mark all as read
+  const _handleMarkAllRead = async () => {
+    try {
+      await markAllAsRead();
+      setNotifications(0);
+      setNotificationList(prev => prev.map(n => ({ ...n, is_read: true })));
+    } catch {
+      // Silent failure - notifications will be refreshed on next interval
+    }
+  };
+
+
+  // Navigation sections with professional icons
+  const navigationSections = [
     {
-      name: "Dashboard",
-      path: "/dashboard",
-      icon: HomeIcon,
-      badge: null,
+      title: "Overview",
+      items: [
+        { name: "Dashboard", path: "/dashboard", icon: HomeIcon, badge: null },
+      ]
     },
     {
-      name: "Option Chain",
-      path: "/option-chain",
-      icon: ChartBarIcon,
-      badge: "Live",
+      title: "Trading",
+      items: [
+        { name: "Option Chain", path: "/option-chain", icon: TableCellsIcon, badge: "Live", badgeColor: "bg-green-500" },
+        { name: "Analytics", path: "/analytics", icon: ChartPieIcon, badge: "Pro", badgeColor: "bg-purple-500" },
+        { name: "Historical", path: "/historical", icon: ClockIcon, badge: null },
+        { name: "Split View", path: "/split-view", icon: Squares2X2Icon, badge: null },
+      ]
     },
     {
-      name: "Analytics",
-      path: "/analytics",
-      icon: ChartBarIcon,
-      badge: "Pro",
-    },
-    {
-      name: "Position Sizing",
-      path: "/position-sizing",
-      icon: CalculatorIcon,
-      badge: null,
-    },
-    {
-      name: "TCA",
-      path: "/tca",
-      icon: ArrowTrendingUpIcon,
-      badge: null,
+      title: "Tools",
+      items: [
+        { name: "Screeners", path: "/screeners", icon: MagnifyingGlassCircleIcon, badge: "New", badgeColor: "bg-blue-500" },
+        { name: "Calculators", path: "/calculators", icon: CalculatorIcon, badge: null },
+        { name: "Position Sizing", path: "/position-sizing", icon: ScaleIcon, badge: null },
+        { name: "TCA", path: "/tca", icon: BanknotesIcon, badge: null },
+      ]
     },
   ];
+
+  // Flatten for active checking - reserved for future use
+  const _navigationItems = navigationSections.flatMap(s => s.items);
+
 
   // Handle click outside for profile dropdown
   useEffect(() => {
@@ -149,51 +187,66 @@ const Sidebar = () => {
         </motion.div>
       )}
 
-      {/* Navigation Links */}
+      {/* Navigation Links with Sections */}
       <nav className="flex-1 overflow-y-auto py-2 px-2">
-        {navigationItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = location.pathname === item.path;
-
-          return (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={`flex items-center gap-3 px-3 py-2.5 mb-1 rounded-lg transition-all duration-200 group ${
-                isActive
-                  ? "bg-blue-50 dark:bg-blue-900/30 text-blue-600"
-                  : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white"
-              }`}
-              title={isCollapsed ? item.name : ""}
-            >
-              <Icon className={`w-5 h-5 flex-shrink-0 ${isActive ? "text-blue-600" : ""}`} />
-              <AnimatePresence>
-                {!isCollapsed && (
-                  <motion.span
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -10 }}
-                    className="font-medium text-sm whitespace-nowrap"
-                  >
-                    {item.name}
-                  </motion.span>
-                )}
-              </AnimatePresence>
-              {!isCollapsed && item.badge && (
-                <span className="ml-auto px-1.5 py-0.5 text-[10px] bg-green-500 text-white rounded-full">
-                  {item.badge}
+        {navigationSections.map((section, sectionIdx) => (
+          <div key={section.title} className={sectionIdx > 0 ? "mt-4" : ""}>
+            {/* Section Header */}
+            {!isCollapsed && (
+              <div className="px-3 py-1.5 mb-1">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+                  {section.title}
                 </span>
-              )}
-              {isActive && (
-                <motion.div
-                  layoutId="activeIndicator"
-                  className="absolute left-0 w-1 h-6 bg-blue-600 rounded-r-full"
-                />
-              )}
-            </Link>
-          );
-        })}
+              </div>
+            )}
+            
+            {/* Section Items */}
+            {section.items.map((item) => {
+              const Icon = item.icon;
+              const isActive = location.pathname === item.path;
+
+              return (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  className={`flex items-center gap-3 px-3 py-2.5 mb-0.5 rounded-xl transition-all duration-200 group relative ${
+                    isActive
+                      ? "bg-gradient-to-r from-blue-500/10 to-purple-500/10 text-blue-600 dark:text-blue-400 shadow-sm"
+                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white"
+                  }`}
+                  title={isCollapsed ? item.name : ""}
+                >
+                  {isActive && (
+                    <motion.div
+                      layoutId="activeNav"
+                      className="absolute left-0 w-1 h-6 bg-gradient-to-b from-blue-500 to-purple-500 rounded-r-full"
+                    />
+                  )}
+                  <Icon className={`w-5 h-5 flex-shrink-0 ${isActive ? "text-blue-600 dark:text-blue-400" : ""}`} />
+                  <AnimatePresence>
+                    {!isCollapsed && (
+                      <motion.span
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -10 }}
+                        className="font-medium text-sm whitespace-nowrap"
+                      >
+                        {item.name}
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                  {!isCollapsed && item.badge && (
+                    <span className={`ml-auto px-1.5 py-0.5 text-[9px] font-bold text-white rounded-full ${item.badgeColor || 'bg-green-500'}`}>
+                      {item.badge}
+                    </span>
+                  )}
+                </Link>
+              );
+            })}
+          </div>
+        ))}
       </nav>
+
 
       {/* Bottom Section */}
       <div className="border-t border-gray-200 dark:border-gray-700 p-2">

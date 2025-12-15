@@ -32,7 +32,7 @@ const getITMDepth = (strike, atmStrike, side) => {
  * Get background color class based on rank and percentage
  * More saturated colors for better visibility
  */
-const getHighlightColor = (pct, rank, side, itmDepth) => {
+const getHighlightColor = (pct, rank, side, _itmDepth) => {
     // Special case: > 100% (High Saturation Blue)
     if (pct > 100) {
         return 'bg-blue-200 dark:bg-blue-800 text-blue-900 dark:text-blue-100 font-bold border border-blue-300 dark:border-blue-600';

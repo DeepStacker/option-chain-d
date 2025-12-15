@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, lazy, Suspense } from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -14,26 +14,42 @@ import "react-toastify/dist/ReactToastify.css";
 import { PersistGate } from 'redux-persist/integration/react';
 import { persistor } from './context/store';
 
-// Components
+// Core Components (loaded immediately)
 import Login from "./components/auth/Login";
 import Register from "./components/auth/Register";
-import Dashboard from "./pages/Dashboard";
-import Profile from "./components/auth/Profile";
 import PrivateRoute from "./components/auth/PrivateRoute";
 import ErrorBoundary from "./ErrorBoundary";
-import Home from "./pages/Home";
-import About from "./pages/About";
-import Blog from "./pages/Blog";
-import ContactUs from "./pages/Contact";
-import Tca from "./pages/Tca";
-import PositionSizing from "./pages/PositionSizing";
-import OptionChain from "./pages/OptionChain";
-import Analytics from "./pages/Analytics";
-import NotFound from "./pages/NotFound";
 import MainLayout from "./layouts/MainLayout";
-import Admin from "./pages/Admin";
+
+// Lazy-loaded Pages (code splitting for better initial load)
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Profile = lazy(() => import("./components/auth/Profile"));
+const Home = lazy(() => import("./pages/Home"));
+const About = lazy(() => import("./pages/About"));
+const Blog = lazy(() => import("./pages/Blog"));
+const ContactUs = lazy(() => import("./pages/Contact"));
+const Tca = lazy(() => import("./pages/Tca"));
+const PositionSizing = lazy(() => import("./pages/PositionSizing"));
+const OptionChain = lazy(() => import("./pages/OptionChain"));
+const Analytics = lazy(() => import("./pages/Analytics"));
+const Historical = lazy(() => import("./pages/Historical"));
+const SplitView = lazy(() => import("./pages/SplitView"));
+const Screeners = lazy(() => import("./pages/Screeners"));
+const Calculators = lazy(() => import("./pages/Calculators"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+const Admin = lazy(() => import("./pages/Admin"));
 
 import { activateServices } from "./services/healthCheck";
+
+// Loading fallback component
+const PageLoader = () => (
+  <div className="flex items-center justify-center min-h-[60vh]">
+    <div className="flex flex-col items-center gap-3">
+      <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500"></div>
+      <span className="text-sm text-gray-500 dark:text-gray-400">Loading...</span>
+    </div>
+  </div>
+);
 
 function App() {
   const dispatch = useDispatch();
@@ -63,60 +79,66 @@ function App() {
             <AuthRedirect />
             <div className={theme === "dark" ? "dark" : "light"}>
               <ToastContainer position="top-right" />
-              <Routes>
-                {/* Main Layout Routes */}
-                <Route element={<MainLayout />}>
-                  {/* Auth Routes */}
-                  <Route
-                    path="/login"
-                    element={
-                      !isAuthenticated ? (
-                        <Login />
-                      ) : (
-                        <Navigate to="/dashboard" replace />
-                      )
-                    }
-                  />
-                  <Route
-                    path="/register"
-                    element={
-                      !isAuthenticated ? (
-                        <Register />
-                      ) : (
-                        <Navigate to="/dashboard" replace />
-                      )
-                    }
-                  />
+              <Suspense fallback={<PageLoader />}>
+                <Routes>
+                  {/* Main Layout Routes */}
+                  <Route element={<MainLayout />}>
+                    {/* Auth Routes */}
+                    <Route
+                      path="/login"
+                      element={
+                        !isAuthenticated ? (
+                          <Login />
+                        ) : (
+                          <Navigate to="/dashboard" replace />
+                        )
+                      }
+                    />
+                    <Route
+                      path="/register"
+                      element={
+                        !isAuthenticated ? (
+                          <Register />
+                        ) : (
+                          <Navigate to="/dashboard" replace />
+                        )
+                      }
+                    />
 
-                  {/* Public Routes */}
-                  <Route
-                    path="/"
-                    element={
-                      isAuthenticated ? (
-                        <Navigate to="/dashboard" replace />
-                      ) : (
-                        <Home />
-                      )
-                    }
-                  />
-                  <Route path="/about" element={<About />} />
-                  <Route path="/blog" element={<Blog />} />
-                  <Route path="/contact" element={<ContactUs />} />
+                    {/* Public Routes */}
+                    <Route
+                      path="/"
+                      element={
+                        isAuthenticated ? (
+                          <Navigate to="/dashboard" replace />
+                        ) : (
+                          <Home />
+                        )
+                      }
+                    />
+                    <Route path="/about" element={<About />} />
+                    <Route path="/blog" element={<Blog />} />
+                    <Route path="/contact" element={<ContactUs />} />
 
-                  {/* Protected Routes */}
-                  <Route element={<PrivateRoute />}>
-                    <Route path="/dashboard" element={<Dashboard />} />
-                    <Route path="/profile" element={<Profile />} />
-                    <Route path="/option-chain" element={<OptionChain />} />
-                    <Route path="/analytics" element={<Analytics />} />
-                    <Route path="/position-sizing" element={<PositionSizing />} />
-                    <Route path="/tca" element={<Tca />} />
-                    <Route path="/admin" element={<Admin />} />
+                    {/* Protected Routes */}
+                    <Route element={<PrivateRoute />}>
+                      <Route path="/dashboard" element={<Dashboard />} />
+                      <Route path="/profile" element={<Profile />} />
+                      <Route path="/option-chain" element={<OptionChain />} />
+                      <Route path="/analytics" element={<Analytics />} />
+                      <Route path="/historical" element={<Historical />} />
+                      <Route path="/split-view" element={<SplitView />} />
+                      <Route path="/screeners" element={<Screeners />} />
+                      <Route path="/calculators" element={<Calculators />} />
+                      <Route path="/position-sizing" element={<PositionSizing />} />
+                      <Route path="/tca" element={<Tca />} />
+                      <Route path="/admin" element={<Admin />} />
+                    </Route>
                   </Route>
-                </Route>
-                {/* 404 Route */}
-                <Route path="*" element={<NotFound />} />
-              </Routes>
+                  {/* 404 Route */}
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </Suspense>
             </div>
           </Router>
         </PersistGate>

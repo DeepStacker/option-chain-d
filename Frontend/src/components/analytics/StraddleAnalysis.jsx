@@ -12,7 +12,7 @@ const StraddleAnalysis = () => {
     const spotPrice = useSelector(selectSpotPrice);
     const atmStrike = useSelector(selectATMStrike);
     const daysToExpiry = useSelector(selectDaysToExpiry);
-    const atmIV = useSelector(selectATMIV);
+    const _atmIV = useSelector(selectATMIV);
     
     const [selectedStrike, setSelectedStrike] = useState(null);
     const [strangleWidth, setStrangleWidth] = useState(100);
@@ -90,7 +90,7 @@ const StraddleAnalysis = () => {
     const payoffData = useMemo(() => {
         if (!straddleData) return [];
         
-        const { strike, straddlePrice } = straddleData;
+        const { strike, straddlePrice: _straddlePrice } = straddleData;
         const points = [];
         
         for (let price = strike - 500; price <= strike + 500; price += 10) {

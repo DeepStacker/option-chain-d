@@ -6,8 +6,8 @@ const initialState = {
   timeframe: "10",
   chartData: [],
   connectionStatus: "disconnected",
-  weekly: false,
-  daily: true,
+  weekly: true,
+  daily: false,
   avg: false,
 };
 

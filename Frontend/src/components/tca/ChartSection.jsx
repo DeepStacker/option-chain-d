@@ -68,7 +68,7 @@ const ChartSection = ({ profitLossData, theme }) => {
                 newChart.destroy();
             }
         };
-
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [profitLossData, theme]);  // Re-run effect if profitLossData or theme changes
 
     return (

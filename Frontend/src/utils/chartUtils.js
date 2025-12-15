@@ -1,3 +1,5 @@
+import logger from './logger';
+
 export const formatDate = (date) => {
     const d = new Date(date);
     const year = d.getFullYear();
@@ -26,10 +28,10 @@ export const formatTimeForIST = (timestamp) => {
 
 // Support/Resistance computation function
 export const computeLevels = (oc, price, isCommodity) => {
-    console.log("🔢 Computing levels with:", { oc: !!oc, price, isCommodity });
+    logger.log("🔢 Computing levels with:", { oc: !!oc, price, isCommodity });
 
     if (!oc || typeof oc !== "object") {
-        console.log("❌ Invalid OC data");
+        logger.log("❌ Invalid OC data");
         return {
             support_1: null,
             support_2: null,
@@ -127,7 +129,7 @@ export const computeLevels = (oc, price, isCommodity) => {
             2,
     };
 
-    console.log("✅ Computed levels:", levels);
+    logger.log("✅ Computed levels:", levels);
     return levels;
 };
 

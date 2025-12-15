@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -12,13 +12,11 @@ import {
   SiFastapi,
 } from "react-icons/si";
 import {
-  ChartBarIcon,
   ArrowTrendingUpIcon,
   ShieldCheckIcon,
   EnvelopeIcon,
   CheckCircleIcon,
   ArrowUpIcon,
-  ExclamationTriangleIcon,
   PhoneIcon,
   MapPinIcon,
   ClockIcon,

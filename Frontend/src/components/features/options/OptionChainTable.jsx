@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, Fragment } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useSelector } from 'react-redux';
 import {
     selectStrikesAroundATM,
@@ -16,9 +16,12 @@ import SpotIndicatorRow from './SpotIndicatorRow';
 import OptionControls from './OptionControls';
 import { SettingsButton } from './TableSettingsModal';
 import StrikeDetailPanel from './StrikeDetailPanel';
+import StrikeAnalysisModal from './StrikeAnalysisModal';
 import CellDetailModal from './CellDetailModal';
+import AggregateChartModal from './AggregateChartModal';
 import AggregatePanel from './AggregatePanel';
 import { Spinner, Button, Card } from '../../common';
+import { selectSelectedSymbol } from '../../../context/selectors';
 
 /**
  * Main Option Chain Table Component
@@ -38,6 +41,11 @@ const OptionChainTable = ({ showControls = true }) => {
     const [strikeCount, setStrikeCount] = useState(settings.strikesPerPage || 21); // 10 OTM each side + ATM
     const [selectedCell, setSelectedCell] = useState(null);
     const [selectedStrikeData, setSelectedStrikeData] = useState(null);
+    const [strikeModalData, setStrikeModalData] = useState(null); // For Strike Analysis Modal
+    const [aggregateColumn, setAggregateColumn] = useState(null); // For Aggregate Chart Modal
+
+    // Get symbol for Strike Analysis Modal
+    const symbol = useSelector(selectSelectedSymbol);
 
     // Select filtered strikes from Redux using memoized selector factory
     const strikesSelector = useMemo(() => selectStrikesAroundATM(strikeCount), [strikeCount]);
@@ -80,6 +88,24 @@ const OptionChainTable = ({ showControls = true }) => {
         selectStrike(null);
     }, [selectStrike]);
 
+    // Strike Analysis Modal handlers
+    const handleStrikeClick = useCallback((strikeData) => {
+        setStrikeModalData(strikeData);
+    }, []);
+
+    const handleCloseStrikeModal = useCallback(() => {
+        setStrikeModalData(null);
+    }, []);
+
+    // Aggregate Chart Modal handlers
+    const handleColumnClick = useCallback((columnType) => {
+        setAggregateColumn(columnType);
+    }, []);
+
+    const handleCloseAggregateModal = useCallback(() => {
+        setAggregateColumn(null);
+    }, []);
+
     // Derived values from fullData - computed before any early returns
     const pcr = fullData?.pcr;
     const maxPain = fullData?.max_pain_strike;
@@ -115,22 +141,22 @@ const OptionChainTable = ({ showControls = true }) => {
             <Card className="overflow-hidden" padding="none">
                 <div className="relative overflow-auto scrollbar-hide" style={{ maxHeight: 'calc(100vh - 100px)' }}>
                     {/* Floating Spot Indicator - rowHeight: 51px compact / 80px normal (measured from actual StrikeRow rendering) */}
-                    <SpotIndicatorRow 
+                    <SpotIndicatorRow
                         spotData={spotData}
                         futuresData={futuresData}
                         strikes={sortedStrikes}
                         rowHeight={settings.compactMode ? 51 : 80}
                         headerHeight={28}
                     />
-                    
+
                     <table className="w-full text-sm text-left border-collapse min-w-max">
-                        <TableHeader />
+                        <TableHeader onColumnClick={handleColumnClick} />
 
                         <tbody className="divide-y divide-gray-100 dark:divide-gray-800 bg-white dark:bg-gray-900">
                             {sortedStrikes.map((strike) => {
                                 const strikeKey = strike.toString();
                                 const strikeData = rawData?.oc?.[strikeKey] || rawData?.oc?.[`${strike}.000000`] || {};
-                                
+
                                 return (
                                     <StrikeRow
                                         key={strike}
@@ -140,6 +166,7 @@ const OptionChainTable = ({ showControls = true }) => {
                                         spotPrice={spotPrice}
                                         onCellClick={handleCellClick}
                                         onStrikeSelect={handleStrikeSelect}
+                                        onStrikeClick={handleStrikeClick}
                                         highlightData={highlightData[strike]}
                                     />
                                 );
@@ -183,6 +210,21 @@ const OptionChainTable = ({ showControls = true }) => {
                 isOpen={!!selectedCell}
                 onClose={handleCloseModal}
                 cellData={selectedCell}
+            />
+
+            {/* Strike Analysis Modal */}
+            <StrikeAnalysisModal
+                isOpen={!!strikeModalData}
+                onClose={handleCloseStrikeModal}
+                strikeData={strikeModalData}
+                symbol={symbol}
+            />
+
+            {/* Aggregate Chart Modal */}
+            <AggregateChartModal
+                isOpen={!!aggregateColumn}
+                onClose={handleCloseAggregateModal}
+                columnType={aggregateColumn}
             />
         </div>
     );

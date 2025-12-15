@@ -206,7 +206,7 @@ const Login = () => {
             {/* Register Link */}
             <div className="text-center">
               <p className={`${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                Don't have an account?{' '}
+                Don&apos;t have an account?{' '}
                 <Link to="/register" className="font-bold text-blue-500 hover:text-blue-600 transition-colors">
                   Sign up free
                 </Link>

@@ -21,7 +21,7 @@ const OptionChain = () => {
   const isAuthenticated = useSelector(selectIsAuthenticated);
   const navigate = useNavigate();
   const [showChart, setShowChart] = useState(false);
-  const theme = useSelector((state) => state.theme.theme);
+  const _theme = useSelector((state) => state.theme.theme);
   
   // Get spot/futures data for SpotBar when in chart mode
   const { spotData, futuresData, data: fullData } = useOptionsChain();

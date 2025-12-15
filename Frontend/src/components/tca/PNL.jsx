@@ -3,7 +3,7 @@ import { FaChartLine } from 'react-icons/fa';
 import { useSelector } from 'react-redux';
 
 const PNL = ({ pnl }) => {
-    const theme = useSelector((state) => state.theme.theme);
+    const _theme = useSelector((state) => state.theme.theme);
 
     const iconSize = '1.5em';
 
@@ -18,7 +18,7 @@ const PNL = ({ pnl }) => {
 
         const {
             totalNetProfitLoss = 0,
-        } = results;
+        } = pnl;
 
         return (
             <div >
@@ -49,7 +49,7 @@ const PNL = ({ pnl }) => {
                 </div> */}
             </div>
         );
-    }, [pnl, theme]);
+    }, [pnl]);
 
     return content;
 };

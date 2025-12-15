@@ -12,7 +12,7 @@ import {
  */
 const SuggestedPositions = memo(({ calculatedPosition, analysisData = {}, theme }) => {
   const isDark = theme === 'dark';
-  const safeAnalysisData = analysisData || {};
+  const safeAnalysisData = useMemo(() => analysisData || {}, [analysisData]);
 
   // Memoize alternative calculations
   const alternatives = useMemo(() => {
@@ -43,7 +43,7 @@ const SuggestedPositions = memo(({ calculatedPosition, analysisData = {}, theme 
         potential: (gain * (1 - volImpact / 100)).toFixed(2)
       }
     };
-  }, [calculatedPosition, analysisData]);
+  }, [calculatedPosition, safeAnalysisData]);
 
   const positionCards = [
     {

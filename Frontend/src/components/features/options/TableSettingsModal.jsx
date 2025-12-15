@@ -127,7 +127,7 @@ const TableSettingsModal = memo(({ isOpen, onClose }) => {
     setStrikesPerPage,
   } = useTableSettings();
 
-  const { visibleColumns, toggleColumn, applyPreset, isColumnVisible } = useColumnConfig();
+  const { visibleColumns: _visibleColumns, toggleColumn, applyPreset, isColumnVisible } = useColumnConfig();
 
   const [activeTab, setActiveTab] = useState(0);
 

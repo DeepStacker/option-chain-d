@@ -1,7 +1,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { fetchLiveData, fetchExpiryDate, updateLiveData, setStreamingState, setConnectionMethod } from '../context/dataSlice';
+import { fetchLiveData, updateLiveData, setStreamingState, setConnectionMethod } from '../context/dataSlice';
 import {
     selectSelectedSymbol,
     selectSelectedExpiry,
@@ -12,6 +12,7 @@ import {
     selectDataLoading,
 } from '../context/selectors';
 import useSocket from './useSocket';
+import logger from '../utils/logger';
 
 /**
  * Custom hook for managing option chain data
@@ -51,8 +52,8 @@ export const useOptionsChain = () => {
         return !!(data && data.oc && Object.keys(data.oc).length > 0);
     }, [data]);
 
-    // Memoized: Current subscription key
-    const subscriptionKey = useMemo(() => {
+    // Memoized: Current subscription key - used for tracking
+    const _subscriptionKey = useMemo(() => {
         if (!symbol || !expiry) return null;
         return `${symbol}:${expiry}`;
     }, [symbol, expiry]);
@@ -109,7 +110,7 @@ export const useOptionsChain = () => {
 
         // Don't subscribe until we have valid expiry - wait but don't unsub
         if (!symbol || !isExpiryValid) {
-            console.log('⏳ Waiting for valid expiry before WebSocket subscription');
+            logger.log('⏳ Waiting for valid expiry before WebSocket subscription');
             return;
         }
 
@@ -122,12 +123,12 @@ export const useOptionsChain = () => {
 
         // If we had a previous subscription AND we have a new valid one, switch
         if (currentSubscriptionRef.current) {
-            console.log('📡 Unsubscribing from:', currentSubscriptionRef.current);
+            logger.log('📡 Unsubscribing from:', currentSubscriptionRef.current);
             unsubscribe();
         }
 
         // Subscribe to new symbol+expiry
-        console.log('📡 Subscribing to WebSocket:', symbol, expiry);
+        logger.log('📡 Subscribing to WebSocket:', symbol, expiry);
         subscribe(symbol, String(expiry));
         currentSubscriptionRef.current = newKey;
 
@@ -138,7 +139,7 @@ export const useOptionsChain = () => {
     useEffect(() => {
         return () => {
             if (currentSubscriptionRef.current) {
-                console.log('📡 Cleanup: Unsubscribing on unmount');
+                logger.log('📡 Cleanup: Unsubscribing on unmount');
                 unsubscribe();
                 currentSubscriptionRef.current = null;
             }
@@ -176,7 +177,7 @@ export const useOptionsChain = () => {
 
         // Only fetch if expiry actually changed (not initial)
         if (prevExpiryRef.current !== null && prevExpiryRef.current !== expiry) {
-            console.log('📥 Expiry changed, fetching data for:', symbol, expiry);
+            logger.log('📥 Expiry changed, fetching data for:', symbol, expiry);
             fetchData();
         }
         prevExpiryRef.current = expiry;
@@ -192,7 +193,7 @@ export const useOptionsChain = () => {
 
         // Skip polling if WebSocket is connected AND subscribed AND NO ERROR
         if (wsConnected && subscription && useWebSocket && !wsError) {
-            console.log('📡 WebSocket active, polling disabled');
+            logger.log('📡 WebSocket active, polling disabled');
             return;
         }
 
@@ -206,7 +207,7 @@ export const useOptionsChain = () => {
             return;
         }
 
-        console.log('⏱️ Starting REST polling (WebSocket fallback)');
+        logger.log('⏱️ Starting REST polling (WebSocket fallback)');
         pollTimerRef.current = setInterval(fetchData, refreshInterval);
 
         return () => {

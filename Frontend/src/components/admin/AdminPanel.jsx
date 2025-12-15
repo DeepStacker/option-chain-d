@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSelector } from 'react-redux';
 import {
@@ -221,7 +221,7 @@ const UserManagerTab = () => {
     const [totalPages, setTotalPages] = useState(1);
     const theme = useSelector((state) => state.theme.theme);
 
-    const fetchUsers = async () => {
+    const fetchUsers = useCallback(async () => {
         setLoading(true);
         try {
             const data = await adminService.listUsers(page, 10);
@@ -232,11 +232,11 @@ const UserManagerTab = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [page]);
 
     useEffect(() => {
         fetchUsers();
-    }, [page]);
+    }, [fetchUsers]);
 
     const toggleUserStatus = async (userId, isActive) => {
         try {

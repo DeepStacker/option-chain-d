@@ -25,7 +25,7 @@ const ReversalPopup = ({ onClose }) => {
   const [copiedValue, setCopiedValue] = useState(null);
   const [showTooltip, setShowTooltip] = useState(false);
 
-  const reversal = data?.options?.data?.oc || {};
+  const reversal = useMemo(() => data?.options?.data?.oc || {}, [data?.options?.data?.oc]);
 
   // Calculate strike differences and related strikes[1][2]
   const { strikeDiff: _strikeDiff, upperStrike, lowerStrike } = useMemo(() => {

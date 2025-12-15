@@ -17,11 +17,9 @@ import {
   ChartBarIcon,
   HomeIcon,
   CalculatorIcon,
-  NewspaperIcon,
   PhoneIcon,
   InformationCircleIcon,
   ArrowTrendingUpIcon,
-  BoltIcon,
 } from "@heroicons/react/24/outline";
 import { BellIcon as BellIconSolid } from "@heroicons/react/24/solid";
 
@@ -38,7 +36,7 @@ const Navbar = () => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [notifications, setNotifications] = useState(3); // Mock notifications
+  const [notifications] = useState(3); // Mock notifications
   const [isScrolled, setIsScrolled] = useState(false);
 
   const profileRef = useRef(null);

@@ -4,7 +4,7 @@ import { useSelector } from "react-redux";
 import Sidebar from "../components/layout/Sidebar";
 import Toast from "../components/common/Toast";
 import QuickSymbolSwitcher from "../components/common/QuickSymbolSwitcher";
-import { AnimatePresence, motion } from "framer-motion";
+import { motion } from "framer-motion";
 import { SidebarProvider, useSidebar } from "../context/SidebarContext";
 
 // Inner component that uses the sidebar context

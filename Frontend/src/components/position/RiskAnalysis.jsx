@@ -28,7 +28,7 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend)
 const RiskAnalysis = memo(({ calculatedPosition, analysisData = {}, theme }) => {
   const [selectedTab, setSelectedTab] = useState('overview');
   const isDark = theme === 'dark';
-  const safeAnalysisData = analysisData || {};
+  const safeAnalysisData = useMemo(() => analysisData || {}, [analysisData]);
   
   // Memoize market data and calculations
   const { simulationResults, riskMetrics, tradingSuggestions, marketData } = useMemo(() => {
@@ -46,7 +46,7 @@ const RiskAnalysis = memo(({ calculatedPosition, analysisData = {}, theme }) => 
       riskMetrics: calculateRiskMetrics(calculatedPosition, mktData),
       tradingSuggestions: generateTradingSuggestions(calculatedPosition, safeAnalysisData, mktData)
     };
-  }, [calculatedPosition, analysisData]);
+  }, [calculatedPosition, safeAnalysisData]);
 
   // Chart configurations
   const chartOptions = useMemo(() => ({
@@ -90,7 +90,7 @@ const RiskAnalysis = memo(({ calculatedPosition, analysisData = {}, theme }) => 
       backgroundColor: ['rgba(59,130,246,0.7)', 'rgba(239,68,68,0.7)', 'rgba(34,197,94,0.7)', 'rgba(249,115,22,0.7)'],
       borderRadius: 6
     }]
-  }), [calculatedPosition, analysisData]);
+  }), [calculatedPosition, safeAnalysisData]);
 
   const tabs = [
     { id: 'overview', label: 'Overview', icon: ChartBarIcon },

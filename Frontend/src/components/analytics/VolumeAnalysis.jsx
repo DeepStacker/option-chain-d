@@ -5,11 +5,11 @@
 import { useMemo, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { selectOptionChain, selectSpotPrice, selectATMStrike } from '../../context/selectors';
-import { ChartBarIcon, BoltIcon, ArrowUpIcon, ArrowDownIcon } from '@heroicons/react/24/outline';
+import { ChartBarIcon, BoltIcon } from '@heroicons/react/24/outline';
 
 const VolumeAnalysis = () => {
     const optionChain = useSelector(selectOptionChain);
-    const spotPrice = useSelector(selectSpotPrice);
+    const _spotPrice = useSelector(selectSpotPrice);
     const atmStrike = useSelector(selectATMStrike);
     const [hoveredStrike, setHoveredStrike] = useState(null);
 

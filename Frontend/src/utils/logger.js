@@ -3,7 +3,7 @@
  * Disables console.log in production, keeps console.error/warn
  */
 
-const isDev = import.meta.env.DEV || import.meta.env.MODE === 'production';
+const isDev = import.meta.env.DEV || import.meta.env.MODE === 'development';
 
 export const logger = {
     log: (...args) => {

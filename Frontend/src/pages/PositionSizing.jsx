@@ -5,13 +5,9 @@ import { Helmet } from 'react-helmet-async';
 import {
   CalculatorIcon,
   ChartBarIcon,
-  ShieldCheckIcon,
-  CurrencyRupeeIcon,
   ScaleIcon,
   ExclamationTriangleIcon,
-  CheckCircleIcon,
   ArrowTrendingUpIcon,
-  ArrowTrendingDownIcon,
 } from '@heroicons/react/24/outline';
 import PositionCalculator from '../components/position/PositionCalculator';
 import RiskAnalysis from '../components/position/RiskAnalysis';

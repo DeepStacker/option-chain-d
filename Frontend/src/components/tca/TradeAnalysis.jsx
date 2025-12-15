@@ -373,7 +373,7 @@ const TradeAnalysis = ({ results, theme }) => {
                                 },
                                 {
                                     label: 'Forecast',
-                                    data: [...Array(results.netProfitLossValues.length).fill(null), ...mlPredictionsData?.forecast],
+                                    data: [...Array(results.netProfitLossValues.length).fill(null), ...(mlPredictionsData?.forecast || [])],
                                     borderColor: theme === 'dark' ? '#9333EA' : '#7C3AED',
                                     backgroundColor: 'transparent',
                                     borderDash: [5, 5]

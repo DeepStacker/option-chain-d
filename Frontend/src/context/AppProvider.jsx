@@ -1,12 +1,11 @@
-import { useEffect, useCallback, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import logger from "../utils/logger";
 
 import {
-  fetchExpiryDate,
   setExp_sid,
   stopLiveStream,
   setSidAndFetchData,
-  fetchLiveData,
 } from "./dataSlice";
 import axios from "axios";
 // import { toast } from "react-toastify";
@@ -51,7 +50,7 @@ export const AppProvider = ({ children }) => {
         localStorage.getItem("authToken") ||
         sessionStorage.getItem("authToken");
       if (storedToken && tokenManager.isTokenExpired(storedToken)) {
-        console.log("Token expired, re-initializing auth");
+        logger.log("Token expired, re-initializing auth");
         dispatch(initializeAuth());
       }
     }, 5 * 60 * 1000); // Check every 5 minutes
@@ -77,7 +76,7 @@ export const AppProvider = ({ children }) => {
   const initialLoadDoneRef = useRef(false);
   
   useEffect(() => {
-    console.log('🔍 AppProvider effect check:', { 
+    logger.debug('🔍 AppProvider effect check:', { 
       authLoading, 
       isAuthenticated, 
       isOc, 
@@ -86,7 +85,7 @@ export const AppProvider = ({ children }) => {
     });
     
     if (!authLoading && isAuthenticated && isOc && symbol && !initialLoadDoneRef.current) {
-      console.log('🚀 Initial data load for:', symbol);
+      logger.log('🚀 Initial data load for:', symbol);
       initialLoadDoneRef.current = true;
       dispatch(setSidAndFetchData({ newSid: symbol }));
     }

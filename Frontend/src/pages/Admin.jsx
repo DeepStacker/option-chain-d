@@ -134,7 +134,7 @@ const UserManagerTab = () => {
     const theme = useSelector((state) => state.theme.theme);
     const isDark = theme === 'dark';
 
-    const fetchUsers = async () => {
+    const fetchUsers = useCallback(async () => {
         setLoading(true);
         try {
             const data = await adminService.listUsers(page, 10);
@@ -147,11 +147,11 @@ const UserManagerTab = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [page]);
 
     useEffect(() => {
         fetchUsers();
-    }, [page]);
+    }, [fetchUsers]);
 
     const toggleUserStatus = async (userId, isActive) => {
         try {
@@ -162,7 +162,7 @@ const UserManagerTab = () => {
             }
             toast.success(`User ${isActive ? 'deactivated' : 'activated'}`);
             fetchUsers();
-        } catch (err) {
+        } catch {
             toast.error('Failed to update user status');
         }
     };
@@ -179,7 +179,7 @@ const UserManagerTab = () => {
             await adminService.updateUser(user.id, { role: newRole });
             toast.success(`${user.email} is now ${newRole === 'admin' ? 'an admin' : 'a regular user'}`);
             fetchUsers();
-        } catch (err) {
+        } catch {
             toast.error('Failed to update user role');
         }
     };
@@ -308,7 +308,7 @@ const CacheManagerTab = () => {
         try {
             await adminService.clearCache(null, clearAll);
             toast.success(clearAll ? 'All cache cleared!' : 'Options cache cleared!');
-        } catch (err) {
+        } catch {
             toast.error('Failed to clear cache');
         } finally {
             setClearing(false);
@@ -386,7 +386,7 @@ const ConfigManagerTab = () => {
             toast.success(`Config "${key}" updated`);
             fetchConfigs();
             setEditConfig(null);
-        } catch (err) {
+        } catch {
             toast.error('Failed to update config');
         }
     };
@@ -397,7 +397,7 @@ const ConfigManagerTab = () => {
             await adminService.deleteConfig(key);
             toast.success(`Config "${key}" deleted`);
             fetchConfigs();
-        } catch (err) {
+        } catch {
             toast.error('Failed to delete config');
         }
     };
@@ -698,7 +698,7 @@ const InstrumentsTab = () => {
             setEditInstrument(null);
             resetForm();
             fetchInstruments();
-        } catch (err) {
+        } catch {
             toast.error('Failed to update instrument');
         }
     };
@@ -709,7 +709,7 @@ const InstrumentsTab = () => {
             await adminService.deleteInstrument(inst.id);
             toast.success(`${inst.symbol} deleted`);
             fetchInstruments();
-        } catch (err) {
+        } catch {
             toast.error('Failed to delete instrument');
         }
     };
@@ -719,7 +719,7 @@ const InstrumentsTab = () => {
             await adminService.updateInstrument(inst.id, { is_active: !inst.is_active });
             toast.success(`${inst.symbol} ${inst.is_active ? 'deactivated' : 'activated'}`);
             fetchInstruments();
-        } catch (err) {
+        } catch {
             toast.error('Failed to update instrument');
         }
     };
@@ -953,7 +953,7 @@ const InstrumentsTab = () => {
                     ))}
                     {instruments.length === 0 && (
                         <Card className="col-span-full text-center py-12 text-gray-500">
-                            No instruments found. Click "Add Instrument" to create one.
+                            No instruments found. Click &quot;Add Instrument&quot; to create one.
                         </Card>
                     )}
                 </div>
@@ -997,7 +997,7 @@ const SettingsOverviewTab = () => {
             const result = await adminService.seedDatabase();
             toast.success(result.message || 'Database re-seeded');
             // Refresh config tab data if needed
-        } catch (err) {
+        } catch {
             toast.error('Failed to re-seed database');
         } finally {
             setSeeding(false);
@@ -1065,7 +1065,7 @@ const SettingsOverviewTab = () => {
                     <div>
                         <div className="font-medium text-yellow-700 dark:text-yellow-300">Read-Only Settings</div>
                         <div className="text-sm text-yellow-600 dark:text-yellow-400">
-                            These values are loaded from the server's .env file and cannot be changed via UI.
+                            These values are loaded from the server&apos;s .env file and cannot be changed via UI.
                             Use the <strong>Config</strong> tab to manage dynamic runtime settings stored in the database.
                         </div>
                     </div>
@@ -1122,7 +1122,7 @@ const APIKeysTab = () => {
             setEditKey(null);
             setEditValue('');
             fetchApiConfigs();
-        } catch (err) {
+        } catch {
             toast.error('Failed to update configuration');
         }
     };
@@ -1438,7 +1438,7 @@ const FeatureFlagsTab = () => {
             await adminService.toggleFeature(key, !currentValue);
             toast.success(`Feature ${!currentValue ? 'enabled' : 'disabled'}`);
             fetchFeatures();
-        } catch (err) {
+        } catch {
             toast.error('Failed to toggle feature');
         } finally {
             setToggling(prev => ({ ...prev, [key]: false }));
@@ -1573,7 +1573,7 @@ const Admin = () => {
                     <ShieldCheckIcon className="w-16 h-16 mx-auto text-red-500 mb-4" />
                     <h2 className="text-xl font-bold mb-2">Access Denied</h2>
                     <p className="text-gray-500 mb-4">
-                        You don't have administrator privileges to access this page.
+                        You don&apos;t have administrator privileges to access this page.
                     </p>
                     <p className="text-xs text-gray-400 mb-4">
                         If you believe this is an error, contact your system administrator.

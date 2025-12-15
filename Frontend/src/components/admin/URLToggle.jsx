@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { motion, AnimatePresence } from "framer-motion";
 import { setURLs } from "../../context/configSlice";
@@ -43,7 +42,7 @@ const URLToggle = () => {
   const nextEnvLabel = isDev ? "Production" : "Development";
 
   // Check connection status
-  const checkConnectionStatus = async () => {
+  const checkConnectionStatus = useCallback(async () => {
     setConnectionStatus({ api: "checking", socket: "checking" });
 
     // Check API connection
@@ -56,7 +55,7 @@ const URLToggle = () => {
         ...prev,
         api: response.ok ? "connected" : "error",
       }));
-    } catch (error) {
+    } catch {
       setConnectionStatus((prev) => ({ ...prev, api: "error" }));
     }
 
@@ -72,14 +71,14 @@ const URLToggle = () => {
         ...prev,
         socket: response.ok ? "connected" : "error",
       }));
-    } catch (error) {
+    } catch {
       setConnectionStatus((prev) => ({ ...prev, socket: "error" }));
     }
-  };
+  }, [baseURL, socketURL]);
 
   useEffect(() => {
     checkConnectionStatus();
-  }, [baseURL, socketURL]);
+  }, [checkConnectionStatus]);
 
   const handleToggleClick = () => {
     setNextEnv(nextEnvLabel);
