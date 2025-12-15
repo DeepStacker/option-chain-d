@@ -4,7 +4,7 @@
  */
 import axiosInstance from './config';
 
-const NOTIFICATIONS_BASE = '/api/v1/notifications';
+const NOTIFICATIONS_BASE = '/notifications';
 
 /**
  * Get notifications list

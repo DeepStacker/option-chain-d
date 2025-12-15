@@ -89,6 +89,10 @@ class Settings(BaseSettings):
         default="credentials/firebase_credentials.json",
         description="Path to Firebase service account credentials"
     )
+    FIREBASE_CREDENTIALS_JSON: Optional[str] = Field(
+        default=None,
+        description="Firebase credentials as JSON string (overrides path if set)"
+    )
     FIREBASE_PROJECT_ID: Optional[str] = None
     
     # ═══════════════════════════════════════════════════════════════════

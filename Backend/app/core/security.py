@@ -25,8 +25,18 @@ def init_firebase() -> None:
         return
     
     try:
-        cred_path = settings.FIREBASE_CREDENTIALS_PATH
-        cred = credentials.Certificate(cred_path)
+        # Try to load from environment variable JSON string first
+        if settings.FIREBASE_CREDENTIALS_JSON:
+            import json
+            cred_dict = json.loads(settings.FIREBASE_CREDENTIALS_JSON)
+            cred = credentials.Certificate(cred_dict)
+            logger.info("Firebase Admin SDK initialized from environment variable")
+        else:
+            # Fallback to file path
+            cred_path = settings.FIREBASE_CREDENTIALS_PATH
+            cred = credentials.Certificate(cred_path)
+            logger.info(f"Firebase Admin SDK initialized from file: {cred_path}")
+            
         _firebase_app = firebase_admin.initialize_app(cred)
         logger.info("Firebase Admin SDK initialized successfully")
     except Exception as e:

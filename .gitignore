@@ -1,5 +1,6 @@
 .vercel
 node_modules/
+dist/assets/*.*
 /.pnp
 .pnp.js
 
@@ -43,3 +44,5 @@ ENV/
 # Project specific
 /Other/
 db_controller.log
+Backend/credentials/firebase-credentials.json
+Backend/secret.key

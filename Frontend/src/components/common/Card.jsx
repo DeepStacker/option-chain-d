@@ -109,7 +109,7 @@ Card.propTypes = {
     subtitle: PropTypes.string,
     children: PropTypes.node.isRequired,
     className: PropTypes.string,
-    variant: PropTypes.oneOf(['default', 'elevated', 'outlined', 'filled', 'gradient']),
+    variant: PropTypes.oneOf(['default', 'elevated', 'outlined', 'filled', 'gradient', 'glass', 'premium']),
     padding: PropTypes.oneOf(['none', 'sm', 'md', 'lg', 'xl']),
     shadow: PropTypes.oneOf(['none', 'sm', 'md', 'lg', 'xl']),
     rounded: PropTypes.oneOf(['none', 'sm', 'md', 'lg', 'xl', 'full']),
