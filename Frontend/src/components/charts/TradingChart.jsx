@@ -28,6 +28,7 @@ import {
   throttle,
 } from "../../utils/chartUtils";
 import SymbolSelector from "./SymbolSelector";
+import { analyticsService } from "../../services/analyticsService";
 
 const TradingChart = React.memo(({ embedded = false }) => {
   const dispatch = useDispatch();
@@ -319,8 +320,7 @@ const TradingChart = React.memo(({ embedded = false }) => {
   // Load symbols
   const loadSymbols = useCallback(async () => {
     try {
-      const response = await fetch("http://localhost:8000/api/v1/charts/symbols");
-      const result = await response.json();
+      const result = await analyticsService.getSymbols();
       const symbolsList = result.data || [];
       dispatch(setSymbols(symbolsList));
       if (symbolsList.length > 0 && !currentSymbol) dispatch(setCurrentSymbol(symbolsList[0]));
@@ -343,9 +343,7 @@ const TradingChart = React.memo(({ embedded = false }) => {
     const fetchChartData = async () => {
       dispatch(setConnectionStatus("loading"));
       try {
-        const params = new URLSearchParams({ symbol: chartSymbol, interval: timeframe, days: "30" });
-        const response = await fetch(`http://localhost:8000/api/v1/charts/data?${params.toString()}`);
-        const data = await response.json();
+        const data = await analyticsService.getChartData({ symbol: chartSymbol, interval: timeframe, days: 30 });
 
         if (data.success && data.candles?.length > 0) {
           const formattedData = data.candles.map((candle) => ({

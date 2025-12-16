@@ -21,6 +21,7 @@ from app.config.settings import settings
 from app.models.base import Base
 from app.models.user import User
 from app.models.config import SystemConfig, TradingInstrument
+from app.models.notification import Notification
 
 # Alembic Config object
 config = context.config

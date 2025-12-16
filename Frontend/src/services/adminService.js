@@ -1,4 +1,4 @@
-import axiosInstance from '../api/config';
+import apiClient from './apiClient';
 
 /**
  * Admin Service - Backend Admin API Integration
@@ -14,7 +14,7 @@ export const adminService = {
      */
     listConfigs: async (category = null) => {
         const params = category ? { category } : {};
-        const response = await axiosInstance.get('/admin/config', { params });
+        const response = await apiClient.get('/admin/config', { params });
         return response.data;
     },
 
@@ -22,7 +22,7 @@ export const adminService = {
      * Get configuration by key
      */
     getConfig: async (key) => {
-        const response = await axiosInstance.get(`/admin/config/${key}`);
+        const response = await apiClient.get(`/admin/config/${key}`);
         return response.data;
     },
 
@@ -30,7 +30,7 @@ export const adminService = {
      * Create new configuration
      */
     createConfig: async (configData) => {
-        const response = await axiosInstance.post('/admin/config', configData);
+        const response = await apiClient.post('/admin/config', configData);
         return response.data;
     },
 
@@ -38,7 +38,7 @@ export const adminService = {
      * Update configuration
      */
     updateConfig: async (key, updateData) => {
-        const response = await axiosInstance.put(`/admin/config/${key}`, updateData);
+        const response = await apiClient.put(`/admin/config/${key}`, updateData);
         return response.data;
     },
 
@@ -46,7 +46,7 @@ export const adminService = {
      * Delete configuration
      */
     deleteConfig: async (key) => {
-        const response = await axiosInstance.delete(`/admin/config/${key}`);
+        const response = await apiClient.delete(`/admin/config/${key}`);
         return response.data;
     },
 
@@ -58,7 +58,7 @@ export const adminService = {
      * List all instruments
      */
     listInstruments: async (activeOnly = true) => {
-        const response = await axiosInstance.get('/admin/instruments', {
+        const response = await apiClient.get('/admin/instruments', {
             params: { active_only: activeOnly }
         });
         return response.data;
@@ -68,7 +68,7 @@ export const adminService = {
      * Create new instrument
      */
     createInstrument: async (instrumentData) => {
-        const response = await axiosInstance.post('/admin/instruments', instrumentData);
+        const response = await apiClient.post('/admin/instruments', instrumentData);
         return response.data;
     },
 
@@ -76,7 +76,7 @@ export const adminService = {
      * Update instrument
      */
     updateInstrument: async (instrumentId, updateData) => {
-        const response = await axiosInstance.put(`/admin/instruments/${instrumentId}`, updateData);
+        const response = await apiClient.put(`/admin/instruments/${instrumentId}`, updateData);
         return response.data;
     },
 
@@ -84,7 +84,7 @@ export const adminService = {
      * Delete instrument
      */
     deleteInstrument: async (instrumentId) => {
-        const response = await axiosInstance.delete(`/admin/instruments/${instrumentId}`);
+        const response = await apiClient.delete(`/admin/instruments/${instrumentId}`);
         return response.data;
     },
 
@@ -98,7 +98,7 @@ export const adminService = {
     listUsers: async (page = 1, pageSize = 20, search = null) => {
         const params = { page, page_size: pageSize };
         if (search) params.search = search;
-        const response = await axiosInstance.get('/users', { params });
+        const response = await apiClient.get('/users', { params });
         return response.data;
     },
 
@@ -106,7 +106,7 @@ export const adminService = {
      * Get user by ID
      */
     getUser: async (userId) => {
-        const response = await axiosInstance.get(`/users/${userId}`);
+        const response = await apiClient.get(`/users/${userId}`);
         return response.data;
     },
 
@@ -114,7 +114,7 @@ export const adminService = {
      * Update user
      */
     updateUser: async (userId, updateData) => {
-        const response = await axiosInstance.put(`/users/${userId}`, updateData);
+        const response = await apiClient.put(`/users/${userId}`, updateData);
         return response.data;
     },
 
@@ -122,7 +122,7 @@ export const adminService = {
      * Deactivate user
      */
     deactivateUser: async (userId) => {
-        const response = await axiosInstance.post(`/users/${userId}/deactivate`);
+        const response = await apiClient.post(`/users/${userId}/deactivate`);
         return response.data;
     },
 
@@ -130,7 +130,7 @@ export const adminService = {
      * Activate user
      */
     activateUser: async (userId) => {
-        const response = await axiosInstance.post(`/users/${userId}/activate`);
+        const response = await apiClient.post(`/users/${userId}/activate`);
         return response.data;
     },
 
@@ -142,7 +142,7 @@ export const adminService = {
      * Clear cache
      */
     clearCache: async (pattern = null, clearAll = false) => {
-        const response = await axiosInstance.post('/admin/cache/clear', {
+        const response = await apiClient.post('/admin/cache/clear', {
             pattern,
             clear_all: clearAll
         });
@@ -157,7 +157,7 @@ export const adminService = {
      * Get system health
      */
     getHealth: async () => {
-        const response = await axiosInstance.get('/health');
+        const response = await apiClient.get('/health');
         return response.data;
     },
 
@@ -165,7 +165,7 @@ export const adminService = {
      * Get runtime settings from .env (read-only)
      */
     getRuntimeSettings: async () => {
-        const response = await axiosInstance.get('/admin/settings/runtime');
+        const response = await apiClient.get('/admin/settings/runtime');
         return response.data;
     },
 
@@ -173,7 +173,7 @@ export const adminService = {
      * Re-seed missing configs and instruments
      */
     seedDatabase: async () => {
-        const response = await axiosInstance.post('/admin/seed');
+        const response = await apiClient.post('/admin/seed');
         return response.data;
     },
 
@@ -185,7 +185,7 @@ export const adminService = {
      * Get system metrics (CPU, memory, disk)
      */
     getSystemMetrics: async () => {
-        const response = await axiosInstance.get('/admin/monitoring/system');
+        const response = await apiClient.get('/admin/monitoring/system');
         return response.data;
     },
 
@@ -193,7 +193,7 @@ export const adminService = {
      * Get WebSocket connection stats
      */
     getWebSocketStats: async () => {
-        const response = await axiosInstance.get('/admin/monitoring/websockets');
+        const response = await apiClient.get('/admin/monitoring/websockets');
         return response.data;
     },
 
@@ -201,7 +201,7 @@ export const adminService = {
      * Get database statistics
      */
     getDatabaseStats: async () => {
-        const response = await axiosInstance.get('/admin/monitoring/database');
+        const response = await apiClient.get('/admin/monitoring/database');
         return response.data;
     },
 
@@ -209,7 +209,7 @@ export const adminService = {
      * Get Redis stats
      */
     getRedisStats: async () => {
-        const response = await axiosInstance.get('/admin/monitoring/redis');
+        const response = await apiClient.get('/admin/monitoring/redis');
         return response.data;
     },
 
@@ -220,7 +220,7 @@ export const adminService = {
         const params = { limit };
         if (level) params.level = level;
         if (search) params.search = search;
-        const response = await axiosInstance.get('/admin/monitoring/logs', { params });
+        const response = await apiClient.get('/admin/monitoring/logs', { params });
         return response.data;
     },
 
@@ -232,7 +232,7 @@ export const adminService = {
      * Get all feature flags
      */
     getFeatureFlags: async () => {
-        const response = await axiosInstance.get('/admin/features');
+        const response = await apiClient.get('/admin/features');
         return response.data;
     },
 
@@ -240,7 +240,7 @@ export const adminService = {
      * Toggle a feature flag
      */
     toggleFeature: async (key, enabled) => {
-        const response = await axiosInstance.put(`/admin/features/${key}`, { enabled });
+        const response = await apiClient.put(`/admin/features/${key}`, { enabled });
         return response.data;
     },
 };

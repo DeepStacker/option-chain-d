@@ -2,17 +2,17 @@ import { useState, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { 
-    CalendarDaysIcon, 
-    ClockIcon, 
-    PlayIcon, 
-    PauseIcon, 
+import {
+    CalendarDaysIcon,
+    ClockIcon,
+    PlayIcon,
+    PauseIcon,
     ForwardIcon,
     BackwardIcon,
     ArrowPathIcon,
     ChartBarIcon
 } from '@heroicons/react/24/outline';
-import { getAvailableDates, getAvailableTimes, getHistoricalSnapshot } from '../api/historicalApi';
+import { historicalService } from '../services/historicalService';
 import { selectIsAuthenticated, selectSelectedSymbol, selectSelectedExpiry } from '../context/selectors';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
@@ -35,7 +35,7 @@ const Historical = () => {
     const [snapshotData, setSnapshotData] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
-    
+
     // Playback state
     const [isPlaying, setIsPlaying] = useState(false);
     const [playbackSpeed, setPlaybackSpeed] = useState(1);
@@ -45,7 +45,7 @@ const Historical = () => {
     useEffect(() => {
         const fetchDates = async () => {
             try {
-                const response = await getAvailableDates(selectedSymbol);
+                const response = await historicalService.getAvailableDates(selectedSymbol);
                 setAvailableDates(response.dates || []);
                 if (response.dates?.length > 0) {
                     setSelectedDate(response.dates[0]);
@@ -61,10 +61,10 @@ const Historical = () => {
     // Fetch available times when date changes
     useEffect(() => {
         if (!selectedDate) return;
-        
+
         const fetchTimes = async () => {
             try {
-                const response = await getAvailableTimes(selectedSymbol, selectedDate);
+                const response = await historicalService.getAvailableTimes({ symbol: selectedSymbol, date: selectedDate });
                 setAvailableTimes(response.times || []);
                 if (response.times?.length > 0) {
                     setSelectedTime(response.times[0]);
@@ -80,12 +80,12 @@ const Historical = () => {
     // Fetch snapshot data
     const fetchSnapshot = useCallback(async () => {
         if (!selectedDate || !selectedTime || !selectedExpiry) return;
-        
+
         setLoading(true);
         setError(null);
-        
+
         try {
-            const response = await getHistoricalSnapshot({
+            const response = await historicalService.getHistoricalSnapshot({
                 symbol: selectedSymbol,
                 expiry: selectedExpiry,
                 date: selectedDate,
@@ -156,7 +156,7 @@ const Historical = () => {
     const callOITotal = Object.values(snapshotData?.option_chain || {}).reduce((sum, s) => {
         return sum + (s.ce?.OI || s.ce?.oi || 0);
     }, 0);
-    
+
     const putOITotal = Object.values(snapshotData?.option_chain || {}).reduce((sum, s) => {
         return sum + (s.pe?.OI || s.pe?.oi || 0);
     }, 0);
@@ -262,14 +262,13 @@ const Historical = () => {
                         >
                             <BackwardIcon className="w-5 h-5 text-gray-600 dark:text-gray-400" />
                         </button>
-                        
+
                         <button
                             onClick={() => setIsPlaying(!isPlaying)}
-                            className={`p-3 rounded-xl transition-all ${
-                                isPlaying 
-                                    ? 'bg-red-100 dark:bg-red-900/30 text-red-600' 
-                                    : 'bg-blue-100 dark:bg-blue-900/30 text-blue-600'
-                            }`}
+                            className={`p-3 rounded-xl transition-all ${isPlaying
+                                ? 'bg-red-100 dark:bg-red-900/30 text-red-600'
+                                : 'bg-blue-100 dark:bg-blue-900/30 text-blue-600'
+                                }`}
                         >
                             {isPlaying ? (
                                 <PauseIcon className="w-6 h-6" />
@@ -277,7 +276,7 @@ const Historical = () => {
                                 <PlayIcon className="w-6 h-6" />
                             )}
                         </button>
-                        
+
                         <button
                             onClick={handleNextTime}
                             disabled={currentTimeIndex >= availableTimes.length - 1}
@@ -294,10 +293,10 @@ const Historical = () => {
                     {/* Progress Bar */}
                     <div className="mt-4">
                         <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                            <div 
+                            <div
                                 className="h-full bg-blue-500 transition-all duration-300"
-                                style={{ 
-                                    width: `${availableTimes.length > 0 ? ((currentTimeIndex + 1) / availableTimes.length) * 100 : 0}%` 
+                                style={{
+                                    width: `${availableTimes.length > 0 ? ((currentTimeIndex + 1) / availableTimes.length) * 100 : 0}%`
                                 }}
                             />
                         </div>
@@ -397,11 +396,10 @@ const Historical = () => {
                                             .map(([strike, data]) => {
                                                 const isATM = parseFloat(strike) === snapshotData.atm_strike;
                                                 return (
-                                                    <tr 
-                                                        key={strike} 
-                                                        className={`border-b border-gray-100 dark:border-gray-800 ${
-                                                            isATM ? 'bg-yellow-50 dark:bg-yellow-900/20' : ''
-                                                        }`}
+                                                    <tr
+                                                        key={strike}
+                                                        className={`border-b border-gray-100 dark:border-gray-800 ${isATM ? 'bg-yellow-50 dark:bg-yellow-900/20' : ''
+                                                            }`}
                                                     >
                                                         {/* Call side */}
                                                         <td className="py-2 px-2 text-center text-green-600">
@@ -416,14 +414,13 @@ const Historical = () => {
                                                         <td className="py-2 px-2 text-center font-medium border-r border-gray-200 dark:border-gray-700">
                                                             {data.ce?.ltp?.toFixed(2) || '-'}
                                                         </td>
-                                                        
+
                                                         {/* Strike */}
-                                                        <td className={`py-2 px-4 text-center font-bold border-r border-gray-200 dark:border-gray-700 ${
-                                                            isATM ? 'text-yellow-600' : 'text-gray-900 dark:text-white'
-                                                        }`}>
+                                                        <td className={`py-2 px-4 text-center font-bold border-r border-gray-200 dark:border-gray-700 ${isATM ? 'text-yellow-600' : 'text-gray-900 dark:text-white'
+                                                            }`}>
                                                             {parseFloat(strike).toFixed(0)}
                                                         </td>
-                                                        
+
                                                         {/* Put side */}
                                                         <td className="py-2 px-2 text-center font-medium">
                                                             {data.pe?.ltp?.toFixed(2) || '-'}

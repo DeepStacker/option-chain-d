@@ -26,7 +26,7 @@ import {
   ArrowTrendingUpIcon,
 } from "@heroicons/react/24/outline";
 import { BellIcon as BellIconSolid } from "@heroicons/react/24/solid";
-import { getNotifications, markAllAsRead } from "../../api/notificationsApi";
+import { notificationService } from "../../services/notificationService";
 
 
 const Sidebar = () => {
@@ -41,17 +41,17 @@ const Sidebar = () => {
   const { isCollapsed, toggleSidebar, sidebarWidth } = useSidebar();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [notifications, setNotifications] = useState(0);
-  const [_notificationList, setNotificationList] = useState([]);
-  const [_isNotificationsOpen, _setIsNotificationsOpen] = useState(false);
-  
+  const [notificationList, setNotificationList] = useState([]);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+
   const profileRef = useRef(null);
-  const _notificationRef = useRef(null);
+  const notificationRef = useRef(null);
 
   // Fetch notifications from backend
   useEffect(() => {
     const fetchNotifications = async () => {
       try {
-        const response = await getNotifications(10);
+        const response = await notificationService.getNotifications({ limit: 10 });
         if (response.success) {
           setNotifications(response.unread_count || 0);
           setNotificationList(response.notifications || []);
@@ -68,9 +68,9 @@ const Sidebar = () => {
   }, []);
 
   // Handle mark all as read
-  const _handleMarkAllRead = async () => {
+  const handleMarkAllRead = async () => {
     try {
-      await markAllAsRead();
+      await notificationService.markAllAsRead();
       setNotifications(0);
       setNotificationList(prev => prev.map(n => ({ ...n, is_read: true })));
     } catch {
@@ -117,6 +117,9 @@ const Sidebar = () => {
       if (profileRef.current && !profileRef.current.contains(event.target)) {
         setIsProfileOpen(false);
       }
+      if (notificationRef.current && !notificationRef.current.contains(event.target)) {
+        setIsNotificationsOpen(false);
+      }
     };
 
     document.addEventListener("mousedown", handleClickOutside);
@@ -131,11 +134,10 @@ const Sidebar = () => {
       initial={{ width: sidebarWidth }}
       animate={{ width: sidebarWidth }}
       transition={{ duration: 0.3, ease: "easeInOut" }}
-      className={`fixed left-0 top-0 h-screen z-50 flex flex-col ${
-        theme === "dark"
-          ? "bg-gray-900 border-gray-700"
-          : "bg-white border-gray-200"
-      } border-r shadow-xl`}
+      className={`fixed left-0 top-0 h-screen z-50 flex flex-col ${theme === "dark"
+        ? "bg-gray-900 border-gray-700"
+        : "bg-white border-gray-200"
+        } border-r shadow-xl`}
     >
       {/* Logo Section */}
       <div className="p-3 border-b border-gray-200 dark:border-gray-700">
@@ -199,7 +201,7 @@ const Sidebar = () => {
                 </span>
               </div>
             )}
-            
+
             {/* Section Items */}
             {section.items.map((item) => {
               const Icon = item.icon;
@@ -209,11 +211,10 @@ const Sidebar = () => {
                 <Link
                   key={item.path}
                   to={item.path}
-                  className={`flex items-center gap-3 px-3 py-2.5 mb-0.5 rounded-xl transition-all duration-200 group relative ${
-                    isActive
-                      ? "bg-gradient-to-r from-blue-500/10 to-purple-500/10 text-blue-600 dark:text-blue-400 shadow-sm"
-                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white"
-                  }`}
+                  className={`flex items-center gap-3 px-3 py-2.5 mb-0.5 rounded-xl transition-all duration-200 group relative ${isActive
+                    ? "bg-gradient-to-r from-blue-500/10 to-purple-500/10 text-blue-600 dark:text-blue-400 shadow-sm"
+                    : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white"
+                    }`}
                   title={isCollapsed ? item.name : ""}
                 >
                   {isActive && (
@@ -251,38 +252,98 @@ const Sidebar = () => {
       {/* Bottom Section */}
       <div className="border-t border-gray-200 dark:border-gray-700 p-2">
         {/* Notifications */}
-        <button
-          className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
-            theme === "dark"
+        <div className="relative" ref={notificationRef}>
+          <button
+            onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
+            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${theme === "dark"
               ? "hover:bg-gray-800 text-gray-400"
               : "hover:bg-gray-100 text-gray-600"
-          }`}
-        >
-          <div className="relative">
-            {notifications > 0 ? (
-              <BellIconSolid className="w-5 h-5 text-blue-500" />
-            ) : (
-              <BellIcon className="w-5 h-5" />
+              }`}
+          >
+            <div className="relative">
+              {notifications > 0 ? (
+                <BellIconSolid className="w-5 h-5 text-blue-500" />
+              ) : (
+                <BellIcon className="w-5 h-5" />
+              )}
+              {notifications > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center">
+                  {notifications}
+                </span>
+              )}
+            </div>
+            {!isCollapsed && (
+              <span className="text-sm font-medium">Notifications</span>
             )}
-            {notifications > 0 && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center">
-                {notifications}
-              </span>
+          </button>
+
+          {/* Notification Dropdown */}
+          <AnimatePresence>
+            {isNotificationsOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className={`absolute mb-2 w-80 rounded-xl shadow-2xl border overflow-hidden z-[100] ${isCollapsed
+                    ? "left-full ml-2 bottom-0"
+                    : "bottom-full left-0"
+                  } ${theme === "dark"
+                    ? "bg-gray-800 border-gray-700"
+                    : "bg-white border-gray-200"
+                  }`}
+              >
+                <div className="p-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                  <span className="font-semibold text-sm">Notifications</span>
+                  {notifications > 0 && (
+                    <button
+                      onClick={handleMarkAllRead}
+                      className="text-xs text-blue-500 hover:text-blue-600"
+                    >
+                      Mark all read
+                    </button>
+                  )}
+                </div>
+                <div className="max-h-64 overflow-y-auto">
+                  {notificationList.length > 0 ? (
+                    notificationList.map((notif) => (
+                      <div
+                        key={notif.id}
+                        className={`p-3 border-b border-gray-100 dark:border-gray-700 last:border-0 ${!notif.is_read ? "bg-blue-50 dark:bg-blue-900/20" : ""
+                          }`}
+                      >
+                        <div className="flex items-start gap-2">
+                          <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${notif.type === "success" ? "bg-green-500" :
+                            notif.type === "warning" ? "bg-yellow-500" :
+                              notif.type === "error" ? "bg-red-500" :
+                                notif.type === "price" ? "bg-purple-500" :
+                                  "bg-blue-500"
+                            }`} />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{notif.title}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">{notif.message}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="p-6 text-center text-gray-500 dark:text-gray-400">
+                      <BellIcon className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm">No notifications</p>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
             )}
-          </div>
-          {!isCollapsed && (
-            <span className="text-sm font-medium">Notifications</span>
-          )}
-        </button>
+          </AnimatePresence>
+        </div>
 
         {/* Theme Toggle */}
         <button
           onClick={() => dispatch(toggleTheme())}
-          className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
-            theme === "dark"
-              ? "hover:bg-gray-800 text-yellow-400"
-              : "hover:bg-gray-100 text-gray-600"
-          }`}
+          className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${theme === "dark"
+            ? "hover:bg-gray-800 text-yellow-400"
+            : "hover:bg-gray-100 text-gray-600"
+            }`}
         >
           {theme === "dark" ? (
             <SunIcon className="w-5 h-5" />
@@ -301,11 +362,10 @@ const Sidebar = () => {
           <div className="relative" ref={profileRef}>
             <button
               onClick={() => setIsProfileOpen(!isProfileOpen)}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
-                theme === "dark"
-                  ? "hover:bg-gray-800"
-                  : "hover:bg-gray-100"
-              }`}
+              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${theme === "dark"
+                ? "hover:bg-gray-800"
+                : "hover:bg-gray-100"
+                }`}
             >
               <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
                 <span className="text-white text-sm font-semibold">
@@ -326,11 +386,10 @@ const Sidebar = () => {
                   initial={{ opacity: 0, y: 10, scale: 0.95 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                  className={`absolute bottom-full left-0 mb-2 w-48 rounded-lg shadow-xl border ${
-                    theme === "dark"
-                      ? "bg-gray-800 border-gray-700"
-                      : "bg-white border-gray-200"
-                  }`}
+                  className={`absolute bottom-full left-0 mb-2 w-48 rounded-lg shadow-xl border ${theme === "dark"
+                    ? "bg-gray-800 border-gray-700"
+                    : "bg-white border-gray-200"
+                    }`}
                 >
                   <div className="p-2">
                     {[
@@ -341,11 +400,10 @@ const Sidebar = () => {
                       <button
                         key={index}
                         onClick={item.action}
-                        className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left text-sm ${
-                          theme === "dark"
-                            ? "hover:bg-gray-700 text-gray-300"
-                            : "hover:bg-gray-100 text-gray-700"
-                        }`}
+                        className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left text-sm ${theme === "dark"
+                          ? "hover:bg-gray-700 text-gray-300"
+                          : "hover:bg-gray-100 text-gray-700"
+                          }`}
                       >
                         <item.icon className="w-4 h-4" />
                         {item.label}
@@ -361,11 +419,10 @@ const Sidebar = () => {
         {/* Collapse Toggle */}
         <button
           onClick={toggleSidebar}
-          className={`w-full flex items-center justify-center gap-2 px-3 py-2 mt-2 rounded-lg transition-colors ${
-            theme === "dark"
-              ? "hover:bg-gray-800 text-gray-400"
-              : "hover:bg-gray-100 text-gray-600"
-          }`}
+          className={`w-full flex items-center justify-center gap-2 px-3 py-2 mt-2 rounded-lg transition-colors ${theme === "dark"
+            ? "hover:bg-gray-800 text-gray-400"
+            : "hover:bg-gray-100 text-gray-600"
+            }`}
         >
           {isCollapsed ? (
             <ChevronRightIcon className="w-5 h-5" />

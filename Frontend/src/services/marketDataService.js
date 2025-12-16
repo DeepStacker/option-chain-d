@@ -1,4 +1,4 @@
-import axiosInstance from '../api/config';
+import apiClient from './apiClient';
 
 /**
  * Market Data Service - Aligned with FastAPI Backend
@@ -11,7 +11,7 @@ export const marketDataService = {
      */
     getExpiryDates: async (symbol) => {
         try {
-            const response = await axiosInstance.get(`/options/expiry/${symbol}`);
+            const response = await apiClient.get(`/options/expiry/${symbol}`);
             return response.data;
         } catch (error) {
             throw error.message || 'Failed to fetch expiry dates';
@@ -24,7 +24,7 @@ export const marketDataService = {
      */
     getOptionChain: async (symbol, expiry) => {
         try {
-            const response = await axiosInstance.get(`/options/chain/${symbol}/${expiry}`);
+            const response = await apiClient.get(`/options/chain/${symbol}/${expiry}`);
             return response.data;
         } catch (error) {
             throw error.message || 'Failed to fetch option chain';
@@ -37,7 +37,7 @@ export const marketDataService = {
      */
     getLiveData: async (params) => {
         try {
-            const response = await axiosInstance.get('/options/live', { params });
+            const response = await apiClient.get('/options/live', { params });
             return response.data;
         } catch (error) {
             throw error.message || 'Failed to fetch live data';
@@ -50,7 +50,7 @@ export const marketDataService = {
      */
     getPercentageData: async (data) => {
         try {
-            const response = await axiosInstance.post('/options/percentage', data);
+            const response = await apiClient.post('/options/percentage', data);
             return response.data;
         } catch (error) {
             throw error.message || 'Failed to fetch percentage data';
@@ -63,7 +63,7 @@ export const marketDataService = {
      */
     getIVData: async (data) => {
         try {
-            const response = await axiosInstance.post('/options/iv', data);
+            const response = await apiClient.post('/options/iv', data);
             return response.data;
         } catch (error) {
             throw error.message || 'Failed to fetch IV data';
@@ -76,7 +76,7 @@ export const marketDataService = {
      */
     getGreeksData: async (data) => {
         try {
-            const response = await axiosInstance.post('/options/delta', data);
+            const response = await apiClient.post('/options/delta', data);
             return response.data;
         } catch (error) {
             throw error.message || 'Failed to fetch Greeks data';
@@ -89,7 +89,7 @@ export const marketDataService = {
      */
     getFuturesData: async (data) => {
         try {
-            const response = await axiosInstance.post('/options/future', data);
+            const response = await apiClient.post('/options/future', data);
             return response.data;
         } catch (error) {
             throw error.message || 'Failed to fetch futures data';

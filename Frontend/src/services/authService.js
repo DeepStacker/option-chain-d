@@ -1,4 +1,4 @@
-import axiosInstance from '../api/config';
+import apiClient from './apiClient';
 
 /**
  * Authentication Service - FastAPI Compatible
@@ -11,7 +11,7 @@ export const authService = {
      */
     verifyToken: async (idToken) => {
         try {
-            const response = await axiosInstance.post('/auth/verify', {
+            const response = await apiClient.post('/auth/verify', {
                 id_token: idToken
             });
             return response.data;
@@ -26,7 +26,7 @@ export const authService = {
      */
     register: async (idToken) => {
         try {
-            const response = await axiosInstance.post('/auth/register', {
+            const response = await apiClient.post('/auth/register', {
                 id_token: idToken
             });
             return response.data;
@@ -41,7 +41,7 @@ export const authService = {
      */
     getProfile: async () => {
         try {
-            const response = await axiosInstance.get('/auth/profile');
+            const response = await apiClient.get('/auth/profile');
             return response.data;
         } catch (error) {
             throw error.message || 'Failed to fetch profile';
@@ -54,7 +54,7 @@ export const authService = {
      */
     updateProfile: async (profileData) => {
         try {
-            const response = await axiosInstance.put('/auth/profile', profileData);
+            const response = await apiClient.put('/auth/profile', profileData);
             return response.data;
         } catch (error) {
             throw error.message || 'Failed to update profile';
@@ -67,7 +67,7 @@ export const authService = {
      */
     logout: async () => {
         try {
-            const response = await axiosInstance.post('/auth/logout');
+            const response = await apiClient.post('/auth/logout');
             return response.data;
         } catch (error) {
             throw error.message || 'Logout failed';
@@ -80,7 +80,7 @@ export const authService = {
      */
     upgradeToPremium: async () => {
         try {
-            const response = await axiosInstance.post('/auth/upgrade');
+            const response = await apiClient.post('/auth/upgrade');
             return response.data;
         } catch (error) {
             throw error.message || 'Subscription upgrade failed';

@@ -4,6 +4,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { selectSid, selectSelectedExpiry, selectExpiryList } from '../../../context/selectors';
 import { setSidAndFetchData, setExp_sid } from '../../../context/dataSlice';
 import { setSymbols } from '../../../context/chartSlice';
+import { analyticsService } from '../../../services/analyticsService';
 
 /**
  * Premium Symbol Selector - Inline version for OptionControls with Portal
@@ -20,7 +21,7 @@ const PremiumSymbolSelector = ({ symbols, currentSymbol, onSelect, theme }) => {
     const INDICES = ['NIFTY', 'BANKNIFTY', 'FINNIFTY', 'MIDCPNIFTY', 'SENSEX', 'BANKEX', 'NIFTYNXT50'];
 
     // Filter symbols
-    const filtered = symbols.filter(s => 
+    const filtered = symbols.filter(s =>
         s.symbol.toLowerCase().includes(search.toLowerCase()) ||
         (s.name || '').toLowerCase().includes(search.toLowerCase())
     );
@@ -63,8 +64,8 @@ const PremiumSymbolSelector = ({ symbols, currentSymbol, onSelect, theme }) => {
                 className={`
                     flex items-center gap-2 px-4 py-2 rounded-xl border shadow-md
                     font-bold text-sm transition-all duration-200 min-w-[140px]
-                    ${isDark 
-                        ? 'bg-gradient-to-r from-slate-800 to-slate-900 border-slate-600 text-white hover:border-slate-500' 
+                    ${isDark
+                        ? 'bg-gradient-to-r from-slate-800 to-slate-900 border-slate-600 text-white hover:border-slate-500'
                         : 'bg-gradient-to-r from-white to-gray-50 border-gray-200 text-gray-900 hover:border-gray-300'}
                     ${isOpen ? 'ring-2 ring-emerald-500/50 shadow-lg' : ''}
                 `}
@@ -80,11 +81,11 @@ const PremiumSymbolSelector = ({ symbols, currentSymbol, onSelect, theme }) => {
             {isOpen && createPortal(
                 <>
                     {/* Backdrop */}
-                    <div 
-                        className="fixed inset-0 z-[2147483646]" 
+                    <div
+                        className="fixed inset-0 z-[2147483646]"
                         onClick={() => setIsOpen(false)}
                     />
-                    <div 
+                    <div
                         className={`fixed w-80 max-h-[70vh] rounded-xl border shadow-2xl z-[2147483647] overflow-hidden ${isDark ? 'bg-slate-900 border-slate-700' : 'bg-white border-gray-200'}`}
                         style={{ top: dropdownPos.top, left: dropdownPos.left }}
                     >
@@ -161,8 +162,7 @@ const OptionControls = memo(({ showChart, onToggleChart }) => {
         if (symbols.length === 0) {
             const fetchSymbols = async () => {
                 try {
-                    const response = await fetch('http://localhost:8000/api/v1/charts/symbols');
-                    const data = await response.json();
+                    const data = await analyticsService.getSymbols();
                     if (data.success && data.data) {
                         dispatch(setSymbols(data.data));
                     }
@@ -231,9 +231,9 @@ const OptionControls = memo(({ showChart, onToggleChart }) => {
                     className={`
                         flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-semibold shadow-sm
                         transition-all duration-200 border
-                        ${showChart 
-                            ? theme === 'dark' 
-                                ? 'bg-emerald-600 text-white border-emerald-500 hover:bg-emerald-500 hover:shadow-emerald-500/20' 
+                        ${showChart
+                            ? theme === 'dark'
+                                ? 'bg-emerald-600 text-white border-emerald-500 hover:bg-emerald-500 hover:shadow-emerald-500/20'
                                 : 'bg-emerald-500 text-white border-emerald-400 hover:bg-emerald-600 hover:shadow-emerald-500/20'
                             : theme === 'dark'
                                 ? 'bg-gray-800 text-gray-300 border-gray-700 hover:bg-gray-700 hover:text-white'

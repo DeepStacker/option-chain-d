@@ -260,6 +260,14 @@ class RedisCache:
         except Exception as e:
             logger.error(f"Redis FLUSHDB error: {e}")
             return False
+    
+    async def info(self, section: str = None) -> dict:
+        """Get Redis server info"""
+        try:
+            return await self.redis.info(section) if section else await self.redis.info()
+        except Exception as e:
+            logger.error(f"Redis INFO error: {e}")
+            return {}
 
 
 # Cache key generators

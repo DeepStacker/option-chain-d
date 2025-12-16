@@ -1,7 +1,7 @@
 import { memo, useState, useEffect, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import { XMarkIcon, ChartBarIcon, ArrowTrendingUpIcon, ArrowPathIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
-import { getStrikeTimeSeries, getAggregateCOI, getAggregateOI, getAggregatePCR, getAggregatePercentage } from '../../../api/analyticsApi';
+import { analyticsService } from '../../../services/analyticsService';
 import { useSelector } from 'react-redux';
 import { selectSelectedSymbol, selectSelectedExpiry } from '../../../context/selectors';
 
@@ -493,8 +493,8 @@ const CellDetailModal = memo(({ isOpen, onClose, cellData }) => {
         setError(null);
 
         try {
-            console.log('[CellDetailModal] Calling getStrikeTimeSeries...');
-            const data = await getStrikeTimeSeries({
+            console.log('[CellDetailModal] Calling analyticsService.getStrikeTimeSeries...');
+            const data = await analyticsService.getStrikeTimeSeries({
                 symbol,
                 strike: parseFloat(strike), // Ensure strike is a number
                 optionType: side.toUpperCase(),
@@ -523,16 +523,16 @@ const CellDetailModal = memo(({ isOpen, onClose, cellData }) => {
             switch (viewType) {
                 case 'coi':
                 case 'overall':
-                    data = await getAggregateCOI({ symbol, expiry });
+                    data = await analyticsService.getAggregateCOI({ symbol, expiry });
                     break;
                 case 'oi':
-                    data = await getAggregateOI({ symbol, expiry });
+                    data = await analyticsService.getAggregateOI({ symbol, expiry });
                     break;
                 case 'pcr':
-                    data = await getAggregatePCR({ symbol, expiry });
+                    data = await analyticsService.getAggregatePCR({ symbol, expiry });
                     break;
                 case 'percentage':
-                    data = await getAggregatePercentage({ symbol, expiry });
+                    data = await analyticsService.getAggregatePercentage({ symbol, expiry });
                     break;
                 default:
                     return;

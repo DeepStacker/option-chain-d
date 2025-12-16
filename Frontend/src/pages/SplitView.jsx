@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, memo } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { 
+import {
     Squares2X2Icon,
     TableCellsIcon,
     ChartBarIcon,
@@ -13,19 +13,19 @@ import {
 import { selectIsAuthenticated } from '../context/selectors';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
-import { getAggregateCOI, getAggregateOI, getAggregatePCR, getOIDistribution } from '../api/analyticsApi';
+import { analyticsService } from '../services/analyticsService';
 
 /**
  * Chart Panel Component - Individual chart in the grid
  */
-const ChartPanel = memo(({ 
-    id, 
-    symbol, 
-    expiry, 
-    chartType, 
-    onChangeType, 
+const ChartPanel = memo(({
+    id,
+    symbol,
+    expiry,
+    chartType,
+    onChangeType,
     onRemove,
-    isFullScreen: _isFullScreen = false 
+    isFullScreen: _isFullScreen = false
 }) => {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -40,27 +40,27 @@ const ChartPanel = memo(({
 
     const fetchData = useCallback(async () => {
         if (!symbol || !expiry) return;
-        
+
         setLoading(true);
         setError(null);
-        
+
         try {
             let response;
             switch (chartType) {
                 case 'coi':
-                    response = await getAggregateCOI({ symbol, expiry });
+                    response = await analyticsService.getAggregateCOI({ symbol, expiry });
                     break;
                 case 'oi':
-                    response = await getAggregateOI({ symbol, expiry });
+                    response = await analyticsService.getAggregateOI({ symbol, expiry });
                     break;
                 case 'pcr':
-                    response = await getAggregatePCR({ symbol, expiry });
+                    response = await analyticsService.getAggregatePCR({ symbol, expiry });
                     break;
                 case 'distribution':
-                    response = await getOIDistribution({ symbol, expiry });
+                    response = await analyticsService.getOIDistribution({ symbol, expiry });
                     break;
                 default:
-                    response = await getAggregateCOI({ symbol, expiry });
+                    response = await analyticsService.getAggregateCOI({ symbol, expiry });
             }
             setData(response);
         } catch (err) {
@@ -106,20 +106,19 @@ const ChartPanel = memo(({
                             <div key={i} className="flex items-center gap-1 h-4">
                                 {/* CE bar (left) */}
                                 <div className="flex-1 flex justify-end">
-                                    <div 
+                                    <div
                                         className="h-3 bg-green-500 rounded-l"
                                         style={{ width: `${ceWidth}%` }}
                                     />
                                 </div>
                                 {/* Strike label */}
-                                <div className={`w-12 text-center text-[9px] font-medium ${
-                                    item.is_atm ? 'text-yellow-500' : 'text-gray-400'
-                                }`}>
+                                <div className={`w-12 text-center text-[9px] font-medium ${item.is_atm ? 'text-yellow-500' : 'text-gray-400'
+                                    }`}>
                                     {item.strike}
                                 </div>
                                 {/* PE bar (right) */}
                                 <div className="flex-1">
-                                    <div 
+                                    <div
                                         className="h-3 bg-red-500 rounded-r"
                                         style={{ width: `${peWidth}%` }}
                                     />
@@ -281,7 +280,7 @@ const SplitView = () => {
     const [showTable, setShowTable] = useState(true);
 
     const handleChangeChartType = (panelId, newType) => {
-        setPanels(prev => prev.map(p => 
+        setPanels(prev => prev.map(p =>
             p.id === panelId ? { ...p, chartType: newType } : p
         ));
     };
@@ -338,11 +337,10 @@ const SplitView = () => {
                                 <button
                                     key={l}
                                     onClick={() => setLayout(l)}
-                                    className={`px-2 py-1 text-xs font-medium rounded transition-colors ${
-                                        layout === l 
-                                            ? 'bg-blue-500 text-white' 
-                                            : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
-                                    }`}
+                                    className={`px-2 py-1 text-xs font-medium rounded transition-colors ${layout === l
+                                        ? 'bg-blue-500 text-white'
+                                        : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                                        }`}
                                 >
                                     {l}
                                 </button>
@@ -352,11 +350,10 @@ const SplitView = () => {
                         {/* Toggle Table */}
                         <button
                             onClick={() => setShowTable(!showTable)}
-                            className={`p-2 rounded-lg transition-colors ${
-                                showTable 
-                                    ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30' 
-                                    : 'bg-gray-100 text-gray-500 dark:bg-gray-800'
-                            }`}
+                            className={`p-2 rounded-lg transition-colors ${showTable
+                                ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30'
+                                : 'bg-gray-100 text-gray-500 dark:bg-gray-800'
+                                }`}
                             title="Toggle Option Chain Table"
                         >
                             <TableCellsIcon className="w-4 h-4" />

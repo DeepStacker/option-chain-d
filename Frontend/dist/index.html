@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/market_stat4.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#3b82f6" />
+    <meta name="description" content="Real-time options trading platform with advanced analytics" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <title>DeepStrike</title>
+    <script type="module" crossorigin src="/assets/js/index-DpMGw747.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/js/charts-BVf48S-_.js">
+    <link rel="modulepreload" crossorigin href="/assets/js/vendor-61R5RNdl.js">
+    <link rel="modulepreload" crossorigin href="/assets/js/firebase-Dm1Xd1Ru.js">
+    <link rel="modulepreload" crossorigin href="/assets/js/animations-9kslzpSP.js">
+    <link rel="modulepreload" crossorigin href="/assets/js/ui-icons-BuGoXOaE.js">
+    <link rel="stylesheet" crossorigin href="/assets/css/vendor-w23F2EJY.css">
+    <link rel="stylesheet" crossorigin href="/assets/css/index-Bwjlwb7N.css">
+  </head>
+  <body>
+    <div id="root"></div>
+    <div id="dropdown-root"></div>
+    <script>
+      // Register service worker for PWA
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then(reg => console.log('SW registered:', reg.scope))
+            .catch(err => console.log('SW registration failed:', err));
+        });
+      }
+    </script>
+  </body>
+</html>
+

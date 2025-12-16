@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, memo } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { 
+import {
     BoltIcon,
     ChartBarIcon,
     ShieldCheckIcon,
@@ -13,34 +13,32 @@ import {
 import { selectIsAuthenticated, selectSelectedSymbol, selectSelectedExpiry } from '../context/selectors';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
-import { getScalpSignals, getPositionalSignals, getSRSignals } from '../api/screenerApi';
+import { screenerService } from '../services/screenerService';
 
 /**
  * Signal Card Component - Individual screener signal
  */
 const SignalCard = memo(({ signal }) => {
     const isBuy = signal.signal === 'BUY';
-    
+
     return (
         <Card variant="glass" className="p-4 hover:shadow-lg transition-shadow">
             <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-2">
-                    <span className={`px-2 py-1 rounded text-xs font-bold ${
-                        signal.option_type === 'CE' 
-                            ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                            : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                    }`}>
+                    <span className={`px-2 py-1 rounded text-xs font-bold ${signal.option_type === 'CE'
+                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                        : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                        }`}>
                         {signal.option_type}
                     </span>
                     <span className="font-semibold text-gray-900 dark:text-white">
                         {signal.strike}
                     </span>
                 </div>
-                <div className={`px-3 py-1 rounded-full text-sm font-bold ${
-                    isBuy 
-                        ? 'bg-green-500 text-white' 
-                        : 'bg-red-500 text-white'
-                }`}>
+                <div className={`px-3 py-1 rounded-full text-sm font-bold ${isBuy
+                    ? 'bg-green-500 text-white'
+                    : 'bg-red-500 text-white'
+                    }`}>
                     {signal.signal}
                 </div>
             </div>
@@ -79,11 +77,10 @@ const SignalCard = memo(({ signal }) => {
                     </span>
                 </div>
                 <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                    <div 
-                        className={`h-full transition-all ${
-                            signal.strength > 70 ? 'bg-green-500' :
+                    <div
+                        className={`h-full transition-all ${signal.strength > 70 ? 'bg-green-500' :
                             signal.strength > 40 ? 'bg-yellow-500' : 'bg-red-500'
-                        }`}
+                            }`}
                         style={{ width: `${signal.strength}%` }}
                     />
                 </div>
@@ -98,26 +95,26 @@ SignalCard.displayName = 'SignalCard';
  * Screener Tab Component
  */
 const SCREENER_TABS = [
-    { 
-        id: 'scalp', 
-        label: 'Scalp', 
-        icon: BoltIcon, 
+    {
+        id: 'scalp',
+        label: 'Scalp',
+        icon: BoltIcon,
         description: 'Short-term trades (5-15 min)',
         color: 'text-blue-500',
         bgColor: 'bg-blue-100 dark:bg-blue-900/30'
     },
-    { 
-        id: 'positional', 
-        label: 'Positional', 
-        icon: ChartBarIcon, 
+    {
+        id: 'positional',
+        label: 'Positional',
+        icon: ChartBarIcon,
         description: 'Multi-day positions',
         color: 'text-purple-500',
         bgColor: 'bg-purple-100 dark:bg-purple-900/30'
     },
-    { 
-        id: 'sr', 
-        label: 'S/R OC', 
-        icon: ShieldCheckIcon, 
+    {
+        id: 'sr',
+        label: 'S/R OC',
+        icon: ShieldCheckIcon,
         description: 'Support/Resistance levels',
         color: 'text-orange-500',
         bgColor: 'bg-orange-100 dark:bg-orange-900/30'
@@ -149,13 +146,13 @@ const Screeners = () => {
             let response;
             switch (screenerType) {
                 case 'scalp':
-                    response = await getScalpSignals({ symbol: selectedSymbol, expiry: selectedExpiry });
+                    response = await screenerService.getScalpSignals({ symbol: selectedSymbol, expiry: selectedExpiry });
                     break;
                 case 'positional':
-                    response = await getPositionalSignals({ symbol: selectedSymbol, expiry: selectedExpiry });
+                    response = await screenerService.getPositionalSignals({ symbol: selectedSymbol, expiry: selectedExpiry });
                     break;
                 case 'sr':
-                    response = await getSRSignals({ symbol: selectedSymbol, expiry: selectedExpiry });
+                    response = await screenerService.getSRSignals({ symbol: selectedSymbol, expiry: selectedExpiry });
                     break;
                 default:
                     response = { signals: [] };
@@ -179,7 +176,7 @@ const Screeners = () => {
     // Auto-refresh every 60 seconds
     useEffect(() => {
         if (!selectedExpiry) return;
-        
+
         const interval = setInterval(() => {
             fetchSignals(activeTab);
         }, 60000);
@@ -250,16 +247,15 @@ const Screeners = () => {
                     {SCREENER_TABS.map((tab) => {
                         const Icon = tab.icon;
                         const isActive = activeTab === tab.id;
-                        
+
                         return (
                             <button
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id)}
-                                className={`flex-1 flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
-                                    isActive 
-                                        ? `${tab.bgColor} border-current ${tab.color}` 
-                                        : 'border-transparent bg-gray-100 dark:bg-gray-800 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700'
-                                }`}
+                                className={`flex-1 flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${isActive
+                                    ? `${tab.bgColor} border-current ${tab.color}`
+                                    : 'border-transparent bg-gray-100 dark:bg-gray-800 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700'
+                                    }`}
                             >
                                 <Icon className="w-6 h-6" />
                                 <span className="font-semibold">{tab.label}</span>
@@ -334,7 +330,7 @@ const Screeners = () => {
 
                 {/* Disclaimer */}
                 <div className="text-xs text-gray-400 text-center mt-8 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-                    <strong>Disclaimer:</strong> These signals are for educational purposes only. 
+                    <strong>Disclaimer:</strong> These signals are for educational purposes only.
                     Always do your own analysis before trading. Past performance is not indicative of future results.
                 </div>
             </div>

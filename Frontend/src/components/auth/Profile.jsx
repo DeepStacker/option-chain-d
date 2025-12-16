@@ -22,7 +22,8 @@ import {
   KeyIcon,
   DevicePhoneMobileIcon,
 } from "@heroicons/react/24/outline";
-import { getMyProfile, updateMyProfile, updateNotificationSettings, getMyTradingStats } from "../../api/profileApi";
+import { profileService } from "../../services/profileService";
+
 
 
 const Profile = () => {
@@ -78,9 +79,9 @@ const Profile = () => {
     const fetchProfileData = async () => {
       try {
         setProfileLoading(true);
-        
+
         // Fetch profile from backend
-        const profileResponse = await getMyProfile();
+        const profileResponse = await profileService.getMyProfile();
         if (profileResponse.success && profileResponse.data) {
           const profile = profileResponse.data;
           setUserData({
@@ -102,9 +103,9 @@ const Profile = () => {
             setTradingStats(profile.trading_stats);
           }
         }
-        
+
         // Fetch trading stats separately for more detailed data
-        const statsResponse = await getMyTradingStats();
+        const statsResponse = await profileService.getMyTradingStats();
         if (statsResponse.success && statsResponse.stats) {
           const stats = statsResponse.stats;
           setTradingStats({
@@ -226,7 +227,7 @@ const Profile = () => {
     setLoading(true);
     try {
       // Call backend API to update profile
-      const response = await updateMyProfile({
+      const response = await profileService.updateMyProfile({
         username: editedData.username,
         phone: editedData.phone,
         bio: editedData.bio,
@@ -284,10 +285,10 @@ const Profile = () => {
       [key]: !notificationSettings[key],
     };
     setNotificationSettings(newSettings);
-    
+
     // Save to backend
     try {
-      await updateNotificationSettings(newSettings);
+      await profileService.updateNotificationSettings(newSettings);
     } catch (error) {
       console.log("Failed to save notification settings:", error.message);
     }
@@ -329,21 +330,19 @@ const Profile = () => {
     >
       {/* Profile Header */}
       <div
-        className={`p-8 rounded-3xl border ${
-          theme === "dark"
-            ? "bg-gray-800/50 border-gray-700/50"
-            : "bg-white/50 border-gray-200/50"
-        } backdrop-blur-xl`}
+        className={`p-8 rounded-3xl border ${theme === "dark"
+          ? "bg-gray-800/50 border-gray-700/50"
+          : "bg-white/50 border-gray-200/50"
+          } backdrop-blur-xl`}
       >
         <div className="flex flex-col md:flex-row items-start md:items-center space-y-6 md:space-y-0 md:space-x-8">
           {/* Profile Picture */}
           <div className="relative">
             <div
-              className={`w-32 h-32 rounded-3xl flex items-center justify-center text-4xl font-bold shadow-2xl ${
-                theme === "dark"
-                  ? "bg-gradient-to-br from-blue-600 to-purple-600 text-white"
-                  : "bg-gradient-to-br from-blue-500 to-purple-500 text-white"
-              }`}
+              className={`w-32 h-32 rounded-3xl flex items-center justify-center text-4xl font-bold shadow-2xl ${theme === "dark"
+                ? "bg-gradient-to-br from-blue-600 to-purple-600 text-white"
+                : "bg-gradient-to-br from-blue-500 to-purple-500 text-white"
+                }`}
             >
               {profileData.username.charAt(0).toUpperCase()}
             </div>
@@ -367,13 +366,12 @@ const Profile = () => {
                     onChange={(e) =>
                       handleInputChange("username", e.target.value)
                     }
-                    className={`text-3xl font-bold bg-transparent border-b-2 focus:outline-none transition-colors ${
-                      errors.username
-                        ? "border-red-500 text-red-500"
-                        : theme === "dark"
+                    className={`text-3xl font-bold bg-transparent border-b-2 focus:outline-none transition-colors ${errors.username
+                      ? "border-red-500 text-red-500"
+                      : theme === "dark"
                         ? "border-gray-600 text-white focus:border-blue-500"
                         : "border-gray-300 text-gray-900 focus:border-blue-500"
-                    }`}
+                      }`}
                     placeholder="Enter username"
                   />
                   {errors.username && (
@@ -387,13 +385,12 @@ const Profile = () => {
                     type="email"
                     value={editedData.email}
                     onChange={(e) => handleInputChange("email", e.target.value)}
-                    className={`text-lg bg-transparent border-b focus:outline-none transition-colors w-full ${
-                      errors.email
-                        ? "border-red-500 text-red-500"
-                        : theme === "dark"
+                    className={`text-lg bg-transparent border-b focus:outline-none transition-colors w-full ${errors.email
+                      ? "border-red-500 text-red-500"
+                      : theme === "dark"
                         ? "border-gray-600 text-gray-400 focus:border-blue-500"
                         : "border-gray-300 text-gray-600 focus:border-blue-500"
-                    }`}
+                      }`}
                     placeholder="Enter email"
                   />
                   {errors.email && (
@@ -403,11 +400,10 @@ const Profile = () => {
                 <textarea
                   value={editedData.bio}
                   onChange={(e) => handleInputChange("bio", e.target.value)}
-                  className={`w-full bg-transparent border rounded-lg p-3 focus:outline-none transition-colors resize-none ${
-                    theme === "dark"
-                      ? "border-gray-600 text-gray-300 focus:border-blue-500"
-                      : "border-gray-300 text-gray-700 focus:border-blue-500"
-                  }`}
+                  className={`w-full bg-transparent border rounded-lg p-3 focus:outline-none transition-colors resize-none ${theme === "dark"
+                    ? "border-gray-600 text-gray-300 focus:border-blue-500"
+                    : "border-gray-300 text-gray-700 focus:border-blue-500"
+                    }`}
                   rows="3"
                   placeholder="Tell us about yourself..."
                 />
@@ -416,9 +412,8 @@ const Profile = () => {
               <div>
                 <div className="flex items-center space-x-3 mb-2">
                   <h2
-                    className={`text-3xl font-bold ${
-                      theme === "dark" ? "text-white" : "text-gray-900"
-                    }`}
+                    className={`text-3xl font-bold ${theme === "dark" ? "text-white" : "text-gray-900"
+                      }`}
                   >
                     {profileData.username}
                   </h2>
@@ -432,16 +427,14 @@ const Profile = () => {
                   )}
                 </div>
                 <p
-                  className={`text-lg mb-3 ${
-                    theme === "dark" ? "text-gray-400" : "text-gray-600"
-                  }`}
+                  className={`text-lg mb-3 ${theme === "dark" ? "text-gray-400" : "text-gray-600"
+                    }`}
                 >
                   {profileData.email}
                 </p>
                 <p
-                  className={`text-base leading-relaxed ${
-                    theme === "dark" ? "text-gray-300" : "text-gray-700"
-                  }`}
+                  className={`text-base leading-relaxed ${theme === "dark" ? "text-gray-300" : "text-gray-700"
+                    }`}
                 >
                   {profileData.bio}
                 </p>
@@ -449,9 +442,8 @@ const Profile = () => {
                   <div className="flex items-center space-x-2">
                     <CalendarDaysIcon className="w-5 h-5 text-blue-500" />
                     <span
-                      className={`text-sm ${
-                        theme === "dark" ? "text-gray-400" : "text-gray-600"
-                      }`}
+                      className={`text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-600"
+                        }`}
                     >
                       Joined {profileData.joinDate}
                     </span>
@@ -459,9 +451,8 @@ const Profile = () => {
                   <div className="flex items-center space-x-2">
                     <TrophyIcon className="w-5 h-5 text-yellow-500" />
                     <span
-                      className={`text-sm ${
-                        theme === "dark" ? "text-gray-400" : "text-gray-600"
-                      }`}
+                      className={`text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-600"
+                        }`}
                     >
                       {profileData.subscription} Plan
                     </span>
@@ -537,16 +528,14 @@ const Profile = () => {
 
       {/* Contact Information */}
       <div
-        className={`p-6 rounded-2xl border ${
-          theme === "dark"
-            ? "bg-gray-800/30 border-gray-700/50"
-            : "bg-gray-50/50 border-gray-200/50"
-        }`}
+        className={`p-6 rounded-2xl border ${theme === "dark"
+          ? "bg-gray-800/30 border-gray-700/50"
+          : "bg-gray-50/50 border-gray-200/50"
+          }`}
       >
         <h3
-          className={`text-xl font-bold mb-4 ${
-            theme === "dark" ? "text-white" : "text-gray-900"
-          }`}
+          className={`text-xl font-bold mb-4 ${theme === "dark" ? "text-white" : "text-gray-900"
+            }`}
         >
           Contact Information
         </h3>
@@ -626,28 +615,25 @@ const Profile = () => {
               key={key}
               variants={itemVariants}
               whileHover={{ scale: 1.02, y: -5 }}
-              className={`p-6 rounded-2xl border ${
-                theme === "dark"
-                  ? "bg-gray-800/50 border-gray-700/50"
-                  : "bg-white/50 border-gray-200/50"
-              } backdrop-blur-xl shadow-lg`}
+              className={`p-6 rounded-2xl border ${theme === "dark"
+                ? "bg-gray-800/50 border-gray-700/50"
+                : "bg-white/50 border-gray-200/50"
+                } backdrop-blur-xl shadow-lg`}
             >
               <div className="flex items-center justify-between mb-4">
                 <Icon
                   className={`w-8 h-8 ${config?.color || "text-gray-500"}`}
                 />
                 <span
-                  className={`text-2xl font-bold ${
-                    theme === "dark" ? "text-white" : "text-gray-900"
-                  }`}
+                  className={`text-2xl font-bold ${theme === "dark" ? "text-white" : "text-gray-900"
+                    }`}
                 >
                   {value}
                 </span>
               </div>
               <div
-                className={`text-sm font-medium ${
-                  theme === "dark" ? "text-gray-400" : "text-gray-600"
-                }`}
+                className={`text-sm font-medium ${theme === "dark" ? "text-gray-400" : "text-gray-600"
+                  }`}
               >
                 {config?.label ||
                   key
@@ -671,9 +657,8 @@ const Profile = () => {
       className="space-y-6"
     >
       <h3
-        className={`text-2xl font-bold mb-6 ${
-          theme === "dark" ? "text-white" : "text-gray-900"
-        }`}
+        className={`text-2xl font-bold mb-6 ${theme === "dark" ? "text-white" : "text-gray-900"
+          }`}
       >
         Notification Preferences
       </h3>
@@ -718,24 +703,21 @@ const Profile = () => {
             <motion.div
               key={key}
               whileHover={{ scale: 1.01 }}
-              className={`flex items-center justify-between p-6 rounded-2xl border ${
-                theme === "dark"
-                  ? "bg-gray-800/50 border-gray-700/50"
-                  : "bg-white/50 border-gray-200/50"
-              } backdrop-blur-xl`}
+              className={`flex items-center justify-between p-6 rounded-2xl border ${theme === "dark"
+                ? "bg-gray-800/50 border-gray-700/50"
+                : "bg-white/50 border-gray-200/50"
+                } backdrop-blur-xl`}
             >
               <div>
                 <h4
-                  className={`font-semibold ${
-                    theme === "dark" ? "text-white" : "text-gray-900"
-                  }`}
+                  className={`font-semibold ${theme === "dark" ? "text-white" : "text-gray-900"
+                    }`}
                 >
                   {config.label}
                 </h4>
                 <p
-                  className={`text-sm ${
-                    theme === "dark" ? "text-gray-400" : "text-gray-600"
-                  }`}
+                  className={`text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-600"
+                    }`}
                 >
                   {config.desc}
                 </p>
@@ -744,9 +726,8 @@ const Profile = () => {
               <motion.button
                 whileTap={{ scale: 0.95 }}
                 onClick={() => toggleNotification(key)}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  enabled ? "bg-blue-600" : "bg-gray-300 dark:bg-gray-600"
-                }`}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${enabled ? "bg-blue-600" : "bg-gray-300 dark:bg-gray-600"
+                  }`}
               >
                 <motion.span
                   animate={{ x: enabled ? 20 : 2 }}
@@ -771,36 +752,32 @@ const Profile = () => {
       className="space-y-8"
     >
       <h3
-        className={`text-2xl font-bold mb-6 ${
-          theme === "dark" ? "text-white" : "text-gray-900"
-        }`}
+        className={`text-2xl font-bold mb-6 ${theme === "dark" ? "text-white" : "text-gray-900"
+          }`}
       >
         Security & Privacy
       </h3>
 
       {/* Two-Factor Authentication */}
       <div
-        className={`p-6 rounded-2xl border ${
-          theme === "dark"
-            ? "bg-gray-800/50 border-gray-700/50"
-            : "bg-white/50 border-gray-200/50"
-        } backdrop-blur-xl`}
+        className={`p-6 rounded-2xl border ${theme === "dark"
+          ? "bg-gray-800/50 border-gray-700/50"
+          : "bg-white/50 border-gray-200/50"
+          } backdrop-blur-xl`}
       >
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center space-x-3">
             <DevicePhoneMobileIcon className="w-6 h-6 text-green-500" />
             <div>
               <h4
-                className={`font-semibold ${
-                  theme === "dark" ? "text-white" : "text-gray-900"
-                }`}
+                className={`font-semibold ${theme === "dark" ? "text-white" : "text-gray-900"
+                  }`}
               >
                 Two-Factor Authentication
               </h4>
               <p
-                className={`text-sm ${
-                  theme === "dark" ? "text-gray-400" : "text-gray-600"
-                }`}
+                className={`text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-600"
+                  }`}
               >
                 Add an extra layer of security to your account
               </p>
@@ -809,11 +786,10 @@ const Profile = () => {
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              securitySettings.twoFactorEnabled
-                ? "bg-red-600 text-white hover:bg-red-700"
-                : "bg-green-600 text-white hover:bg-green-700"
-            }`}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${securitySettings.twoFactorEnabled
+              ? "bg-red-600 text-white hover:bg-red-700"
+              : "bg-green-600 text-white hover:bg-green-700"
+              }`}
           >
             {securitySettings.twoFactorEnabled ? "Disable" : "Enable"}
           </motion.button>
@@ -822,18 +798,16 @@ const Profile = () => {
 
       {/* Password Change */}
       <div
-        className={`p-6 rounded-2xl border ${
-          theme === "dark"
-            ? "bg-gray-800/50 border-gray-700/50"
-            : "bg-white/50 border-gray-200/50"
-        } backdrop-blur-xl`}
+        className={`p-6 rounded-2xl border ${theme === "dark"
+          ? "bg-gray-800/50 border-gray-700/50"
+          : "bg-white/50 border-gray-200/50"
+          } backdrop-blur-xl`}
       >
         <div className="flex items-center space-x-3 mb-6">
           <KeyIcon className="w-6 h-6 text-blue-500" />
           <h4
-            className={`text-lg font-semibold ${
-              theme === "dark" ? "text-white" : "text-gray-900"
-            }`}
+            className={`text-lg font-semibold ${theme === "dark" ? "text-white" : "text-gray-900"
+              }`}
           >
             Change Password
           </h4>
@@ -842,55 +816,49 @@ const Profile = () => {
         <form className="space-y-4">
           <div>
             <label
-              className={`block text-sm font-medium mb-2 ${
-                theme === "dark" ? "text-gray-300" : "text-gray-700"
-              }`}
+              className={`block text-sm font-medium mb-2 ${theme === "dark" ? "text-gray-300" : "text-gray-700"
+                }`}
             >
               Current Password
             </label>
             <input
               type="password"
-              className={`w-full p-3 rounded-lg border transition-colors ${
-                theme === "dark"
-                  ? "bg-gray-700 border-gray-600 text-white focus:border-blue-500"
-                  : "bg-white border-gray-300 text-gray-900 focus:border-blue-500"
-              } focus:outline-none focus:ring-2 focus:ring-blue-500/20`}
+              className={`w-full p-3 rounded-lg border transition-colors ${theme === "dark"
+                ? "bg-gray-700 border-gray-600 text-white focus:border-blue-500"
+                : "bg-white border-gray-300 text-gray-900 focus:border-blue-500"
+                } focus:outline-none focus:ring-2 focus:ring-blue-500/20`}
               placeholder="Enter current password"
             />
           </div>
           <div>
             <label
-              className={`block text-sm font-medium mb-2 ${
-                theme === "dark" ? "text-gray-300" : "text-gray-700"
-              }`}
+              className={`block text-sm font-medium mb-2 ${theme === "dark" ? "text-gray-300" : "text-gray-700"
+                }`}
             >
               New Password
             </label>
             <input
               type="password"
-              className={`w-full p-3 rounded-lg border transition-colors ${
-                theme === "dark"
-                  ? "bg-gray-700 border-gray-600 text-white focus:border-blue-500"
-                  : "bg-white border-gray-300 text-gray-900 focus:border-blue-500"
-              } focus:outline-none focus:ring-2 focus:ring-blue-500/20`}
+              className={`w-full p-3 rounded-lg border transition-colors ${theme === "dark"
+                ? "bg-gray-700 border-gray-600 text-white focus:border-blue-500"
+                : "bg-white border-gray-300 text-gray-900 focus:border-blue-500"
+                } focus:outline-none focus:ring-2 focus:ring-blue-500/20`}
               placeholder="Enter new password"
             />
           </div>
           <div>
             <label
-              className={`block text-sm font-medium mb-2 ${
-                theme === "dark" ? "text-gray-300" : "text-gray-700"
-              }`}
+              className={`block text-sm font-medium mb-2 ${theme === "dark" ? "text-gray-300" : "text-gray-700"
+                }`}
             >
               Confirm New Password
             </label>
             <input
               type="password"
-              className={`w-full p-3 rounded-lg border transition-colors ${
-                theme === "dark"
-                  ? "bg-gray-700 border-gray-600 text-white focus:border-blue-500"
-                  : "bg-white border-gray-300 text-gray-900 focus:border-blue-500"
-              } focus:outline-none focus:ring-2 focus:ring-blue-500/20`}
+              className={`w-full p-3 rounded-lg border transition-colors ${theme === "dark"
+                ? "bg-gray-700 border-gray-600 text-white focus:border-blue-500"
+                : "bg-white border-gray-300 text-gray-900 focus:border-blue-500"
+                } focus:outline-none focus:ring-2 focus:ring-blue-500/20`}
               placeholder="Confirm new password"
             />
           </div>
@@ -927,15 +895,13 @@ const Profile = () => {
             initial="hidden"
             animate="visible"
             exit="exit"
-            className={`text-center py-16 ${
-              theme === "dark" ? "text-gray-400" : "text-gray-600"
-            }`}
+            className={`text-center py-16 ${theme === "dark" ? "text-gray-400" : "text-gray-600"
+              }`}
           >
             <div className="space-y-4">
               <div
-                className={`w-24 h-24 mx-auto rounded-full flex items-center justify-center ${
-                  theme === "dark" ? "bg-gray-800" : "bg-gray-100"
-                }`}
+                className={`w-24 h-24 mx-auto rounded-full flex items-center justify-center ${theme === "dark" ? "bg-gray-800" : "bg-gray-100"
+                  }`}
               >
                 <CogIcon className="w-12 h-12" />
               </div>
@@ -951,11 +917,10 @@ const Profile = () => {
 
   return (
     <div
-      className={`min-h-screen py-12 px-4 sm:px-6 lg:px-8 ${
-        theme === "dark"
-          ? "bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950"
-          : "bg-gradient-to-br from-slate-50 via-blue-50/30 to-gray-50"
-      }`}
+      className={`min-h-screen py-12 px-4 sm:px-6 lg:px-8 ${theme === "dark"
+        ? "bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950"
+        : "bg-gradient-to-br from-slate-50 via-blue-50/30 to-gray-50"
+        }`}
     >
       {/* Background Elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -973,26 +938,23 @@ const Profile = () => {
         <motion.div variants={itemVariants} className="text-center mb-12">
           <div className="flex items-center justify-center mb-6">
             <div
-              className={`p-4 rounded-2xl ${
-                theme === "dark"
-                  ? "bg-gradient-to-r from-blue-600 to-purple-600"
-                  : "bg-gradient-to-r from-blue-500 to-purple-500"
-              } shadow-2xl mr-4`}
+              className={`p-4 rounded-2xl ${theme === "dark"
+                ? "bg-gradient-to-r from-blue-600 to-purple-600"
+                : "bg-gradient-to-r from-blue-500 to-purple-500"
+                } shadow-2xl mr-4`}
             >
               <UserIcon className="w-8 h-8 text-white" />
             </div>
             <div>
               <h1
-                className={`text-4xl md:text-5xl font-black ${
-                  theme === "dark" ? "text-white" : "text-gray-900"
-                }`}
+                className={`text-4xl md:text-5xl font-black ${theme === "dark" ? "text-white" : "text-gray-900"
+                  }`}
               >
                 Profile Dashboard
               </h1>
               <p
-                className={`text-lg ${
-                  theme === "dark" ? "text-gray-300" : "text-gray-600"
-                }`}
+                className={`text-lg ${theme === "dark" ? "text-gray-300" : "text-gray-600"
+                  }`}
               >
                 Manage your trading account and preferences
               </p>
@@ -1013,13 +975,12 @@ const Profile = () => {
                 whileHover={{ scale: 1.05, y: -2 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center space-x-3 px-6 py-4 rounded-2xl font-semibold transition-all duration-300 ${
-                  activeTab === tab.id
-                    ? `bg-gradient-to-r ${tab.color} text-white shadow-2xl`
-                    : theme === "dark"
+                className={`flex items-center space-x-3 px-6 py-4 rounded-2xl font-semibold transition-all duration-300 ${activeTab === tab.id
+                  ? `bg-gradient-to-r ${tab.color} text-white shadow-2xl`
+                  : theme === "dark"
                     ? "bg-gray-800/50 text-gray-300 hover:bg-gray-700/50 border border-gray-700/50"
                     : "bg-white/50 text-gray-700 hover:bg-gray-50 border border-gray-200/50"
-                } backdrop-blur-xl`}
+                  } backdrop-blur-xl`}
               >
                 <Icon className="w-5 h-5" />
                 <span className="hidden sm:inline">{tab.label}</span>
@@ -1031,11 +992,10 @@ const Profile = () => {
         {/* Content Area */}
         <motion.div
           variants={itemVariants}
-          className={`rounded-3xl shadow-2xl border overflow-hidden ${
-            theme === "dark"
-              ? "bg-gray-900/50 border-gray-700/50"
-              : "bg-white/50 border-gray-200/50"
-          } backdrop-blur-xl p-8`}
+          className={`rounded-3xl shadow-2xl border overflow-hidden ${theme === "dark"
+            ? "bg-gray-900/50 border-gray-700/50"
+            : "bg-white/50 border-gray-200/50"
+            } backdrop-blur-xl p-8`}
         >
           <AnimatePresence mode="wait">{renderTabContent()}</AnimatePresence>
         </motion.div>
@@ -1043,11 +1003,10 @@ const Profile = () => {
         {/* Security Notice */}
         <motion.div variants={itemVariants} className="mt-8">
           <div
-            className={`flex items-start space-x-4 p-6 rounded-2xl border ${
-              theme === "dark"
-                ? "bg-blue-900/20 border-blue-500/30 text-blue-200"
-                : "bg-blue-50 border-blue-200 text-blue-800"
-            } backdrop-blur-xl`}
+            className={`flex items-start space-x-4 p-6 rounded-2xl border ${theme === "dark"
+              ? "bg-blue-900/20 border-blue-500/30 text-blue-200"
+              : "bg-blue-50 border-blue-200 text-blue-800"
+              } backdrop-blur-xl`}
           >
             <ExclamationTriangleIcon className="w-6 h-6 text-blue-500 flex-shrink-0 mt-0.5" />
             <div>
