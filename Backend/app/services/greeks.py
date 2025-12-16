@@ -43,23 +43,14 @@ class GreeksService:
     """
     Comprehensive Greeks calculation service.
     Includes both standard and advanced Greeks.
+    Delegates core BSM calculations to BSMService to avoid code duplication.
     """
     
     def __init__(self, risk_free_rate: float = 0.10):
         self.r = risk_free_rate
         self.bsm = BSMService(risk_free_rate)
     
-    @staticmethod
-    def _d1(S: float, K: float, T: float, r: float, sigma: float) -> float:
-        if T <= 0 or sigma <= 0:
-            return 0.0
-        return (math.log(S / K) + (r + 0.5 * sigma ** 2) * T) / (sigma * math.sqrt(T))
-    
-    @staticmethod
-    def _d2(S: float, K: float, T: float, r: float, sigma: float) -> float:
-        if T <= 0 or sigma <= 0:
-            return 0.0
-        return GreeksService._d1(S, K, T, r, sigma) - sigma * math.sqrt(T)
+    # NOTE: _d1 and _d2 removed - using BSMService._d1 and BSMService._d2 instead
     
     def calculate_all_greeks(
         self,
@@ -85,8 +76,9 @@ class GreeksService:
         if T <= 0 or sigma <= 0 or S <= 0:
             return self._get_zero_greeks()
         
-        d1 = self._d1(S, K, T, self.r, sigma)
-        d2 = self._d2(S, K, T, self.r, sigma)
+        # Use BSMService methods instead of duplicated local methods
+        d1 = BSMService._d1(S, K, T, self.r, sigma)
+        d2 = BSMService._d2(S, K, T, self.r, sigma)
         
         sqrt_T = math.sqrt(T)
         pdf_d1 = stats.norm.pdf(d1)

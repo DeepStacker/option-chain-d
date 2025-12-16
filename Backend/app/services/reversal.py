@@ -130,16 +130,13 @@ class ReversalService:
         T_days: float, 
         confidence: float = 0.68
     ) -> tuple:
-        """Calculate expected price range from BSM."""
-        std_dev = iv * math.sqrt(T_days / 365)
-        z_score = norm.ppf(0.5 + confidence / 2)
-        low = max(round(S * math.exp(-z_score * std_dev), 2), 0.0)
-        high = max(round(S * math.exp(z_score * std_dev), 2), 0.0)
-        return (low, high)
+        """Calculate expected price range - delegates to BSMService."""
+        # Note: BSMService.expected_price_range takes T_days as int, we have float
+        return self.bsm.expected_price_range(S, iv, int(T_days), confidence)
     
     def weekly_theta_decay(self, T_days: float) -> float:
-        """Calculate weekly theta decay factor."""
-        return max(0.5, 1.5 - 0.1 * T_days)
+        """Calculate weekly theta decay factor - delegates to BSMService."""
+        return self.bsm.weekly_theta_decay(int(T_days))
     
     def round_to_tick(self, price: float, tick_size: float = 0.05) -> float:
         """Round price to the nearest tick size."""

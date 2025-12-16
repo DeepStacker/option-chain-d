@@ -75,17 +75,6 @@ export default defineConfig(({ mode }) => ({
 
         // Manual chunks for optimal code splitting
         manualChunks: (id) => {
-          // React core - rarely changes
-          if (id.includes('node_modules/react/') ||
-            id.includes('node_modules/react-dom/')) {
-            return 'react-core';
-          }
-
-          // Router - separate from core
-          if (id.includes('node_modules/react-router')) {
-            return 'router';
-          }
-
           // Firebase in its own chunk (large, lazy-loaded)
           if (id.includes('node_modules/firebase')) {
             return 'firebase';
@@ -103,28 +92,14 @@ export default defineConfig(({ mode }) => ({
             return 'animations';
           }
 
-          // Redux and state management
-          if (id.includes('node_modules/@reduxjs') ||
-            id.includes('node_modules/redux') ||
-            id.includes('node_modules/react-redux') ||
-            id.includes('node_modules/redux-persist')) {
-            return 'state';
-          }
-
-          // UI components and icons
+          // UI components and icons (can be lazy loaded)
           if (id.includes('node_modules/@heroicons') ||
-            id.includes('node_modules/@headlessui') ||
             id.includes('node_modules/react-icons')) {
-            return 'ui-components';
+            return 'ui-icons';
           }
 
-          // Network/data utilities
-          if (id.includes('node_modules/axios') ||
-            id.includes('node_modules/@msgpack')) {
-            return 'network';
-          }
-
-          // Remaining vendor code
+          // All other vendor code (including React, React-DOM, router, redux)
+          // IMPORTANT: React must NOT be split into separate chunk - causes runtime errors
           if (id.includes('node_modules')) {
             return 'vendor';
           }

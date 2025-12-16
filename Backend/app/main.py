@@ -76,9 +76,16 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
         logger.warning(f"Firebase initialization failed: {e}")
     
     # Initialize Redis
+    redis_cache = None
     try:
         await init_redis()
         logger.info("Redis connected")
+        
+        # Get Redis cache for container injection
+        from app.cache.redis import get_redis_connection, RedisCache
+        redis_conn = await get_redis_connection()
+        if redis_conn:
+            redis_cache = RedisCache(redis_conn)
         
         # Initialize distributed metrics (uses Redis)
         from app.core.metrics import init_metrics_redis
@@ -86,6 +93,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
         logger.info("Distributed metrics initialized")
     except Exception as e:
         logger.warning(f"Redis connection failed: {e}")
+    
+    # Initialize DI container with Redis
+    try:
+        from app.core.container import container
+        container.set_redis_cache(redis_cache)
+        logger.info("DI container initialized with Redis")
+    except Exception as e:
+        logger.warning(f"Container initialization failed: {e}")
     
     # Initialize database
     try:
@@ -142,6 +157,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
         except Exception:
             pass
     
+    # Cleanup DI container
+    try:
+        from app.core.container import container
+        await container.cleanup()
+    except Exception:
+        pass
+    
     await close_redis()
     await close_db()
     
@@ -190,6 +212,10 @@ app.add_middleware(GZipMiddleware, minimum_size=500)
 
 # Add rate limiting (100 requests/minute per IP - protects from abuse)
 app.add_middleware(RateLimitMiddleware, requests_per_minute=settings.RATE_LIMIT_PER_MINUTE)
+
+# Add correlation ID middleware (runs first - outermost in chain)
+from app.core.correlation import CorrelationIdMiddleware
+app.add_middleware(CorrelationIdMiddleware)
 
 
 # Global exception handler
