@@ -1,6 +1,6 @@
 """
 Redis Cache Service - Centralized caching layer
-Provides async caching with automatic serialization
+Provides async caching with automatic serialization and connection pooling
 """
 import json
 import logging
@@ -9,38 +9,73 @@ from datetime import timedelta
 
 import redis.asyncio as redis
 from redis.asyncio import Redis
+from redis.asyncio.connection import ConnectionPool
 
 from app.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
-# Global Redis connection pool
+# Global Redis connection pool with limits for high concurrency
 _redis_pool: Optional[Redis] = None
+_connection_pool: Optional[ConnectionPool] = None
+
+# Pool settings for millions of connections
+REDIS_POOL_MIN_SIZE = 10
+REDIS_POOL_MAX_SIZE = getattr(settings, 'REDIS_POOL_MAX_SIZE', 100)
 
 
 async def init_redis() -> Redis:
-    """Initialize Redis connection pool"""
-    global _redis_pool
+    """
+    Initialize Redis with proper connection pooling.
+    
+    For high concurrency:
+    - Uses connection pool with max limits
+    - Supports Redis Cluster URLs (redis+cluster://)
+    - Connection health checks enabled
+    """
+    global _redis_pool, _connection_pool
     
     if _redis_pool is None:
-        _redis_pool = redis.from_url(
-            settings.REDIS_URL,
-            encoding="utf-8",
-            decode_responses=True,
-        )
-        logger.info("Redis connection pool initialized")
+        redis_url = settings.REDIS_URL
+        
+        # Check for cluster mode
+        if redis_url.startswith("redis+cluster://"):
+            # Redis Cluster support
+            from redis.asyncio.cluster import RedisCluster
+            cluster_url = redis_url.replace("redis+cluster://", "redis://")
+            _redis_pool = RedisCluster.from_url(
+                cluster_url,
+                decode_responses=True,
+            )
+            logger.info("Redis Cluster connection initialized")
+        else:
+            # Single node with connection pooling
+            _connection_pool = ConnectionPool.from_url(
+                redis_url,
+                max_connections=REDIS_POOL_MAX_SIZE,
+                decode_responses=True,
+                health_check_interval=30,
+                socket_timeout=5.0,
+                socket_connect_timeout=5.0,
+                retry_on_timeout=True,
+            )
+            _redis_pool = Redis(connection_pool=_connection_pool)
+            logger.info(f"Redis connection pool initialized (max: {REDIS_POOL_MAX_SIZE})")
     
     return _redis_pool
 
 
 async def close_redis() -> None:
     """Close Redis connection pool"""
-    global _redis_pool
+    global _redis_pool, _connection_pool
     
     if _redis_pool:
         await _redis_pool.close()
         _redis_pool = None
-        logger.info("Redis connection pool closed")
+    if _connection_pool:
+        await _connection_pool.disconnect()
+        _connection_pool = None
+    logger.info("Redis connection pool closed")
 
 
 async def get_redis_connection() -> Redis:
@@ -48,6 +83,18 @@ async def get_redis_connection() -> Redis:
     if _redis_pool is None:
         await init_redis()
     return _redis_pool
+
+
+async def get_pool_stats() -> dict:
+    """Get connection pool statistics"""
+    if _connection_pool:
+        return {
+            "max_connections": _connection_pool.max_connections,
+            "current_connections": len(_connection_pool._available_connections) + len(_connection_pool._in_use_connections),
+            "available": len(_connection_pool._available_connections),
+            "in_use": len(_connection_pool._in_use_connections),
+        }
+    return {"cluster_mode": True}
 
 
 class RedisCache:

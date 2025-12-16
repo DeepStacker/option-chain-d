@@ -1,0 +1,167 @@
+# Stockify Backend - Kubernetes Deployment
+# Supports horizontal scaling with Redis Pub/Sub for WebSocket coordination
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stockify-api
+  labels:
+    app: stockify
+    component: api
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: stockify
+      component: api
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: stockify
+        component: api
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/api/v1/metrics"
+    spec:
+      containers:
+      - name: api
+        image: stockify-api:latest
+        ports:
+        - containerPort: 8000
+          name: http
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: stockify-secrets
+              key: database-url
+        - name: DATABASE_READ_REPLICA_URL
+          valueFrom:
+            secretKeyRef:
+              name: stockify-secrets
+              key: database-read-replica-url
+              optional: true
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: stockify-secrets
+              key: redis-url
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: stockify-secrets
+              key: secret-key
+        - name: ENVIRONMENT
+          value: "production"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        readinessProbe:
+          httpGet:
+            path: /api/v1/health
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          failureThreshold: 3
+        livenessProbe:
+          httpGet:
+            path: /api/v1/health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          failureThreshold: 3
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app: stockify
+                  component: api
+              topologyKey: kubernetes.io/hostname
+
+---
+# Horizontal Pod Autoscaler - Scaled for million-user support
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: stockify-api-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: stockify-api
+  minReplicas: 3
+  maxReplicas: 100  # Increased from 20 for million-user scale
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 30  # Faster reaction (was 60)
+      policies:
+      - type: Pods
+        value: 8  # Scale up by 8 pods at a time (was 4)
+        periodSeconds: 30
+      - type: Percent
+        value: 100  # Double capacity if needed
+        periodSeconds: 30
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Pods
+        value: 4  # Scale down more conservatively
+        periodSeconds: 120
+
+---
+# Service for internal communication
+apiVersion: v1
+kind: Service
+metadata:
+  name: stockify-api
+  labels:
+    app: stockify
+    component: api
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8000
+    targetPort: 8000
+    protocol: TCP
+    name: http
+  selector:
+    app: stockify
+    component: api
+
+---
+# Pod Disruption Budget
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: stockify-api-pdb
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: stockify
+      component: api

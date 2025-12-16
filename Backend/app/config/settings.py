@@ -37,7 +37,7 @@ class Settings(BaseSettings):
     # ═══════════════════════════════════════════════════════════════════
     # Security Settings
     # ═══════════════════════════════════════════════════════════════════
-    SECRET_KEY: str = Field(default="your-super-secret-key-change-in-production")
+    SECRET_KEY: str = Field(..., description="Secret key for token signing - MUST be set in environment")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=1440)  # 24 hours
     ALGORITHM: str = Field(default="HS256")
     
@@ -65,10 +65,14 @@ class Settings(BaseSettings):
         default="postgresql+asyncpg://postgres:postgres@localhost:5432/stockify",
         description="PostgreSQL connection URL"
     )
-    DATABASE_POOL_SIZE: int = Field(default=10)
-    DATABASE_MAX_OVERFLOW: int = Field(default=20)
+    DATABASE_POOL_SIZE: int = Field(default=100, description="Base connection pool size (increased for million-user scale)")
+    DATABASE_MAX_OVERFLOW: int = Field(default=200, description="Maximum additional connections under load (doubled for scale)")
     DATABASE_POOL_TIMEOUT: int = Field(default=30)
     DATABASE_ECHO: bool = Field(default=False, description="Log SQL queries")
+    DATABASE_READ_REPLICA_URL: Optional[str] = Field(
+        default=None,
+        description="PostgreSQL read replica URL for read-heavy queries (optional)"
+    )
     
     # ═══════════════════════════════════════════════════════════════════
     # Redis Settings
@@ -78,6 +82,7 @@ class Settings(BaseSettings):
         description="Redis connection URL"
     )
     REDIS_CACHE_TTL: int = Field(default=300, description="Default cache TTL in seconds")
+    REDIS_POOL_MAX_SIZE: int = Field(default=500, description="Max Redis connections per pod (increased for scale)")
     REDIS_OPTIONS_CACHE_TTL: int = Field(default=2, description="Options data cache TTL (2s = ~500 requests/minute max to Dhan API)")
     REDIS_EXPIRY_CACHE_TTL: int = Field(default=3600, description="Expiry dates cache TTL")
     REDIS_CONFIG_CACHE_TTL: int = Field(default=3600, description="Config cache TTL")
@@ -110,15 +115,15 @@ class Settings(BaseSettings):
     # ═══════════════════════════════════════════════════════════════════
     # Rate Limiting
     # ═══════════════════════════════════════════════════════════════════
-    RATE_LIMIT_PER_MINUTE: int = Field(default=100)
-    RATE_LIMIT_BURST: int = Field(default=20)
+    RATE_LIMIT_PER_MINUTE: int = Field(default=200, description="API rate limit (increased for scale)")
+    RATE_LIMIT_BURST: int = Field(default=50, description="Burst limit (increased)")
     
     # ═══════════════════════════════════════════════════════════════════
     # WebSocket Settings
     # ═══════════════════════════════════════════════════════════════════
     WS_HEARTBEAT_INTERVAL: int = Field(default=30)
-    WS_MAX_CONNECTIONS: int = Field(default=10000, description="Max WebSocket connections per server")
-    WS_BROADCAST_INTERVAL: float = Field(default=0.5, description="Live data broadcast interval (lower = faster updates)")
+    WS_MAX_CONNECTIONS: int = Field(default=50000, description="Max WebSocket connections per server (increased for scale)")
+    WS_BROADCAST_INTERVAL: float = Field(default=0.25, description="Live data broadcast interval (250ms for faster updates)")
     
     # ═══════════════════════════════════════════════════════════════════
     # Trading Defaults
@@ -133,6 +138,22 @@ class Settings(BaseSettings):
     LOG_FORMAT: str = Field(
         default="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
+    
+    # ═══════════════════════════════════════════════════════════════════
+    # OpenTelemetry Settings (Distributed Tracing)
+    # ═══════════════════════════════════════════════════════════════════
+    OTEL_ENABLED: bool = Field(default=True, description="Enable OpenTelemetry tracing")
+    OTEL_SERVICE_NAME: str = Field(default="stockify-backend", description="Service name for tracing")
+    OTEL_EXPORTER_OTLP_ENDPOINT: Optional[str] = Field(
+        default=None,
+        description="OTLP endpoint (e.g., http://jaeger:4317). If None, console exporter in debug mode."
+    )
+    
+    # ═══════════════════════════════════════════════════════════════════
+    # Background Task Queue Settings
+    # ═══════════════════════════════════════════════════════════════════
+    TASK_QUEUE_ENABLED: bool = Field(default=True, description="Enable background task processing")
+    TASK_QUEUE_WORKERS: int = Field(default=2, description="Number of background task workers")
     
     # ═══════════════════════════════════════════════════════════════════
     # File Upload

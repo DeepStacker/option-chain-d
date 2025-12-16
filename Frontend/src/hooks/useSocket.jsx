@@ -6,23 +6,44 @@ import logger from '../utils/logger';
  * WebSocket Hook for FastAPI Backend
  * Endpoint: ws://host/ws/options
  * Supports msgpack binary message decoding
+ * Features: Exponential backoff with jitter, connection quality tracking
  */
 const useSocket = (onDataReceived, options = {}) => {
   const socketRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
+  const heartbeatIntervalRef = useRef(null);
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState(null);
   const [subscription, setSubscription] = useState(null);
+  const [connectionQuality, setConnectionQuality] = useState('unknown'); // 'good', 'degraded', 'poor'
 
   const {
     enabled = true, // Set to false to disable auto-connection
     autoReconnect = true,
-    reconnectInterval = 5000,
-    maxReconnectAttempts = 3, // Reduced to avoid spam
+    baseReconnectInterval = 1000,   // Start with 1 second
+    maxReconnectInterval = 30000,   // Max 30 seconds
+    maxReconnectAttempts = 10,      // More attempts with backoff
+    heartbeatInterval = 30000,      // Send heartbeat every 30s
     socketUrl = import.meta.env.VITE_WS_URL || import.meta.env.VITE_SOCKET_URL || 'ws://localhost:8000/ws/options',
   } = options;
 
   const reconnectAttemptsRef = useRef(0);
+  const lastPongTimeRef = useRef(null);
+
+  /**
+   * Calculate reconnect delay with exponential backoff and jitter
+   */
+  const getReconnectDelay = useCallback(() => {
+    const attempt = reconnectAttemptsRef.current;
+    // Exponential backoff: 1s, 2s, 4s, 8s, 16s, 30s, 30s...
+    const exponentialDelay = Math.min(
+      baseReconnectInterval * Math.pow(2, attempt),
+      maxReconnectInterval
+    );
+    // Add jitter (±25%) to prevent thundering herd
+    const jitter = exponentialDelay * 0.25 * (Math.random() - 0.5) * 2;
+    return Math.round(exponentialDelay + jitter);
+  }, [baseReconnectInterval, maxReconnectInterval]);
 
   /**
    * Decode message - handles both msgpack binary and JSON
@@ -52,10 +73,47 @@ const useSocket = (onDataReceived, options = {}) => {
 
   // Use ref for callback to prevent effect re-triggering when callback identity changes
   const onDataReceivedRef = useRef(onDataReceived);
-  
+
   useEffect(() => {
     onDataReceivedRef.current = onDataReceived;
   }, [onDataReceived]);
+
+  /**
+   * Start heartbeat to monitor connection health
+   */
+  const startHeartbeat = useCallback(() => {
+    if (heartbeatIntervalRef.current) {
+      clearInterval(heartbeatIntervalRef.current);
+    }
+
+    heartbeatIntervalRef.current = setInterval(() => {
+      if (socketRef.current?.readyState === WebSocket.OPEN) {
+        socketRef.current.send(JSON.stringify({ type: 'ping' }));
+
+        // Check connection quality based on last pong
+        if (lastPongTimeRef.current) {
+          const timeSinceLastPong = Date.now() - lastPongTimeRef.current;
+          if (timeSinceLastPong > heartbeatInterval * 2) {
+            setConnectionQuality('poor');
+          } else if (timeSinceLastPong > heartbeatInterval * 1.5) {
+            setConnectionQuality('degraded');
+          } else {
+            setConnectionQuality('good');
+          }
+        }
+      }
+    }, heartbeatInterval);
+  }, [heartbeatInterval]);
+
+  /**
+   * Stop heartbeat
+   */
+  const stopHeartbeat = useCallback(() => {
+    if (heartbeatIntervalRef.current) {
+      clearInterval(heartbeatIntervalRef.current);
+      heartbeatIntervalRef.current = null;
+    }
+  }, []);
 
   const connect = useCallback(() => {
     try {
@@ -78,7 +136,11 @@ const useSocket = (onDataReceived, options = {}) => {
         logger.log('✅ WebSocket Connected');
         setIsConnected(true);
         setError(null);
+        setConnectionQuality('good');
         reconnectAttemptsRef.current = 0;
+
+        // Start heartbeat monitoring
+        startHeartbeat();
 
         // Send ping to confirm connection
         if (socketRef.current.readyState === WebSocket.OPEN) {
@@ -91,9 +153,9 @@ const useSocket = (onDataReceived, options = {}) => {
         try {
           // Debug: Log raw message type
           logger.debug('📩 WebSocket raw message type:', typeof event.data, event.data instanceof Blob ? 'Blob' : event.data instanceof ArrayBuffer ? 'ArrayBuffer' : 'String');
-          
+
           const data = await decodeMessage(event.data);
-          
+
           // Debug: Log decoded data
           logger.debug('📦 WebSocket decoded data:', data?.type || 'live_data', data?.oc ? `(${Object.keys(data.oc).length} strikes)` : '');
 
@@ -109,7 +171,8 @@ const useSocket = (onDataReceived, options = {}) => {
             logger.log('✅ Unsubscribed');
             setSubscription(null);
           } else if (data.type === 'pong') {
-            // Heartbeat response
+            // Heartbeat response - update last pong time
+            lastPongTimeRef.current = Date.now();
           } else if (data.type === 'error') {
             console.error('WebSocket Error Message:', data.message);
             setError(data.message);
@@ -118,7 +181,7 @@ const useSocket = (onDataReceived, options = {}) => {
             if (error) setError(null); // Clear error if we start receiving data
             logger.debug('📡 Passing live data to callback');
             if (onDataReceivedRef.current) {
-                onDataReceivedRef.current(data);
+              onDataReceivedRef.current(data);
             }
           }
         } catch (err) {
@@ -131,6 +194,7 @@ const useSocket = (onDataReceived, options = {}) => {
         // Don't log full error object - too noisy
         setError('WebSocket connection error');
         setIsConnected(false);
+        setConnectionQuality('poor');
       };
 
       // Connection closed
@@ -138,21 +202,24 @@ const useSocket = (onDataReceived, options = {}) => {
         logger.log('🔌 WebSocket Disconnected:', event.code, event.reason);
         setIsConnected(false);
         setSubscription(null);
+        setConnectionQuality('unknown');
+        stopHeartbeat();
 
-        // Auto-reconnect logic
+        // Auto-reconnect logic with exponential backoff
         if (
           autoReconnect &&
           reconnectAttemptsRef.current < maxReconnectAttempts &&
           !event.wasClean
         ) {
           reconnectAttemptsRef.current += 1;
+          const delay = getReconnectDelay();
           logger.log(
-            `⏳ Reconnecting... Attempt ${reconnectAttemptsRef.current}/${maxReconnectAttempts}`
+            `⏳ Reconnecting in ${delay}ms... Attempt ${reconnectAttemptsRef.current}/${maxReconnectAttempts}`
           );
 
           reconnectTimeoutRef.current = setTimeout(() => {
             connect();
-          }, reconnectInterval);
+          }, delay);
         } else if (reconnectAttemptsRef.current >= maxReconnectAttempts) {
           console.warn('⚠️ WebSocket unavailable, using REST polling');
           setError('WebSocket unavailable - using polling');
@@ -163,7 +230,7 @@ const useSocket = (onDataReceived, options = {}) => {
       setError(err.message);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [socketUrl, autoReconnect, reconnectInterval, maxReconnectAttempts]);
+  }, [socketUrl, autoReconnect, maxReconnectAttempts, getReconnectDelay, startHeartbeat, stopHeartbeat]);
 
   // Disconnect function
   const disconnect = useCallback(() => {

@@ -33,6 +33,31 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Silence noisy third-party loggers that flood the logs with DEBUG messages
+_noisy_loggers = [
+    "httpcore",
+    "httpcore.connection",
+    "httpcore.http11",
+    "httpx",
+    "urllib3",
+    "urllib3.connectionpool",
+    "cachecontrol",
+    "cachecontrol.controller",
+    "asyncio",
+    "charset_normalizer",
+    "hpack",
+    # Internal loggers that create noise at DEBUG level
+    "app.services.config_service",
+    "app.services.dhan_client",
+    "app.services.dhan_ticks",  # Logs on every chart data request
+]
+for logger_name in _noisy_loggers:
+    logging.getLogger(logger_name).setLevel(logging.WARNING)
+
+# Completely disable uvicorn access logs (set to ERROR to only show errors)
+logging.getLogger("uvicorn.access").setLevel(logging.ERROR)
+logging.getLogger("uvicorn").setLevel(logging.WARNING)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator:
@@ -54,6 +79,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
     try:
         await init_redis()
         logger.info("Redis connected")
+        
+        # Initialize distributed metrics (uses Redis)
+        from app.core.metrics import init_metrics_redis
+        await init_metrics_redis()
+        logger.info("Distributed metrics initialized")
     except Exception as e:
         logger.warning(f"Redis connection failed: {e}")
     
@@ -71,12 +101,46 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
         logger.error(f"Database initialization failed: {e}")
         raise
     
+    # Initialize OpenTelemetry tracing
+    if settings.OTEL_ENABLED:
+        try:
+            from app.core.tracing import init_tracing
+            init_tracing(app=app)
+            logger.info("OpenTelemetry tracing enabled")
+        except Exception as e:
+            logger.warning(f"OpenTelemetry initialization failed: {e}")
+    
+    # Initialize background task queue
+    if settings.TASK_QUEUE_ENABLED:
+        try:
+            from app.core.task_queue import task_queue, init_background_tasks
+            await init_background_tasks()
+            logger.info("Background task queue initialized")
+        except Exception as e:
+            logger.warning(f"Task queue initialization failed: {e}")
+    
     logger.info(f"{settings.APP_NAME} started successfully")
     
     yield
     
     # Shutdown
     logger.info("Shutting down...")
+    
+    # Stop background task workers
+    if settings.TASK_QUEUE_ENABLED:
+        try:
+            from app.core.task_queue import task_queue
+            task_queue.stop_worker()
+        except Exception:
+            pass
+    
+    # Shutdown tracing
+    if settings.OTEL_ENABLED:
+        try:
+            from app.core.tracing import shutdown_tracing
+            shutdown_tracing()
+        except Exception:
+            pass
     
     await close_redis()
     await close_db()

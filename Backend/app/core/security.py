@@ -2,6 +2,7 @@
 Security utilities - Firebase token verification and authentication
 """
 import logging
+import time
 from typing import Optional, Dict, Any
 from datetime import datetime
 
@@ -15,6 +16,19 @@ logger = logging.getLogger(__name__)
 
 # Initialize Firebase Admin SDK
 _firebase_app: Optional[firebase_admin.App] = None
+
+# Rate limiting for token error logs (to prevent log spam)
+_last_token_error_log = 0
+_TOKEN_ERROR_LOG_INTERVAL = 60  # Only log token errors once per minute
+
+
+def _log_token_error_throttled(message: str) -> None:
+    """Log token errors at most once per minute to prevent log spam."""
+    global _last_token_error_log
+    current_time = time.time()
+    if current_time - _last_token_error_log >= _TOKEN_ERROR_LOG_INTERVAL:
+        logger.warning(message)
+        _last_token_error_log = current_time
 
 
 def init_firebase() -> None:
@@ -82,16 +96,15 @@ def verify_firebase_token(token: str) -> Optional[Dict[str, Any]]:
             "auth_time": decoded_token.get("auth_time"),
         }
     except ExpiredIdTokenError:
-        logger.warning(f"Firebase token expired for token: {token[:10]}...")
+        _log_token_error_throttled("Firebase token expired")
         return None
     except InvalidIdTokenError as e:
-        logger.warning(f"Invalid Firebase token: {e}. Token: {token[:10]}...")
+        _log_token_error_throttled(f"Invalid Firebase token: {e}")
         return None
     except Exception as e:
-        logger.warning(f"Error verifying Firebase token: {e}")
+        _log_token_error_throttled(f"Error verifying Firebase token: {e}")
         # In development, try to decode token payload without verification
         if settings.is_development:
-            logger.warning("DEV MODE: Bypassing token verification failure")
             try:
                 # Decode JWT payload without verification (Header.Payload.Signature)
                 import base64
@@ -109,7 +122,7 @@ def verify_firebase_token(token: str) -> Optional[Dict[str, Any]]:
                     uid = decoded_payload.get("user_id") or decoded_payload.get("sub") or decoded_payload.get("uid")
                     
                     if email and uid:
-                        logger.info(f"DEV MODE: Extracted user from token: {email}")
+                        # Extract successful in dev mode - no need to log every time
                         return {
                             "uid": uid,
                             "email": email,

@@ -1,0 +1,63 @@
+# Kubernetes Ingress for Stockify
+# Supports WebSocket with sticky sessions for million-user scale
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: stockify-ingress
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    
+    # WebSocket timeout configuration
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    
+    # WebSocket sticky sessions (cookie-based)
+    nginx.ingress.kubernetes.io/affinity: "cookie"
+    nginx.ingress.kubernetes.io/session-cookie-name: "STOCKIFY_SESSION"
+    nginx.ingress.kubernetes.io/session-cookie-hash: "sha1"
+    nginx.ingress.kubernetes.io/session-cookie-max-age: "86400"
+    nginx.ingress.kubernetes.io/session-cookie-path: "/"
+    
+    # Upstream hash by for non-cookie clients
+    nginx.ingress.kubernetes.io/upstream-hash-by: "$remote_addr"
+    
+    # SSL
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    
+    # Rate limiting at ingress level (increased for scale)
+    nginx.ingress.kubernetes.io/limit-connections: "200"
+    nginx.ingress.kubernetes.io/limit-rps: "500"
+    
+    # CORS for WebSocket
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "*"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
+    
+spec:
+  tls:
+  - hosts:
+    - api.stockify.example.com
+    secretName: stockify-tls
+  rules:
+  - host: api.stockify.example.com
+    http:
+      paths:
+      # WebSocket path with specific settings
+      - path: /ws
+        pathType: Prefix
+        backend:
+          service:
+            name: stockify-api
+            port:
+              number: 8000
+      # API paths
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: stockify-api
+            port:
+              number: 8000
+

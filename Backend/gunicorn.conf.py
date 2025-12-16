@@ -11,6 +11,9 @@ workers = int(os.environ.get("GUNICORN_WORKERS", multiprocessing.cpu_count() * 2
 worker_class = "uvicorn.workers.UvicornWorker"
 threads = int(os.environ.get("GUNICORN_THREADS", 4))
 
+# Uvicorn worker configuration - disable access logs since our middleware handles this
+worker_class_args = {"access_log": False}
+
 # Binding
 bind = os.environ.get("GUNICORN_BIND", "0.0.0.0:8000")
 
@@ -23,9 +26,9 @@ graceful_timeout = int(os.environ.get("GUNICORN_GRACEFUL_TIMEOUT", 30))
 max_requests = int(os.environ.get("GUNICORN_MAX_REQUESTS", 10000))
 max_requests_jitter = int(os.environ.get("GUNICORN_MAX_REQUESTS_JITTER", 1000))
 
-# Logging
-loglevel = os.environ.get("GUNICORN_LOG_LEVEL", "info")
-accesslog = os.environ.get("GUNICORN_ACCESS_LOG", "-")
+# Logging - Disable access logs since FastAPI middleware handles this
+loglevel = os.environ.get("GUNICORN_LOG_LEVEL", "warning")  # Reduced from info
+accesslog = None  # Disable gunicorn access logs (FastAPI middleware logs requests)
 errorlog = os.environ.get("GUNICORN_ERROR_LOG", "-")
 access_log_format = '%(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s" %(D)s'
 

@@ -3,7 +3,7 @@ API v1 Router - Aggregates all API endpoints
 """
 from fastapi import APIRouter
 
-from app.api.v1 import auth, users, options, admin, health, analytics, charts, monitoring, historical, screeners, calculators, notifications, profile
+from app.api.v1 import auth, users, options, admin, health, analytics, charts, monitoring, historical, screeners, calculators, notifications, profile, sse
 
 api_router = APIRouter()
 
@@ -84,3 +84,11 @@ api_router.include_router(
     prefix="/profile",
     tags=["Profile"]
 )
+
+# SSE fallback for WebSocket alternatives
+api_router.include_router(
+    sse.router,
+    prefix="/sse",
+    tags=["SSE Fallback"]
+)
+

@@ -7,7 +7,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // https://vitejs.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [react()],
 
   resolve: {
@@ -19,49 +19,126 @@ export default defineConfig({
   optimizeDeps: {
     include: [
       'firebase/app',
-      'firebase/auth'
+      'firebase/auth',
+      'react',
+      'react-dom',
+      'react-router-dom',
     ]
   },
 
+  // Enable compression in preview mode
+  preview: {
+    headers: {
+      'Cache-Control': 'public, max-age=31536000',
+    }
+  },
+
   build: {
-    sourcemap: true,
-    // Increase chunk size warning limit (optional, but shows we're aware)
-    chunkSizeWarningLimit: 600,
+    // Generate sourcemaps only in development
+    sourcemap: mode === 'development',
+
+    // Target modern browsers for smaller bundles
+    target: 'es2020',
+
+    // Minification settings
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: mode === 'production',
+        drop_debugger: mode === 'production',
+      },
+    },
+
+    // CSS optimization
+    cssCodeSplit: true,
+    cssMinify: true,
+
+    // Chunk size warning limit
+    chunkSizeWarningLimit: 500,
+
     rollupOptions: {
       output: {
-        // Manual chunks for better code splitting
+        // Optimize asset file names with hash for caching
+        assetFileNames: (assetInfo) => {
+          const info = assetInfo.name.split('.');
+          const ext = info[info.length - 1];
+          if (/png|jpe?g|svg|gif|tiff|bmp|ico/i.test(ext)) {
+            return `assets/images/[name]-[hash][extname]`;
+          }
+          if (/css/i.test(ext)) {
+            return `assets/css/[name]-[hash][extname]`;
+          }
+          return `assets/[name]-[hash][extname]`;
+        },
+        chunkFileNames: 'assets/js/[name]-[hash].js',
+        entryFileNames: 'assets/js/[name]-[hash].js',
+
+        // Manual chunks for optimal code splitting
         manualChunks: (id) => {
-          // Firebase in its own chunk
+          // React core - rarely changes
+          if (id.includes('node_modules/react/') ||
+            id.includes('node_modules/react-dom/')) {
+            return 'react-core';
+          }
+
+          // Router - separate from core
+          if (id.includes('node_modules/react-router')) {
+            return 'router';
+          }
+
+          // Firebase in its own chunk (large, lazy-loaded)
           if (id.includes('node_modules/firebase')) {
             return 'firebase';
           }
-          // Chart libraries
+
+          // Chart libraries (heavy, lazy-loaded pages only)
           if (id.includes('node_modules/chart.js') ||
             id.includes('node_modules/lightweight-charts') ||
             id.includes('node_modules/recharts')) {
             return 'charts';
           }
+
           // Animation libraries
           if (id.includes('node_modules/framer-motion')) {
             return 'animations';
           }
+
           // Redux and state management
           if (id.includes('node_modules/@reduxjs') ||
             id.includes('node_modules/redux') ||
-            id.includes('node_modules/react-redux')) {
-            return 'redux';
+            id.includes('node_modules/react-redux') ||
+            id.includes('node_modules/redux-persist')) {
+            return 'state';
           }
+
           // UI components and icons
-          if (id.includes('node_modules/@heroicons')) {
-            return 'icons';
+          if (id.includes('node_modules/@heroicons') ||
+            id.includes('node_modules/@headlessui') ||
+            id.includes('node_modules/react-icons')) {
+            return 'ui-components';
           }
-          // Other large vendor chunks
+
+          // Network/data utilities
           if (id.includes('node_modules/axios') ||
             id.includes('node_modules/@msgpack')) {
             return 'network';
           }
+
+          // Remaining vendor code
+          if (id.includes('node_modules')) {
+            return 'vendor';
+          }
         }
       }
-    }
-  }
-});
+    },
+
+    // Report compressed sizes
+    reportCompressedSize: true,
+  },
+
+  // Optimize for production
+  esbuild: {
+    // Drop console.log in production
+    drop: mode === 'production' ? ['console', 'debugger'] : [],
+  },
+}));

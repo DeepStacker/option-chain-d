@@ -1,0 +1,101 @@
+name: stockify-platform
+
+services:
+  # ═══════════════════════════════════════════════════════════════════
+  # PostgreSQL Database
+  # ═══════════════════════════════════════════════════════════════════
+  postgres:
+    image: postgres:15-alpine
+    container_name: stockify-postgres
+    environment:
+      POSTGRES_USER: stockify
+      POSTGRES_PASSWORD: stockify_secure_password
+      POSTGRES_DB: stockify
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./Backend/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U stockify"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - stockify-network
+
+  # ═══════════════════════════════════════════════════════════════════
+  # Redis Cache
+  # ═══════════════════════════════════════════════════════════════════
+  redis:
+    image: redis:7-alpine
+    container_name: stockify-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - stockify-network
+
+  # ═══════════════════════════════════════════════════════════════════
+  # Backend API
+  # ═══════════════════════════════════════════════════════════════════
+  backend:
+    build:
+      context: ./Backend
+      dockerfile: Dockerfile
+    container_name: stockify-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://stockify:stockify_secure_password@postgres:5432/stockify
+      - REDIS_URL=redis://redis:6379/0
+      - LOG_LEVEL=INFO
+      - UVICORN_ACCESS_LOG=false
+      - CORS_ORIGINS=["http://localhost:5173","http://localhost:3000","http://localhost:80"]
+    env_file:
+      - ./Backend/.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./Backend/app:/app/app
+      - ./Backend/credentials:/app/credentials
+    command: gunicorn --config gunicorn.conf.py app.main:app
+    restart: unless-stopped
+    networks:
+      - stockify-network
+
+  # ═══════════════════════════════════════════════════════════════════
+  # Frontend
+  # ═══════════════════════════════════════════════════════════════════
+  frontend:
+    build:
+      context: ./Frontend
+      dockerfile: Dockerfile
+    container_name: stockify-frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - stockify-network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  stockify-network:
+    driver: bridge

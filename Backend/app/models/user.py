@@ -7,7 +7,7 @@ from typing import Optional
 from uuid import uuid4
 
 from sqlalchemy import (
-    Column, String, Boolean, DateTime, Enum, Text
+    Column, String, Boolean, DateTime, Enum, Text, Index
 )
 from sqlalchemy.dialects.postgresql import UUID
 
@@ -25,6 +25,16 @@ class User(Base, TimestampMixin):
     """User model for authentication and authorization"""
     
     __tablename__ = "users"
+    
+    # Composite indexes for common query patterns
+    __table_args__ = (
+        # Index for filtering active users by role (admin dashboards)
+        Index('ix_users_active_role', 'is_active', 'role'),
+        # Index for premium subscription queries
+        Index('ix_users_role_subscription', 'role', 'subscription_expires'),
+        # Index for last login tracking
+        Index('ix_users_last_login', 'last_login'),
+    )
     
     # Primary key
     id = Column(

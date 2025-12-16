@@ -1,6 +1,6 @@
 """
 WebSocket Connection Manager
-Handles WebSocket connections and broadcasting
+Handles WebSocket connections and broadcasting with Redis Pub/Sub for horizontal scaling
 """
 import logging
 import asyncio
@@ -9,6 +9,8 @@ from dataclasses import dataclass, field
 
 from fastapi import WebSocket
 import msgpack
+
+from app.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -24,8 +26,12 @@ class ClientSubscription:
 
 class ConnectionManager:
     """
-    WebSocket connection manager.
-    Handles client connections, subscriptions, and broadcasting.
+    WebSocket connection manager with Redis Pub/Sub support.
+    
+    Handles:
+    - Local client connections and subscriptions
+    - Cross-instance broadcasting via Redis Pub/Sub
+    - Graceful fallback to local-only when Redis unavailable
     """
     
     def __init__(self):
@@ -41,6 +47,24 @@ class ConnectionManager:
         
         # Lock for thread-safe operations
         self._lock = asyncio.Lock()
+        
+        # Redis Pub/Sub manager (lazy initialization)
+        self._pubsub = None
+        self._pubsub_initialized = False
+    
+    async def _get_pubsub(self):
+        """Lazily initialize Redis Pub/Sub manager"""
+        if not self._pubsub_initialized:
+            try:
+                from app.api.websocket.pubsub import pubsub_manager, init_pubsub
+                await init_pubsub()
+                self._pubsub = pubsub_manager
+                self._pubsub_initialized = True
+                logger.info("WebSocket manager connected to Redis Pub/Sub")
+            except Exception as e:
+                logger.warning(f"Redis Pub/Sub not available, using local-only mode: {e}")
+                self._pubsub_initialized = True  # Don't retry
+        return self._pubsub
     
     async def connect(self, websocket: WebSocket, client_id: str) -> bool:
         """
@@ -59,7 +83,7 @@ class ConnectionManager:
             async with self._lock:
                 self.active_connections[client_id] = websocket
             
-            logger.info(f"Client connected: {client_id}")
+            logger.info(f"Client connected: {client_id} (total: {len(self.active_connections)})")
             
             # Send connection confirmation
             await self.send_personal_message(
@@ -94,8 +118,12 @@ class ConnectionManager:
                     self.subscription_groups[group_key].discard(client_id)
                     if not self.subscription_groups[group_key]:
                         del self.subscription_groups[group_key]
+                        # Unsubscribe from Redis channel if no more local subscribers
+                        pubsub = await self._get_pubsub()
+                        if pubsub:
+                            await pubsub.unsubscribe(sub.symbol, sub.expiry)
         
-        logger.info(f"Client disconnected: {client_id}")
+        logger.info(f"Client disconnected: {client_id} (total: {len(self.active_connections)})")
     
     async def subscribe(
         self,
@@ -136,9 +164,20 @@ class ConnectionManager:
             
             # Add to new subscription group
             group_key = f"{symbol.upper()}:{expiry}"
-            if group_key not in self.subscription_groups:
+            is_new_group = group_key not in self.subscription_groups
+            if is_new_group:
                 self.subscription_groups[group_key] = set()
             self.subscription_groups[group_key].add(client_id)
+        
+        # Subscribe to Redis channel if this is a new group on this instance
+        if is_new_group:
+            pubsub = await self._get_pubsub()
+            if pubsub:
+                await pubsub.subscribe(
+                    symbol.upper(), 
+                    expiry, 
+                    lambda data: self._handle_pubsub_message(symbol.upper(), expiry, data)
+                )
         
         logger.info(f"Client {client_id} subscribed to {symbol}:{expiry}")
         
@@ -153,6 +192,10 @@ class ConnectionManager:
         )
         
         return True
+    
+    async def _handle_pubsub_message(self, symbol: str, expiry: str, data: bytes):
+        """Handle message received from Redis Pub/Sub - forward to local clients"""
+        await self._broadcast_to_local_clients(symbol, expiry, data)
     
     async def unsubscribe(self, client_id: str) -> bool:
         """
@@ -222,6 +265,7 @@ class ConnectionManager:
     ) -> int:
         """
         Broadcast data to all clients subscribed to a symbol/expiry.
+        Uses Redis Pub/Sub to reach clients on other instances.
         
         Args:
             symbol: Trading symbol
@@ -229,9 +273,27 @@ class ConnectionManager:
             data: Data to broadcast
             
         Returns:
-            Number of clients sent to
+            Number of LOCAL clients sent to (other instances handled by Redis)
         """
-        group_key = f"{symbol.upper()}:{expiry}"
+        # Encode once
+        packed_data = msgpack.packb(data)
+        
+        # Publish to Redis for cross-instance broadcast
+        pubsub = await self._get_pubsub()
+        if pubsub:
+            await pubsub.publish(symbol.upper(), expiry, packed_data)
+        
+        # Also broadcast to local clients directly (in case Redis is slow or unavailable)
+        return await self._broadcast_to_local_clients(symbol.upper(), expiry, packed_data)
+    
+    async def _broadcast_to_local_clients(
+        self,
+        symbol: str,
+        expiry: str,
+        packed_data: bytes
+    ) -> int:
+        """Broadcast pre-packed data to local clients only"""
+        group_key = f"{symbol}:{expiry}"
         
         async with self._lock:
             clients = self.subscription_groups.get(group_key, set()).copy()
@@ -239,8 +301,6 @@ class ConnectionManager:
         if not clients:
             return 0
         
-        # Encode once for all clients
-        packed_data = msgpack.packb(data)
         sent_count = 0
         disconnected = []
         
@@ -305,3 +365,4 @@ class ConnectionManager:
 
 # Global connection manager instance
 manager = ConnectionManager()
+

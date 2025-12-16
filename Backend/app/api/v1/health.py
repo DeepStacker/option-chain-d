@@ -5,6 +5,7 @@ from datetime import datetime
 import time
 
 from fastapi import APIRouter, Depends
+from fastapi.responses import PlainTextResponse
 
 from app.config.settings import settings
 from app.config.database import check_db_connection
@@ -70,3 +71,14 @@ async def root():
         "status": "running",
         "docs": "/docs"
     }
+
+
+@router.get("/metrics", response_class=PlainTextResponse)
+async def metrics():
+    """
+    Prometheus metrics endpoint.
+    Returns metrics in Prometheus text format for scraping.
+    """
+    from app.core.metrics import format_prometheus_metrics
+    return format_prometheus_metrics()
+

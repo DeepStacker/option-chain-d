@@ -256,17 +256,40 @@ class DhanClient:
         }
         
         try:
+            # Use futures endpoint which has opsum with real-time expiry dates
             data = await self._request(
-                settings.DHAN_FUTURES_ENDPOINT, # Use Futures endpoint for expiry list
+                settings.DHAN_FUTURES_ENDPOINT,
                 payload,
                 use_cache=True,
                 cache_ttl=settings.REDIS_EXPIRY_CACHE_TTL
             )
             
+            # Get expiry from opsum keys (expiry timestamps are the keys in opsum dict)
+            raw_data = data.get("data", {}) or {}
+            opsum = raw_data.get("opsum", {}) or {}
+            
+            logger.info(f"Dhan Futures API opsum keys count: {len(opsum.keys())}")
+            logger.info(f"Dhan Futures API opsum sample keys: {list(opsum.keys())[:5]}")
+            
+            # opsum keys are the expiry timestamps as strings
+            exp_list = list(opsum.keys())
+            
+            # Convert to integers - accept all valid numeric values
             int_exp_list = []
-            explst = list(data.get("data",{}).get("opsum",{}).keys())
-
-            int_exp_list = [int(exp) for exp in explst if exp.isdigit()]
+            for exp in exp_list:
+                try:
+                    exp_int = int(exp)
+                    int_exp_list.append(exp_int)
+                except (ValueError, TypeError):
+                    continue
+            
+            # Sort expiry dates (ascending - nearest first)
+            int_exp_list.sort()
+            
+            logger.info(f"Found {len(int_exp_list)} valid expiry dates for {symbol}")
+            if int_exp_list:
+                logger.info(f"First expiry: {int_exp_list[0]}, Last: {int_exp_list[-1]}")
+            
             # Cache result
             if self.cache and int_exp_list:
                 await self.cache.set_json(
@@ -301,7 +324,13 @@ class DhanClient:
                 pass
 
         if not expiry:
-            expiry = (await self.get_expiry_dates(symbol))[0]
+            expiry_list = await self.get_expiry_dates(symbol)
+            if not expiry_list:
+                raise ExternalAPIException(
+                    service="Dhan API",
+                    detail=f"No expiry dates available for {symbol}. Please check your Dhan API token."
+                )
+            expiry = expiry_list[0]
         
         payload = {
             "Data": {
