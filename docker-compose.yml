@@ -77,15 +77,31 @@ services:
       - stockify-network
 
   # ═══════════════════════════════════════════════════════════════════
-  # Frontend
+  # Frontend (Development with Hot Reload)
   # ═══════════════════════════════════════════════════════════════════
   frontend:
     build:
       context: ./Frontend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     container_name: stockify-frontend
     ports:
-      - "5173:80"
+      - "5173:5173"
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+      - WATCHPACK_POLLING=true
+      - VITE_API_URL=http://localhost:8000
+    volumes:
+      # Mount source for hot reload (exclude node_modules)
+      - ./Frontend/src:/app/src
+      - ./Frontend/public:/app/public
+      - ./Frontend/index.html:/app/index.html
+      - ./Frontend/vite.config.js:/app/vite.config.js
+      - ./Frontend/tailwind.config.js:/app/tailwind.config.js
+      - ./Frontend/postcss.config.js:/app/postcss.config.js
+      # Mount .env for Firebase and API config
+      - ./Frontend/.env:/app/.env
+      # Preserve container's node_modules (prevents host overrides)
+      - /app/node_modules
     depends_on:
       - backend
     restart: unless-stopped

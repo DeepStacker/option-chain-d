@@ -53,6 +53,7 @@ api_router.include_router(
 
 api_router.include_router(
     monitoring.router,
+    # Note: monitoring.router already has prefix="/admin/monitoring" defined
     tags=["Monitoring"]
 )
 

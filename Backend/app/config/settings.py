@@ -83,7 +83,7 @@ class Settings(BaseSettings):
     )
     REDIS_CACHE_TTL: int = Field(default=300, description="Default cache TTL in seconds")
     REDIS_POOL_MAX_SIZE: int = Field(default=500, description="Max Redis connections per pod (increased for scale)")
-    REDIS_OPTIONS_CACHE_TTL: int = Field(default=2, description="Options data cache TTL (2s = ~500 requests/minute max to Dhan API)")
+    REDIS_OPTIONS_CACHE_TTL: int = Field(default=0, description="Options data cache TTL (0 = no cache for real-time, bypasses stale data)")
     REDIS_EXPIRY_CACHE_TTL: int = Field(default=3600, description="Expiry dates cache TTL")
     REDIS_CONFIG_CACHE_TTL: int = Field(default=3600, description="Config cache TTL")
     
@@ -107,9 +107,9 @@ class Settings(BaseSettings):
     DHAN_OPTIONS_CHAIN_ENDPOINT: str = Field(default="/optchain")
     DHAN_SPOT_ENDPOINT: str = Field(default="/rtscrdt")
     DHAN_FUTURES_ENDPOINT: str = Field(default="/futoptsum")
-    DHAN_API_TIMEOUT: int = Field(default=10, description="API timeout in seconds (reduced for faster failover)")
-    DHAN_API_RETRY_COUNT: int = Field(default=2, description="Fewer retries for faster response")
-    DHAN_API_RETRY_DELAY: float = Field(default=0.3, description="Retry delay in seconds (reduced for faster response)")
+    DHAN_API_TIMEOUT: int = Field(default=5, description="API timeout in seconds (reduced for real-time)")
+    DHAN_API_RETRY_COUNT: int = Field(default=1, description="Single retry for faster failover")
+    DHAN_API_RETRY_DELAY: float = Field(default=0.2, description="Retry delay in seconds (minimal for speed)")
     DHAN_AUTH_TOKEN: Optional[str] = Field(default=None, description="Dhan API Auth Token")
     
     # ═══════════════════════════════════════════════════════════════════
@@ -124,6 +124,7 @@ class Settings(BaseSettings):
     WS_HEARTBEAT_INTERVAL: int = Field(default=30)
     WS_MAX_CONNECTIONS: int = Field(default=50000, description="Max WebSocket connections per server (increased for scale)")
     WS_BROADCAST_INTERVAL: float = Field(default=0.25, description="Live data broadcast interval (250ms for faster updates)")
+    WS_CHARTS_BROADCAST_INTERVAL: float = Field(default=0.25, description="Charts data broadcast interval (250ms for real-time)")
     
     # ═══════════════════════════════════════════════════════════════════
     # Trading Defaults

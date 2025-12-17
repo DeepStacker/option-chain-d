@@ -82,6 +82,51 @@ def generate_mock_timeseries(
 
 # ============== Endpoints ==============
 
+# NOTE: Spot endpoint MUST be defined before strike endpoint because FastAPI
+# matches routes in order, and "/timeseries/spot/{symbol}" would otherwise
+# match "/timeseries/{symbol}/{strike}" with symbol="spot"
+
+@router.get("/timeseries/spot/{symbol}")
+async def get_spot_timeseries(
+    symbol: str,
+    interval: str = Query("5m", regex="^(1m|5m|15m|1h|1d)$"),
+    limit: int = Query(100, ge=10, le=500),
+    current_user: OptionalUser = None,
+    service: OptionsService = Depends(get_analytics_service),
+) -> TimeSeriesResponse:
+    """Get spot price time-series for an index."""
+    symbol = symbol.upper()
+    
+    try:
+        live_data = await service.get_live_data(symbol=symbol, expiry="")
+        current_value = live_data.get("spot", {}).get("ltp", 25000)
+    except:
+        current_value = 25000
+    
+    timeseries = generate_mock_timeseries(
+        field="spot",
+        current_value=float(current_value),
+        points=limit,
+        volatility=0.001
+    )
+    
+    values = [p.value for p in timeseries]
+    summary = {
+        "min": round(min(values), 2),
+        "max": round(max(values), 2),
+        "open": round(values[0], 2),
+        "close": round(values[-1], 2),
+        "change": round(values[-1] - values[0], 2),
+    }
+    
+    return TimeSeriesResponse(
+        symbol=symbol,
+        field="spot",
+        data=timeseries,
+        summary=summary
+    )
+
+
 @router.get("/timeseries/{symbol}/{strike}")
 async def get_strike_timeseries(
     symbol: str,
@@ -160,43 +205,3 @@ async def get_strike_timeseries(
         summary=summary
     )
 
-
-@router.get("/timeseries/spot/{symbol}")
-async def get_spot_timeseries(
-    symbol: str,
-    interval: str = Query("5m", regex="^(1m|5m|15m|1h|1d)$"),
-    limit: int = Query(100, ge=10, le=500),
-    current_user: OptionalUser = None,
-    service: OptionsService = Depends(get_analytics_service),
-) -> TimeSeriesResponse:
-    """Get spot price time-series for an index."""
-    symbol = symbol.upper()
-    
-    try:
-        live_data = await service.get_live_data(symbol=symbol, expiry="")
-        current_value = live_data.get("spot", {}).get("ltp", 25000)
-    except:
-        current_value = 25000
-    
-    timeseries = generate_mock_timeseries(
-        field="spot",
-        current_value=float(current_value),
-        points=limit,
-        volatility=0.001
-    )
-    
-    values = [p.value for p in timeseries]
-    summary = {
-        "min": round(min(values), 2),
-        "max": round(max(values), 2),
-        "open": round(values[0], 2),
-        "close": round(values[-1], 2),
-        "change": round(values[-1] - values[0], 2),
-    }
-    
-    return TimeSeriesResponse(
-        symbol=symbol,
-        field="spot",
-        data=timeseries,
-        summary=summary
-    )

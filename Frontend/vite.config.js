@@ -26,6 +26,21 @@ export default defineConfig(({ mode }) => ({
     ]
   },
 
+  // Server configuration for Docker hot reload
+  server: {
+    host: '0.0.0.0',
+    port: 5173,
+    strictPort: true,
+    watch: {
+      usePolling: true,
+      interval: 100,
+    },
+    hmr: {
+      clientPort: 5173,
+      host: 'localhost',
+    },
+  },
+
   // Enable compression in preview mode
   preview: {
     headers: {

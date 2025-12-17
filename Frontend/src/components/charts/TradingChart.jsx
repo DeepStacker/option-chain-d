@@ -29,6 +29,7 @@ import {
 } from "../../utils/chartUtils";
 import SymbolSelector from "./SymbolSelector";
 import { analyticsService } from "../../services/analyticsService";
+import useChartSocket from "../../hooks/useChartSocket";
 
 const TradingChart = React.memo(({ embedded = false }) => {
   const dispatch = useDispatch();
@@ -336,10 +337,60 @@ const TradingChart = React.memo(({ embedded = false }) => {
     if (symbols.length === 0) loadSymbols();
   }, [symbols.length, loadSymbols]);
 
-  // Fetch chart data
+  // Fetch chart data - Initial load and fallback
   const chartSymbol = sid || currentSymbol?.symbol || "NIFTY";
+
+  // WebSocket tick handler - updates last candle in real-time
+  const handleChartTick = useCallback((tickData) => {
+    if (!candleSeriesRef.current || !tickData?.candle) return;
+
+    const candle = tickData.candle;
+    const formattedCandle = {
+      time: candle.time,
+      open: candle.open,
+      high: candle.high,
+      low: candle.low,
+      close: candle.close,
+    };
+
+    // Update the last candle (or add new one if time changed)
+    if (tickData.is_new) {
+      // New candle - append to series
+      candleSeriesRef.current.update(formattedCandle);
+    } else {
+      // Update existing candle
+      candleSeriesRef.current.update(formattedCandle);
+    }
+
+    // Update OHLC display and live price
+    setOhlcData({
+      open: candle.open.toFixed(2),
+      high: candle.high.toFixed(2),
+      low: candle.low.toFixed(2),
+      close: candle.close.toFixed(2),
+      time: formatTimeForIST(candle.time),
+    });
+    setLivePrice(candle.close);
+  }, []);
+
+  // Chart WebSocket hook
+  const {
+    isConnected: wsConnected,
+    subscribe: wsSubscribe,
+    connectionQuality
+  } = useChartSocket(handleChartTick, { autoConnect: true });
+
+  // Subscribe to WebSocket when connected and symbol/timeframe changes
+  useEffect(() => {
+    if (wsConnected && chartSymbol && timeframe) {
+      wsSubscribe(chartSymbol, timeframe);
+    }
+  }, [wsConnected, chartSymbol, timeframe, wsSubscribe]);
+
+  // Initial data load + fallback polling (when WS disconnected)
   useEffect(() => {
     if (!chartSymbol || !candleSeriesRef.current) return;
+
     const fetchChartData = async () => {
       dispatch(setConnectionStatus("loading"));
       try {
@@ -369,10 +420,18 @@ const TradingChart = React.memo(({ embedded = false }) => {
         dispatch(setConnectionStatus("error"));
       }
     };
+
+    // Always fetch initial data
     fetchChartData();
-    const intervalId = setInterval(fetchChartData, 30000);
-    return () => clearInterval(intervalId);
-  }, [chartSymbol, timeframe, dispatch]);
+
+    // Fallback polling only when WebSocket is not connected
+    // When WS is connected, we get real-time ticks
+    const pollingInterval = wsConnected ? null : setInterval(fetchChartData, 5000); // 5s polling fallback
+
+    return () => {
+      if (pollingInterval) clearInterval(pollingInterval);
+    };
+  }, [chartSymbol, timeframe, dispatch, wsConnected]);
 
   // Toggle handlers
   const handleDailyToggle = useCallback((checked) => dispatch(setDaily(checked)), [dispatch]);

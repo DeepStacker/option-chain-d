@@ -46,3 +46,16 @@ ENV/
 db_controller.log
 Backend/credentials/firebase-credentials.json
 Backend/secret.key
+Backend/audit_results/api_audit_report.json
+.gitignore
+Backend/audit_results/api_audit_responses.json
+.gitignore
+Backend/audit_results_final/api_audit_report.json
+Backend/audit_results_final/api_audit_responses.json
+Backend/audit_results_v2/api_audit_report.json
+.gitignore
+Backend/audit_results_v2/api_audit_responses.json
+.gitignore
+Backend/audit_results_v3/api_audit_report.json
+.gitignore
+Backend/audit_results_v3/api_audit_responses.json

@@ -261,6 +261,17 @@ async def options_websocket(websocket: WebSocket):
     await websocket_endpoint(websocket)
 
 
+# Charts WebSocket endpoint - real-time OHLCV data
+@app.websocket("/ws/charts")
+async def charts_websocket(websocket: WebSocket):
+    """
+    WebSocket endpoint for live chart data (OHLCV).
+    Streams at 250ms intervals with msgpack compression.
+    """
+    from app.api.websocket.charts_handlers import charts_websocket_endpoint
+    await charts_websocket_endpoint(websocket)
+
+
 # Root endpoint
 @app.get("/")
 async def root():

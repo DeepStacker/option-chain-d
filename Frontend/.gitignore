@@ -22,3 +22,8 @@ node_modules
 *.sw?
 
 .vercel
+
+# Build output
+dist
+dist/
+

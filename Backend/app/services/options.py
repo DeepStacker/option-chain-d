@@ -423,34 +423,64 @@ class OptionsService:
         expiry: str
     ) -> Dict[str, Any]:
         """Get future price analysis"""
-        chain_data = await self.dhan.get_option_chain(symbol, expiry)
-        futures_data = await self.dhan.get_futures_data(symbol)
-        
-        spot = chain_data.get("spot", {}).get("ltp", 0) if chain_data else 0
-        T_days = self._calculate_days_to_expiry(int(expiry))
-        
-        # Find matching future
-        current_future = None
-        for fut in futures_data:
-            if fut.get("expiry") == expiry:
-                current_future = fut
-                break
-        
-        if not current_future and futures_data:
-            current_future = futures_data[0]
-        
-        future_price = current_future.get("ltp", 0) if current_future else 0
-        basis = future_price - spot if future_price and spot else 0
-        
-        return {
-            "symbol": symbol,
-            "spot": spot,
-            "future_price": future_price,
-            "basis": round(basis, 2),
-            "basis_percent": round(basis / spot * 100, 4) if spot > 0 else 0,
-            "days_to_expiry": T_days,
-            "future_oi": current_future.get("oi", 0) if current_future else 0,
-        }
+        try:
+            chain_data = await self.dhan.get_option_chain(symbol, expiry)
+            spot = chain_data.get("spot", {}).get("ltp", 0) if chain_data else 0
+            T_days = self._calculate_days_to_expiry(int(expiry)) if expiry else 0
+            
+            # Try to get futures data, but handle failures gracefully
+            futures_data = []
+            try:
+                futures_data = await self.dhan.get_futures_data(symbol)
+            except Exception as e:
+                logger.warning(f"Failed to fetch futures data for {symbol}: {e}")
+                
+            # If futures_data fetch failed, try to extract from chain_data instead
+            if not futures_data and chain_data:
+                fl = chain_data.get("future", {})
+                if fl:
+                    for exp_key, fut_data in fl.items():
+                        futures_data.append({
+                            "expiry": exp_key,
+                            "ltp": fut_data.get("ltp", 0),
+                            "oi": fut_data.get("oi", 0),
+                        })
+            
+            # Find matching future
+            current_future = None
+            if isinstance(futures_data, list):
+                for fut in futures_data:
+                    if str(fut.get("expiry")) == str(expiry):
+                        current_future = fut
+                        break
+                
+                if not current_future and futures_data:
+                    current_future = futures_data[0]
+            
+            future_price = current_future.get("ltp", 0) if current_future else 0
+            basis = future_price - spot if future_price and spot else 0
+            
+            return {
+                "symbol": symbol,
+                "spot": spot,
+                "future_price": future_price,
+                "basis": round(basis, 2),
+                "basis_percent": round(basis / spot * 100, 4) if spot > 0 else 0,
+                "days_to_expiry": T_days,
+                "future_oi": current_future.get("oi", 0) if current_future else 0,
+            }
+        except Exception as e:
+            logger.error(f"Error in get_future_price_data for {symbol}: {e}")
+            return {
+                "symbol": symbol,
+                "spot": 0,
+                "future_price": 0,
+                "basis": 0,
+                "basis_percent": 0,
+                "days_to_expiry": 0,
+                "future_oi": 0,
+                "error": f"Failed to fetch future price data: {str(e)}"
+            }
     
     def _calculate_days_to_expiry(self, expiry_timestamp: int) -> float:
         """Calculate days to expiry from timestamp"""

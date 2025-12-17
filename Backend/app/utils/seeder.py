@@ -155,6 +155,33 @@ DEFAULT_CONFIGS: List[Dict[str, Any]] = [
         "is_sensitive": False,
         "value_type": "number",
     },
+    {
+        "key": "WS_CHARTS_BROADCAST_INTERVAL",
+        "value": str(getattr(settings, 'WS_CHARTS_BROADCAST_INTERVAL', 0.25)),
+        "category": ConfigCategory.CACHE,
+        "description": "Charts WebSocket broadcast interval in seconds (0.25 = 4 updates/sec)",
+        "display_name": "Charts WS Interval (sec)",
+        "is_sensitive": False,
+        "value_type": "number",
+    },
+    {
+        "key": "POLLING_FALLBACK_INTERVAL",
+        "value": "3000",
+        "category": ConfigCategory.CACHE,
+        "description": "REST polling fallback interval in milliseconds when WebSocket unavailable",
+        "display_name": "Polling Fallback (ms)",
+        "is_sensitive": False,
+        "value_type": "number",
+    },
+    {
+        "key": "UI_UPDATE_THROTTLE",
+        "value": "100",
+        "category": ConfigCategory.UI,
+        "description": "Frontend UI update throttle in milliseconds (prevents flickering)",
+        "display_name": "UI Update Throttle (ms)",
+        "is_sensitive": False,
+        "value_type": "number",
+    },
     
     # Rate Limiting
     {

@@ -163,7 +163,7 @@ class DhanClient:
             endpoint: API endpoint
             payload: Request payload
             use_cache: Whether to use cache
-            cache_ttl: Cache TTL in seconds
+            cache_ttl: Cache TTL in seconds (0 or None = no caching for real-time)
             
         Returns:
             API response data
@@ -171,15 +171,20 @@ class DhanClient:
         url = f"{self.base_url}{endpoint}"
         cache_key = None
         
-        # Check cache if enabled
-        if use_cache and self.cache:
+        # Determine effective TTL - use provided or default from settings
+        effective_ttl = cache_ttl if cache_ttl is not None else settings.REDIS_OPTIONS_CACHE_TTL
+        
+        # Only use cache if enabled AND TTL > 0 (TTL=0 means real-time, no caching)
+        should_cache = use_cache and self.cache and effective_ttl > 0
+        
+        # Check cache if caching is enabled
+        if should_cache:
             cache_key = f"dhan:{endpoint}:{hash(str(payload))}"
             cached = await self.cache.get_json(cache_key)
             if cached:
                 logger.debug(f"Cache hit for {endpoint}")
                 return cached
         
-        # Make request with retries
         # Make request with retries
         last_error = None
         
@@ -192,10 +197,9 @@ class DhanClient:
                 response.raise_for_status()
                 data = response.json()
                 
-                # Cache successful response
-                if use_cache and self.cache and cache_key:
-                    ttl = cache_ttl or settings.REDIS_OPTIONS_CACHE_TTL
-                    await self.cache.set_json(cache_key, data, ttl)
+                # Cache successful response only if TTL > 0
+                if should_cache and cache_key:
+                    await self.cache.set_json(cache_key, data, effective_ttl)
                 
                 return data
                 

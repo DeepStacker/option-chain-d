@@ -22,11 +22,13 @@ const OptionChain = () => {
   const navigate = useNavigate();
   const [showChart, setShowChart] = useState(false);
   const _theme = useSelector((state) => state.theme.theme);
-  
+
   // Get spot/futures data for SpotBar when in chart mode
   const { spotData, futuresData, data: fullData } = useOptionsChain();
   const pcr = fullData?.pcr;
   const maxPain = fullData?.max_pain_strike;
+  const atmiv = fullData?.atmiv;
+  const atmivChange = fullData?.atmiv_change;
 
   if (!isAuthenticated) {
     return (
@@ -48,12 +50,12 @@ const OptionChain = () => {
       <ColumnConfigProvider>
         <TableSettingsProvider>
           <div className="w-full px-2 py-2 space-y-2">
-            
+
             {/* Premium Control Bar */}
             <div className="flex flex-wrap items-center gap-2 p-2 glass rounded-xl">
-              <OptionControls 
-                showChart={showChart} 
-                onToggleChart={() => setShowChart(!showChart)} 
+              <OptionControls
+                showChart={showChart}
+                onToggleChart={() => setShowChart(!showChart)}
               />
               {/* SpotBar always visible for price context */}
               <SpotBar
@@ -61,6 +63,9 @@ const OptionChain = () => {
                 futuresData={futuresData}
                 pcr={pcr}
                 maxPain={maxPain}
+                meta={fullData?.meta}
+                atmiv={atmiv}
+                atmivChange={atmivChange}
               />
               <div className="flex-1" />
               {!showChart && <SettingsButton />}

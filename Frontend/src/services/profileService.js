@@ -39,10 +39,10 @@ export const profileService = {
 
     /**
      * Get user's trading stats
-     * @returns {Promise<{success: boolean, data: Object}>}
+     * @returns {Promise<{success: boolean, stats: Object}>}
      */
-    getMyTradingStats: async () => {
-        const response = await apiClient.get('/profile/stats');
+    getStats: async () => {
+        const response = await apiClient.get('/profile/me/stats');
         return response.data;
     },
 };

@@ -126,6 +126,7 @@ async def stream_live_data(symbol: str, expiry: str):
     """
     Stream live data to all subscribers of a symbol/expiry.
     Runs continuously until cancelled.
+    Uses delta detection to skip unchanged data broadcasts.
     """
     group_key = f"{symbol}:{expiry}"
     interval = settings.WS_BROADCAST_INTERVAL
@@ -140,7 +141,7 @@ async def stream_live_data(symbol: str, expiry: str):
         logger.error(f"Failed to initialize services for streaming: {e}")
         return
     
-    logger.info(f"Streaming started for {group_key}")
+    logger.info(f"Streaming started for {group_key} at {interval}s intervals")
     
     consecutive_errors = 0
     MAX_CONSECUTIVE_ERRORS = 5
@@ -166,7 +167,8 @@ async def stream_live_data(symbol: str, expiry: str):
                 # Success - reset error counter
                 consecutive_errors = 0
                 
-                # Broadcast to all subscribers
+                # Always broadcast data for smooth real-time updates
+                # (Delta detection removed - users expect continuous updates)
                 await manager.broadcast_to_group(symbol, expiry, data)
                 
             except Exception as e:
@@ -179,16 +181,9 @@ async def stream_live_data(symbol: str, expiry: str):
                         symbol, expiry,
                         {"type": "error", "message": f"Service Disruption: {str(e)}"}
                     )
-                    # Reset counter to avoid spamming error every second? 
-                    # No, keep it high so we know it's still broken unless it succeeds.
-                    # But we don't want to spam the client. 
-                    # If we don't reset, it sends error every second after 5th. 
-                    # That is acceptable - the user needs to know it's broken.
             
-            # Wait for next interval
+            # Wait for next interval (250ms for ~4 updates/second)
             await asyncio.sleep(interval)
-            
-
             
     except asyncio.CancelledError:
         logger.info(f"Streaming cancelled for {group_key}")

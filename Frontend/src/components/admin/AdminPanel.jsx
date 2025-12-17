@@ -112,14 +112,38 @@ const SystemHealthTab = () => {
 const ConfigManagerTab = () => {
     const [configs, setConfigs] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [editingKey, setEditingKey] = useState(null);
+    const [selectedCategory, setSelectedCategory] = useState('all');
+    const [editingConfig, setEditingConfig] = useState(null);
     const [editValue, setEditValue] = useState('');
+    const [showCreateModal, setShowCreateModal] = useState(false);
+    const [newConfig, setNewConfig] = useState({
+        key: '',
+        value: '',
+        category: 'system',
+        description: '',
+        display_name: '',
+        value_type: 'string',
+        is_sensitive: false,
+    });
+    const [saving, setSaving] = useState(false);
     const theme = useSelector((state) => state.theme.theme);
+
+    const CATEGORIES = [
+        { id: 'all', name: 'All' },
+        { id: 'api', name: 'API' },
+        { id: 'cache', name: 'Cache' },
+        { id: 'system', name: 'System' },
+        { id: 'ui', name: 'UI' },
+        { id: 'features', name: 'Features' },
+        { id: 'trading', name: 'Trading' },
+        { id: 'security', name: 'Security' },
+    ];
 
     const fetchConfigs = async () => {
         setLoading(true);
         try {
-            const data = await adminService.listConfigs();
+            const category = selectedCategory === 'all' ? null : selectedCategory;
+            const data = await adminService.listConfigs(category);
             setConfigs(data.data || []);
         } catch (err) {
             console.error('Failed to fetch configs:', err);
@@ -130,89 +154,315 @@ const ConfigManagerTab = () => {
 
     useEffect(() => {
         fetchConfigs();
-    }, []);
+    }, [selectedCategory]);
 
-    const handleSave = async (key) => {
+    const handleSave = async () => {
+        if (!editingConfig) return;
+        setSaving(true);
         try {
-            await adminService.updateConfig(key, { value: editValue });
-            setEditingKey(null);
+            await adminService.updateConfig(editingConfig.key, { value: editValue });
+            setEditingConfig(null);
             fetchConfigs();
         } catch (err) {
             console.error('Failed to update config:', err);
+        } finally {
+            setSaving(false);
         }
     };
 
-    if (loading) {
+    const handleCreate = async () => {
+        if (!newConfig.key || !newConfig.value) return;
+        setSaving(true);
+        try {
+            await adminService.createConfig(newConfig);
+            setShowCreateModal(false);
+            setNewConfig({
+                key: '',
+                value: '',
+                category: 'system',
+                description: '',
+                display_name: '',
+                value_type: 'string',
+                is_sensitive: false,
+            });
+            fetchConfigs();
+        } catch (err) {
+            console.error('Failed to create config:', err);
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleDelete = async (key) => {
+        if (!confirm(`Delete config "${key}"?`)) return;
+        try {
+            await adminService.deleteConfig(key);
+            fetchConfigs();
+        } catch (err) {
+            console.error('Failed to delete config:', err);
+        }
+    };
+
+    const renderValueInput = (config, value, onChange) => {
+        const inputClass = `w-full px-3 py-2 rounded-lg ${theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'} border focus:ring-2 focus:ring-blue-500`;
+
+        if (config.value_type === 'boolean') {
+            return (
+                <label className="flex items-center space-x-3 cursor-pointer">
+                    <input
+                        type="checkbox"
+                        checked={value === 'true'}
+                        onChange={(e) => onChange(e.target.checked ? 'true' : 'false')}
+                        className="w-5 h-5 rounded text-blue-500"
+                    />
+                    <span>{value === 'true' ? 'Enabled' : 'Disabled'}</span>
+                </label>
+            );
+        }
+
+        if (config.value_type === 'number') {
+            return (
+                <input
+                    type="number"
+                    value={value}
+                    onChange={(e) => onChange(e.target.value)}
+                    step={value.includes('.') ? '0.01' : '1'}
+                    className={inputClass}
+                />
+            );
+        }
+
         return (
-            <div className="flex items-center justify-center h-64">
-                <ArrowPathIcon className="w-8 h-8 animate-spin text-blue-500" />
-            </div>
+            <input
+                type={config.is_sensitive ? 'password' : 'text'}
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+                className={inputClass}
+            />
         );
-    }
+    };
+
+    const getCategoryColor = (category) => {
+        const colors = {
+            api: 'bg-blue-500',
+            cache: 'bg-green-500',
+            system: 'bg-purple-500',
+            ui: 'bg-pink-500',
+            features: 'bg-yellow-500',
+            trading: 'bg-orange-500',
+            security: 'bg-red-500',
+        };
+        return colors[category] || 'bg-gray-500';
+    };
 
     return (
         <div className="space-y-4">
-            <h3 className="text-lg font-semibold">System Configurations</h3>
-            <div className="space-y-2">
-                {configs.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500">No configurations found</div>
-                ) : (
-                    configs.map((config) => (
+            {/* Header with Create Button */}
+            <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold">System Configurations</h3>
+                <button
+                    onClick={() => setShowCreateModal(true)}
+                    className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 flex items-center space-x-2"
+                >
+                    <span>+ Add Config</span>
+                </button>
+            </div>
+
+            {/* Category Tabs */}
+            <div className="flex flex-wrap gap-2">
+                {CATEGORIES.map((cat) => (
+                    <button
+                        key={cat.id}
+                        onClick={() => setSelectedCategory(cat.id)}
+                        className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${selectedCategory === cat.id
+                                ? 'bg-blue-500 text-white'
+                                : theme === 'dark'
+                                    ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                            }`}
+                    >
+                        {cat.name}
+                    </button>
+                ))}
+            </div>
+
+            {/* Configs List */}
+            {loading ? (
+                <div className="flex items-center justify-center h-32">
+                    <ArrowPathIcon className="w-8 h-8 animate-spin text-blue-500" />
+                </div>
+            ) : configs.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">No configurations found</div>
+            ) : (
+                <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                    {configs.map((config) => (
                         <div
                             key={config.key}
                             className={`p-4 rounded-lg ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-100'}`}
                         >
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <div className="font-medium">{config.key}</div>
-                                    <div className="text-sm text-gray-500">{config.description || 'No description'}</div>
+                            <div className="flex items-start justify-between gap-4">
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2">
+                                        <span className={`px-2 py-0.5 text-xs text-white rounded ${getCategoryColor(config.category)}`}>
+                                            {config.category}
+                                        </span>
+                                        <span className="font-mono text-sm truncate">{config.key}</span>
+                                    </div>
+                                    <div className="text-sm text-gray-500 mt-1">
+                                        {config.display_name || config.key} • {config.description || 'No description'}
+                                    </div>
                                 </div>
-                                <div className="flex items-center space-x-2">
-                                    {editingKey === config.key ? (
+                                <div className="flex items-center space-x-2 flex-shrink-0">
+                                    {editingConfig?.key === config.key ? (
                                         <>
-                                            <input
-                                                value={editValue}
-                                                onChange={(e) => setEditValue(e.target.value)}
-                                                className={`px-2 py-1 rounded ${theme === 'dark' ? 'bg-gray-600' : 'bg-white'}`}
-                                            />
+                                            <div className="w-40">
+                                                {renderValueInput(editingConfig, editValue, setEditValue)}
+                                            </div>
                                             <button
-                                                onClick={() => handleSave(config.key)}
-                                                className="px-3 py-1 bg-blue-500 text-white rounded"
+                                                onClick={handleSave}
+                                                disabled={saving}
+                                                className="px-3 py-1.5 bg-blue-500 text-white rounded text-sm hover:bg-blue-600 disabled:opacity-50"
                                             >
-                                                Save
+                                                {saving ? '...' : 'Save'}
                                             </button>
                                             <button
-                                                onClick={() => setEditingKey(null)}
-                                                className="px-3 py-1 bg-gray-500 text-white rounded"
+                                                onClick={() => setEditingConfig(null)}
+                                                className="px-3 py-1.5 bg-gray-500 text-white rounded text-sm hover:bg-gray-600"
                                             >
                                                 Cancel
                                             </button>
                                         </>
                                     ) : (
                                         <>
-                                            <code className={`px-2 py-1 rounded ${theme === 'dark' ? 'bg-gray-600' : 'bg-white'}`}>
-                                                {config.value}
+                                            <code className={`px-2 py-1 rounded text-sm ${theme === 'dark' ? 'bg-gray-600' : 'bg-white'}`}>
+                                                {config.is_sensitive ? '••••••••' : config.value}
                                             </code>
                                             <button
                                                 onClick={() => {
-                                                    setEditingKey(config.key);
+                                                    setEditingConfig(config);
                                                     setEditValue(config.value);
                                                 }}
-                                                className="px-3 py-1 bg-blue-500 text-white rounded text-sm"
+                                                className="px-3 py-1.5 bg-blue-500 text-white rounded text-sm hover:bg-blue-600"
                                             >
                                                 Edit
+                                            </button>
+                                            <button
+                                                onClick={() => handleDelete(config.key)}
+                                                className="px-3 py-1.5 bg-red-500 text-white rounded text-sm hover:bg-red-600"
+                                            >
+                                                <TrashIcon className="w-4 h-4" />
                                             </button>
                                         </>
                                     )}
                                 </div>
                             </div>
                         </div>
-                    ))
-                )}
-            </div>
+                    ))}
+                </div>
+            )}
+
+            {/* Create Modal */}
+            {showCreateModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                    <div className={`w-full max-w-md p-6 rounded-xl ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>
+                        <h3 className="text-lg font-semibold mb-4">Create New Configuration</h3>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Key *</label>
+                                <input
+                                    type="text"
+                                    value={newConfig.key}
+                                    onChange={(e) => setNewConfig({ ...newConfig, key: e.target.value.toUpperCase().replace(/\s/g, '_') })}
+                                    placeholder="MY_CONFIG_KEY"
+                                    className={`w-full px-3 py-2 rounded-lg border ${theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'}`}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Value *</label>
+                                <input
+                                    type="text"
+                                    value={newConfig.value}
+                                    onChange={(e) => setNewConfig({ ...newConfig, value: e.target.value })}
+                                    className={`w-full px-3 py-2 rounded-lg border ${theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'}`}
+                                />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Category</label>
+                                    <select
+                                        value={newConfig.category}
+                                        onChange={(e) => setNewConfig({ ...newConfig, category: e.target.value })}
+                                        className={`w-full px-3 py-2 rounded-lg border ${theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'}`}
+                                    >
+                                        {CATEGORIES.filter(c => c.id !== 'all').map((cat) => (
+                                            <option key={cat.id} value={cat.id}>{cat.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Type</label>
+                                    <select
+                                        value={newConfig.value_type}
+                                        onChange={(e) => setNewConfig({ ...newConfig, value_type: e.target.value })}
+                                        className={`w-full px-3 py-2 rounded-lg border ${theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'}`}
+                                    >
+                                        <option value="string">String</option>
+                                        <option value="number">Number</option>
+                                        <option value="boolean">Boolean</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Display Name</label>
+                                <input
+                                    type="text"
+                                    value={newConfig.display_name}
+                                    onChange={(e) => setNewConfig({ ...newConfig, display_name: e.target.value })}
+                                    className={`w-full px-3 py-2 rounded-lg border ${theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'}`}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Description</label>
+                                <textarea
+                                    value={newConfig.description}
+                                    onChange={(e) => setNewConfig({ ...newConfig, description: e.target.value })}
+                                    rows={2}
+                                    className={`w-full px-3 py-2 rounded-lg border ${theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'}`}
+                                />
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <input
+                                    type="checkbox"
+                                    id="is_sensitive"
+                                    checked={newConfig.is_sensitive}
+                                    onChange={(e) => setNewConfig({ ...newConfig, is_sensitive: e.target.checked })}
+                                    className="w-4 h-4"
+                                />
+                                <label htmlFor="is_sensitive" className="text-sm">Sensitive (mask value)</label>
+                            </div>
+                        </div>
+                        <div className="flex justify-end space-x-3 mt-6">
+                            <button
+                                onClick={() => setShowCreateModal(false)}
+                                className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleCreate}
+                                disabled={saving || !newConfig.key || !newConfig.value}
+                                className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50"
+                            >
+                                {saving ? 'Creating...' : 'Create'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
+
 
 const UserManagerTab = () => {
     const [users, setUsers] = useState([]);
@@ -461,8 +711,8 @@ const AdminPanel = () => {
                                     key={tab.id}
                                     onClick={() => setActiveTab(tab.id)}
                                     className={`flex items-center space-x-2 px-4 py-3 border-b-2 transition-colors ${activeTab === tab.id
-                                            ? 'border-blue-500 text-blue-500'
-                                            : `border-transparent ${theme === 'dark' ? 'text-gray-400 hover:text-gray-200' : 'text-gray-600 hover:text-gray-900'}`
+                                        ? 'border-blue-500 text-blue-500'
+                                        : `border-transparent ${theme === 'dark' ? 'text-gray-400 hover:text-gray-200' : 'text-gray-600 hover:text-gray-900'}`
                                         }`}
                                 >
                                     <Icon className="w-5 h-5" />
